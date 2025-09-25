@@ -22,11 +22,10 @@ class UserProvider extends ChangeNotifier {
   String? get token => _token;
   bool get isLoggedIn => currentUser != null && _token != null;
 
+  /// Initialize socket with callback for real-time coin updates
   void initSocket(String userId) {
     socketService = SocketService();
-    socketService.initSocket(currentUser!.id);
-
-    socketService.listenToCoins((newCoins) {
+    socketService.initSocket(userId, (newCoins) {
       updateCoins(newCoins); // automatically update coins
     });
   }

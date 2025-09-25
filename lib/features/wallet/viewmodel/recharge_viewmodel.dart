@@ -1,177 +1,130 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+
 import '../../../core/services/api/recharge_service.dart';
-import '../../../core/services/api/topUp_service.dart';
 import '../../../core/utils/user_provider.dart';
 import '../model/recharge.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class RechargeViewModel extends ChangeNotifier {
-  final RechargeService _service = RechargeService();
   final UserProvider userProvider;
-  late final TopUpService _topUpService;
-  late final IO.Socket _socket;
+  final RechargeService rechargeService;
 
-  RechargeViewModel({required this.userProvider}) {
-    _topUpService = TopUpService(baseUrl: dotenv.env['BASE_URL']!);
-    _initSocket();
-  }
+  RechargeViewModel({
+    required this.userProvider,
+    required this.rechargeService,
+  });
 
-  final List<RechargePackage> _basePackages = [
-    RechargePackage(coins: 7000, bonus: 350, price: 58.00),
-    RechargePackage(coins: 70000, bonus: 4200, price: 574.20),
-    RechargePackage(coins: 350000, bonus: 26250, price: 2900.00),
-    RechargePackage(coins: 560000, bonus: 44800, price: 4639.42),
-    RechargePackage(coins: 700000, bonus: 56000, price: 5850.00),
-  ];
+  List<RechargePackage> packages = [];
+  RechargePackage? selectedPackage;
+  bool isLoading = false;
+  bool isPaymentProcessing = false;
 
-  int? _selectedIndex;
-  int? get selectedIndex => _selectedIndex;
+  /// Fetch packages dynamically
+  Future<void> fetchPackages() async {
+    final user = userProvider.currentUser;
+    if (user == null) return;
 
-  RechargePackage? get selectedPackage =>
-      _selectedIndex != null ? packages[_selectedIndex!] : null;
-
-  bool _isLoading = false;
-  bool get isLoading => _isLoading;
-
-  String? _clientSecret;
-  String? get clientSecret => _clientSecret;
-
-  /// Dynamic getter for packages
-  List<RechargePackage> get packages {
-    final isFirstTimeRecharge = userProvider.currentUser?.isFirstTimeRecharge ?? false;
-    if (isFirstTimeRecharge) {
-      return _basePackages
-          .map((pkg) => RechargePackage(
-        coins: pkg.coins,
-        bonus: pkg.bonus * 2,
-        price: pkg.price,
-      ))
-          .toList();
-    }
-    return _basePackages;
-  }
-
-  void selectPackage(int index) {
-    _selectedIndex = index;
-    final selected = selectedPackage;
-    if (selected != null) {
-      print(
-        "✅ Package Selected -> Coins: ${selected.coins}, "
-            "Bonus: ${selected.bonus}, "
-            "Price: ₱${selected.price}",
-      );
-    }
-    notifyListeners();
-  }
-
-
-  /// Start Stripe Payment
-  Future<bool> startPayment(String countryCode) async {
-    if (selectedPackage == null || userProvider.currentUser == null) return false;
-
-    _isLoading = true;
+    print("Fetching packages for user: ${user.id}");
+    isLoading = true;
     notifyListeners();
 
     try {
-      final amount = (selectedPackage!.price * 100).toInt();
-      final response = await _service.createPaymentIntent(
-        amount: amount,
-        countryCode: countryCode,
-        currency: 'PHP',
-        userId: userProvider.currentUser!.id,
-      );
+      final response = await rechargeService.fetchPackages(user.id);
 
-      _clientSecret = response?['clientSecret'];
+      // packages is already List<RechargePackage>
+      packages = response;
 
-      if (_clientSecret != null) {
-        await Stripe.instance.initPaymentSheet(
-          paymentSheetParameters: SetupPaymentSheetParameters(
-            paymentIntentClientSecret: _clientSecret!,
-            merchantDisplayName: 'KittyParty',
-            style: ThemeMode.light,
-          ),
-        );
-
-        // Present sheet and wait for actual result
-        await Stripe.instance.presentPaymentSheet();
-
-        // If it reaches here → payment was successful
-        await performTopUp();
-        return true;
-      }
-    } on StripeException catch (e) {
-      print("Stripe payment canceled/failed: $e");
-      return false;
+      print("Fetched ${packages.length} packages");
+      if (packages.isNotEmpty) selectedPackage ??= packages.first;
+      print("Preselected package: ${selectedPackage?.coins} coins for ${selectedPackage?.price}");
     } catch (e) {
-      print("Payment error: $e");
-      return false;
+      print("Failed to fetch packages: $e");
     } finally {
-      _isLoading = false;
+      isLoading = false;
       notifyListeners();
     }
-    return false;
   }
 
+  /// Select a package
+  void selectPackage(RechargePackage pkg) {
+    selectedPackage = pkg;
+    notifyListeners();
+    print("Selected package: ${pkg.coins} coins for ${pkg.price}");
+  }
 
-  /// Perform top-up and update coins
-  Future<bool> performTopUp() async {
-    if (selectedPackage == null || userProvider.currentUser == null) return false;
+  /// Create a payment intent
+  Future<Map<String, dynamic>> createPaymentIntent({String? method}) async {
+    final user = userProvider.currentUser;
+    if (selectedPackage == null || user == null) {
+      throw Exception("No package selected or user not logged in");
+    }
+
+    isPaymentProcessing = true;
+    notifyListeners();
 
     try {
-      final userId = userProvider.currentUser!.id;
-      final coinsToCredit = selectedPackage!.coins + selectedPackage!.bonus;
-      final amount = selectedPackage!.price;
+      final userId = user.id;
+      final countryCode = user.countryCode.isNotEmpty ? user.countryCode : 'PH';
 
-      final result = await _topUpService.createTopUp(
+      print("Creating payment intent with:");
+      print("userId: $userId");
+      print("amount: ${selectedPackage!.price}");
+      print("countryCode: $countryCode");
+
+      final data = await rechargeService.createPaymentIntent(
         userId: userId,
-        providerId: null,
-        amount: amount,
-        coinsCredited: coinsToCredit.toInt(),
+        amount: selectedPackage!.price,
+        countryCode: countryCode,
+        method: method,
+      );
+      print("Payment intent response: $data");
+      return data;
+    } finally {
+      isPaymentProcessing = false;
+      notifyListeners();
+    }
+  }
+
+  /// Present Stripe Payment Sheet
+  Future<void> presentPaymentSheet({required String clientSecret}) async {
+    try {
+      print("Initializing Stripe Payment Sheet with clientSecret: $clientSecret");
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: clientSecret,
+          merchantDisplayName: 'Kittyparty',
+          style: ThemeMode.light,
+        ),
       );
 
-      if (result != null && result['newBalance'] != null) {
-        userProvider.currentUser!.coins = result['newBalance'];
-        userProvider.currentUser!.isFirstTimeRecharge = false;
-        userProvider.notifyListeners();
-        return true;
-      }
+      print("Presenting Stripe Payment Sheet...");
+      await Stripe.instance.presentPaymentSheet();
+      print("Payment Sheet completed successfully.");
     } catch (e) {
-      print("TopUp failed: $e");
+      print("Stripe Payment Sheet failed: $e");
+      rethrow;
     }
-    return false;
   }
 
-  /// Initialize socket.io connection to listen for live coin updates
-  void _initSocket() {
-    _socket = IO.io(dotenv.env['BASE_URL']!, <String, dynamic>{
-      'transports': ['websocket'],
-      'autoConnect': true,
-    });
+  /// Confirm payment and credit coins
+  Future<void> confirmPayment(String paymentIntentId) async {
+    final user = userProvider.currentUser;
+    if (user == null) return;
 
-    final userId = userProvider.currentUser?.id;
-    if (userId != null) {
-      _socket.onConnect((_) {
-        print('Socket connected');
-        _socket.emit('join', userId);
-      });
+    isPaymentProcessing = true;
+    notifyListeners();
 
-      _socket.on('coin_update', (data) {
-        if (data['coins'] != null) {
-          userProvider.currentUser!.coins = data['coins'];
-          userProvider.notifyListeners();
-        }
-      });
+    try {
+      print("Confirming payment with paymentIntentId: $paymentIntentId");
+      final topUp = await rechargeService.confirmPayment(paymentIntentId: paymentIntentId);
+      userProvider.updateCoins(topUp.coinsFinal);
+      print("Payment confirmed. Coins updated: ${topUp.coinsFinal}");
+    } catch (e) {
+      print("Payment confirmation failed: $e");
+      rethrow;
+    } finally {
+      isPaymentProcessing = false;
+      notifyListeners();
     }
-
-    _socket.onDisconnect((_) => print('Socket disconnected'));
-  }
-
-  @override
-  void dispose() {
-    _socket.dispose();
-    super.dispose();
   }
 }

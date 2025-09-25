@@ -1,56 +1,90 @@
 import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../../../features/wallet/model/recharge.dart';
+import '../../../features/wallet/model/transaction.dart';
 
 class RechargeService {
   final String baseUrl;
 
+  // Use env fallback if no baseUrl provided
   RechargeService({String? baseUrl})
       : baseUrl = baseUrl ?? dotenv.env['BASE_URL']!;
 
-  /// Create Stripe Payment Intent
-  Future<Map<String, dynamic>?> createPaymentIntent({
-    required int amount,
+  // 🔹 Step 1: Create PaymentIntent
+  Future<Map<String, dynamic>> createPaymentIntent({
+    required String userId,
+    required double amount,
     required String countryCode,
-    required String currency,
-    required String userId, // pass the actual logged-in user ID
+    String? method,
   }) async {
-    final url = Uri.parse("$baseUrl/payments/create-payment-intent");
-
+    final url = Uri.parse("$baseUrl/recharge/create-payment-intent");
     final response = await http.post(
       url,
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
+        "userId": userId,
         "amount": amount,
-        "currency": currency,
         "countryCode": countryCode,
-        "userId": userId, // must be logged-in user ID
+        "method": method ?? "card",
       }),
     );
 
-    if (response.statusCode == 200) {
-      final body = jsonDecode(response.body);
-      return {
-        "clientSecret": body["clientSecret"],
-        "paymentId": body["paymentId"],
-      };
-    } else {
-      print("RechargeService Error: ${response.body}");
-      return null;
-    }
+    final data = jsonDecode(response.body);
+    return data;
   }
 
-  /// Get all payments for a user
-  Future<List<dynamic>> getUserPayments(String userId) async {
-    final url = Uri.parse("$baseUrl/payments/user/$userId");
+  // 🔹 Step 2: Confirm Payment & credit coins
+  Future<TransactionModel> confirmPayment({required String paymentIntentId}) async {
+    final url = Uri.parse("$baseUrl/recharge/confirm-payment");
+    final response = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"paymentIntentId": paymentIntentId}),
+    );
 
+    final data = jsonDecode(response.body);
+    if (!data['success']) {
+      throw Exception("Payment not succeeded: ${data['status']}");
+    }
+
+    return TransactionModel.fromJson(data['topUp']);
+  }
+
+  // 🔹 Step 3: Admin - all payments
+  Future<List<TransactionModel>> getAllPayments() async {
+    final url = Uri.parse("$baseUrl/recharge/all-payments");
+    final response = await http.get(url);
+    final List jsonList = jsonDecode(response.body);
+    return jsonList.map((e) => TransactionModel.fromJson(e)).toList();
+  }
+
+  // 🔹 Step 4: Admin - all top-ups
+  Future<List<TransactionModel>> getAllTopUps() async {
+    final url = Uri.parse("$baseUrl/recharge/all-top-ups");
+    final response = await http.get(url);
+    final List jsonList = jsonDecode(response.body);
+    return jsonList.map((e) => TransactionModel.fromJson(e)).toList();
+  }
+
+  // 🔹 Step 5: User history
+  Future<List<TransactionModel>> getUserHistory(String userId) async {
+    final url = Uri.parse("$baseUrl/recharge/user-history/$userId");
+    final response = await http.get(url);
+    final List jsonList = jsonDecode(response.body);
+    return jsonList.map((e) => TransactionModel.fromJson(e)).toList();
+  }
+
+  // 🔹 Step 6: Fetch dynamic packages for user
+  Future<List<RechargePackage>> fetchPackages(String userId) async {
+    final url = Uri.parse("$baseUrl/package/packages?userId=$userId");
     final response = await http.get(url);
 
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      print("RechargeService Error: ${response.body}");
-      return [];
+    if (response.statusCode != 200) {
+      throw Exception("Failed to fetch packages: ${response.body}");
     }
+
+    final List data = jsonDecode(response.body);
+    return data.map((pkg) => RechargePackage.fromJson(pkg)).toList();
   }
 }

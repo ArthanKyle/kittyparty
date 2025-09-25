@@ -21,7 +21,7 @@ class _PageHandlerState extends State<PageHandler> {
   final pages = [
     const LandingPage(),
     const PostPage(),
-    const MessagesPage(),
+    const MessagePage(),
     const ProfilePage(),
   ];
 
@@ -43,7 +43,7 @@ class _PageHandlerState extends State<PageHandler> {
           children: const <Widget>[
             LandingPage(),
             PostPage(),
-            MessagesPage(),
+            MessagePage(),
             ProfilePage(),
           ],
         ),

@@ -130,8 +130,6 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
                         ? () {
                       final updatedCoins =
                           currentCoins - coinsToConvert;
-                      // Diamonds would usually go into walletVM.wallet.diamonds
-                      // Add handling if you store diamonds too.
                       walletVM.updateCoins(updatedCoins);
 
                       ScaffoldMessenger.of(context).showSnackBar(

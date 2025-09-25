@@ -1,4 +1,8 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import '../../../core/global_widgets/gradient_background/gradient_background.dart';
+
+
 
 class PostPage extends StatefulWidget {
   const PostPage({super.key});
@@ -10,6 +14,18 @@ class PostPage extends StatefulWidget {
 class _PostPageState extends State<PostPage> {
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    return GradientBackground(
+      child: SafeArea(
+        child: const Center(
+          child: Text(
+            'Blank Page',
+            style: TextStyle(
+              color: CupertinoColors.white,
+              fontSize: 18,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

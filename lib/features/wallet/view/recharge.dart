@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:kittyparty/core/utils/index_provider.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/global_widgets/buttons/recharge_button.dart';
 import '../../../core/global_widgets/dialogs/dialog_info.dart';
 import '../../../core/global_widgets/dialogs/dialog_loading.dart';
+import '../../../core/services/api/recharge_service.dart';
 import '../../../core/utils/user_provider.dart';
 import '../../auth/widgets/arrow_back.dart';
 import '../viewmodel/recharge_viewmodel.dart';
@@ -17,11 +17,15 @@ class RechargeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final userProvider = context.read<UserProvider>();
+    final rechargeService = RechargeService(); // uses dotenv.env['BASE_URL']
 
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) => RechargeViewModel(userProvider: userProvider),
+          create: (_) => RechargeViewModel(
+            userProvider: userProvider,
+            rechargeService: rechargeService,
+          )..fetchPackages(),
         ),
         ChangeNotifierProvider(
           create: (_) => WalletViewModel(userProvider: userProvider),
@@ -44,14 +48,14 @@ class RechargeScreen extends StatelessWidget {
 
               // My Coins Section
               Consumer<WalletViewModel>(
-                builder: (context, walletVM, _) {
-                  return CoinCard(balance: walletVM.wallet.coins);
-                },
+                builder: (context, walletVM, _) => CoinCard(balance: walletVM.wallet.coins),
               ),
 
               // Packages Grid
               Consumer<RechargeViewModel>(
                 builder: (context, viewModel, _) {
+                  if (viewModel.isLoading) return const Center(child: CircularProgressIndicator());
+
                   return Padding(
                     padding: const EdgeInsets.all(12.0),
                     child: GridView.builder(
@@ -66,10 +70,10 @@ class RechargeScreen extends StatelessWidget {
                       itemCount: viewModel.packages.length,
                       itemBuilder: (context, index) {
                         final pkg = viewModel.packages[index];
-                        final isSelected = viewModel.selectedIndex == index;
+                        final isSelected = viewModel.selectedPackage == pkg;
 
                         return GestureDetector(
-                          onTap: () => viewModel.selectPackage(index),
+                          onTap: () => viewModel.selectPackage(pkg),
                           child: Container(
                             decoration: BoxDecoration(
                               color: isSelected ? Colors.blue.shade50 : Colors.white,
@@ -98,31 +102,32 @@ class RechargeScreen extends StatelessWidget {
                                       width: 64,
                                       fit: BoxFit.contain,
                                     ),
-                                    Positioned(
-                                      top: 0,
-                                      right: 0,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: Colors.orange.shade200,
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        child: Text(
-                                          "+ ${pkg.bonus}",
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.orange.shade800,
+                                    if (pkg.bonus > 0)
+                                      Positioned(
+                                        top: 0,
+                                        right: 0,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.orange.shade200,
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            "+ ${pkg.bonus}",
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.orange.shade800,
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
                                   ],
                                 ),
                                 const SizedBox(height: 5),
                                 Text("${pkg.coins} coins",
                                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                                 const SizedBox(height: 5),
-                                Text("₱${pkg.price.toStringAsFixed(2)}",
+                                Text("${pkg.symbol}${pkg.price.toStringAsFixed(2)}",
                                     style: const TextStyle(
                                         fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
                               ],
@@ -163,30 +168,41 @@ class RechargeScreen extends StatelessWidget {
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8),
                     child: RechargeButton(
-                      enabled: viewModel.selectedPackage != null,
-                      onPressed: () async {
-                        if (viewModel.selectedPackage == null) return;
+                      enabled: viewModel.selectedPackage != null && !viewModel.isPaymentProcessing,
+                        onPressed: () async {
+                          if (viewModel.selectedPackage == null) return;
 
-                        // Show loading dialog
-                        DialogLoading(subtext: "Processing...").build(context);
+                          DialogLoading(subtext: "Processing...").build(context); // no await
 
-                        await viewModel.startPayment("PH");
+                          try {
+                            final data = await viewModel.createPaymentIntent(method: "card");
+                            final clientSecret = data['clientSecret'];
+                            final transactionId = data['transactionId'];
 
-                        // Close loading dialog
-                        Navigator.of(context, rootNavigator: true).pop();
+                            if (clientSecret != null) {
+                              await viewModel.presentPaymentSheet(clientSecret: clientSecret);
+                              await viewModel.confirmPayment(transactionId);
+                            }
 
-                        // Success/Fail dialog
-                        final success = viewModel.clientSecret != null;
-                        DialogInfo(
-                          headerText: success ? "Top Up Successful" : "Top Up Failed",
-                          subText: success
-                              ? "Your coins have been updated to ${viewModel.userProvider.currentUser?.coins}."
-                              : "Payment was not completed.",
-                          confirmText: "OK",
-                          onConfirm: () => changePage(index: 4, context: context),
-                          onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
-                        ).build(context);
-                      },
+                            DialogInfo(
+                              headerText: "Top Up Successful",
+                              subText: "Your coins have been updated to ${viewModel.userProvider.currentUser?.coins}.",
+                              confirmText: "OK",
+                              onConfirm: () => Navigator.pop(context),
+                              onCancel: () => Navigator.pop(context),
+                            ).build(context);
+                          } catch (e) {
+                            DialogInfo(
+                              headerText: "Top Up Failed",
+                              subText: e.toString(),
+                              confirmText: "OK",
+                              onConfirm: () => Navigator.pop(context),
+                              onCancel: () => Navigator.pop(context),
+                            ).build(context);
+                          } finally {
+                            if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+                          }
+                        },
                     ),
                   );
                 },

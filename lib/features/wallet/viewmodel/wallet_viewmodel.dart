@@ -7,12 +7,27 @@ class WalletViewModel extends ChangeNotifier {
   Wallet wallet;
 
   WalletViewModel({required this.userProvider})
-      : wallet = Wallet(coins: userProvider.currentUser?.coins ?? 0) {
-    // Listen to UserProvider for real-time coin updates
+      : wallet = Wallet(coins: 0) {
+    // Set initial coins if user is already loaded
+    if (userProvider.currentUser != null) {
+      wallet.coins = userProvider.currentUser!.coins;
+    }
+
+    // Listen to user stream for real-time updates
     userProvider.userStream.listen((user) {
       wallet.coins = user.coins;
       notifyListeners();
     });
+
+    // If currentUser is loaded later, listen once
+    if (userProvider.currentUser == null) {
+      userProvider.addListener(() {
+        if (userProvider.currentUser != null) {
+          wallet.coins = userProvider.currentUser!.coins;
+          notifyListeners();
+        }
+      });
+    }
   }
 
   void updateCoins(int newCoins) {

@@ -34,7 +34,7 @@ class MyApp extends StatelessWidget {
         AppRoutes.landing: (_) => const LandingPage(),
         AppRoutes.auth: (_) => const AuthCheck(),
         AppRoutes.login: (_) => const Login(),
-        AppRoutes.message: (_) => const MessagesPage(),
+        AppRoutes.message: (_) => const MessagePage(),
         AppRoutes.posts: (_) => const PostPage(),
         AppRoutes.profile: (_) => const ProfilePage(),
         AppRoutes.wallet: (_) => const WalletPage(),
