@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/colors.dart';
@@ -17,7 +19,7 @@ class RechargeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final userProvider = context.read<UserProvider>();
-    final rechargeService = RechargeService(); // uses dotenv.env['BASE_URL']
+    final rechargeService = RechargeService();
 
     return MultiProvider(
       providers: [
@@ -124,18 +126,27 @@ class RechargeScreen extends StatelessWidget {
                                   ],
                                 ),
                                 const SizedBox(height: 5),
-                                Text("${pkg.coins} coins",
-                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                                Text(
+                                  "${pkg.coins} coins",
+                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                                ),
                                 const SizedBox(height: 5),
-                                Text("${pkg.symbol}${pkg.price.toStringAsFixed(2)}",
-                                    style: const TextStyle(
-                                        fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
+                                // ✅ Fixed: Use pkg.price, pkg.symbol instead of global displayAmount
+                                Text(
+                                  "${pkg.symbol}${pkg.price.toStringAsFixed(2)} ${viewModel.displayCurrency}",
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
                         );
                       },
-                    ),
+                    )
+
                   );
                 },
               ),
@@ -169,44 +180,70 @@ class RechargeScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8),
                     child: RechargeButton(
                       enabled: viewModel.selectedPackage != null && !viewModel.isPaymentProcessing,
-                        onPressed: () async {
-                          if (viewModel.selectedPackage == null) return;
+                      onPressed: () async {
+                        final pkg = viewModel.selectedPackage;
+                        if (pkg == null) return;
 
-                          DialogLoading(subtext: "Processing...").build(context); // no await
+                        print("Recharge button pressed for package: ${pkg.coins} coins");
 
-                          try {
-                            final data = await viewModel.createPaymentIntent(method: "card");
-                            final clientSecret = data['clientSecret'];
-                            final transactionId = data['transactionId'];
+                        final loadingDialog = DialogLoading(subtext: "Processing...");
+                        unawaited(loadingDialog.build(context));
+                        print("Loading dialog shown");
 
-                            if (clientSecret != null) {
-                              await viewModel.presentPaymentSheet(clientSecret: clientSecret);
-                              await viewModel.confirmPayment(transactionId);
-                            }
+                        try {
+                          print("Creating payment intent...");
+                          final transaction = await viewModel.createPaymentIntent(method: "card");
 
-                            DialogInfo(
-                              headerText: "Top Up Successful",
-                              subText: "Your coins have been updated to ${viewModel.userProvider.currentUser?.coins}.",
-                              confirmText: "OK",
-                              onConfirm: () => Navigator.pop(context),
-                              onCancel: () => Navigator.pop(context),
-                            ).build(context);
-                          } catch (e) {
-                            DialogInfo(
-                              headerText: "Top Up Failed",
-                              subText: e.toString(),
-                              confirmText: "OK",
-                              onConfirm: () => Navigator.pop(context),
-                              onCancel: () => Navigator.pop(context),
-                            ).build(context);
-                          } finally {
-                            if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+                          final clientSecret = transaction?.clientSecret;
+                          final transactionId = transaction?.id;
+
+                          print("Payment intent created: clientSecret=$clientSecret, id=$transactionId");
+
+                          if (clientSecret == null || transactionId == null || transactionId.isEmpty) {
+                            throw Exception("Payment data is missing");
                           }
-                        },
+
+                          print("Presenting Stripe Payment Sheet...");
+                          await viewModel.presentPaymentSheet(clientSecret: clientSecret);
+                          print("Stripe Payment Sheet presented");
+
+                          print("Confirming payment with transactionId=$transactionId...");
+                          await viewModel.confirmPayment(transactionId);
+                          print("Payment confirmed, coins updated: ${viewModel.userProvider.currentUser?.coins}");
+
+                          if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+                          print("Loading dialog closed");
+
+                          DialogInfo(
+                            headerText: "Top Up Successful",
+                            subText: "Your coins have been updated to ${viewModel.userProvider.currentUser?.coins}.",
+                            confirmText: "OK",
+                            onConfirm: () => Navigator.pop(context),
+                            onCancel: () => Navigator.pop(context),
+                          ).build(context);
+                          print("Success dialog shown");
+
+                        } catch (e, stack) {
+                          print("Recharge failed: $e\n$stack");
+
+                          if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+                          print("Loading dialog closed due to error");
+
+                          DialogInfo(
+                            headerText: "Top Up Failed",
+                            subText: "The payment flow has been canceled",
+                            confirmText: "OK",
+                            onConfirm: () => Navigator.pop(context),
+                            onCancel: () => Navigator.pop(context),
+                          ).build(context);
+                          print("Error dialog shown: $e");
+                        }
+                      },
                     ),
                   );
                 },
-              ),
+              )
+
             ],
           ),
         ),

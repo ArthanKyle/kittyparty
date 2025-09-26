@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import '../../../core/global_widgets/dialogs/dialog_info.dart';
+import '../../../core/global_widgets/dialogs/dialog_loading.dart';
 import '../../../core/services/api/auth_service.dart';
 import '../../../core/utils/validators.dart';
+import 'login_viewmodel.dart';
 
 class RegisterViewModel extends ChangeNotifier {
   final AuthService _authService = AuthService();
@@ -96,6 +99,88 @@ class RegisterViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<void> handleRegister(BuildContext context) async {
+    // Check gender
+    if (selectedGender.isEmpty) {
+      DialogInfo(
+        headerText: "Missing Info",
+        subText: "Please select your gender.",
+        confirmText: "OK",
+        onConfirm: () => Navigator.of(context, rootNavigator: true).pop(),
+        onCancel: () =>  Navigator.of(context, rootNavigator: true).pop(),
+      ).build(context);
+      return;
+    }
+
+    // Check country
+    if (selectedCountry == null) {
+      DialogInfo(
+        headerText: "Missing Info",
+        subText: "Please select your country.",
+        confirmText: "OK",
+        onConfirm: () => Navigator.of(context, rootNavigator: true).pop(),
+        onCancel: () =>  Navigator.of(context, rootNavigator: true).pop(),
+      ).build(context);
+      return;
+    }
+
+    // Validate form
+    if (!(formKey.currentState?.validate() ?? false)) {
+      formKey.currentState?.validate(); // show errors
+      return;
+    }
+
+    // Show loading
+    DialogLoading(subtext: "Creating...").build(context);
+
+    final response = await register();
+
+    Navigator.of(context, rootNavigator: true).pop(); // close loading
+
+    if (response['error'] != null) {
+      DialogInfo(
+        headerText: "Error",
+        subText: response['error'],
+        confirmText: "Try again",
+        onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
+        onConfirm: () => Navigator.of(context, rootNavigator: true).pop(),
+      ).build(context);
+    } else {
+      DialogInfo(
+        headerText: "Success",
+        subText: "You have created an account! Logging in...",
+        confirmText: "OK",
+        onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
+        onConfirm: () async {
+          Navigator.of(context, rootNavigator: true).pop();
+
+          final loginVM = LoginViewModel();
+          loginVM.emailController.text = emailController.text.trim();
+          loginVM.passwordController.text = passwordController.text.trim();
+
+          await loginVM.login(context);
+
+          if (loginVM.loginSuccess) {
+            Navigator.pushNamedAndRemoveUntil(context, "/", (route) => false);
+          } else {
+            DialogInfo(
+              headerText: "Login Failed",
+              subText: loginVM.errorMessage ?? "Something went wrong.",
+              confirmText: "OK",
+              onConfirm: () =>
+                  Navigator.of(context, rootNavigator: true).pop(),
+              onCancel: () =>
+                  Navigator.of(context, rootNavigator: true).pop(),
+            ).build(context);
+
+            Navigator.pushNamed(context, "/login");
+          }
+        },
+      ).build(context);
+    }
+  }
+
 
   @override
   void dispose() {

@@ -115,7 +115,10 @@ class RegisterPage extends StatelessWidget {
                             BasicTextField(
                               labelText: 'Invitational Code',
                               controller: vm.inviteController,
-                              validator: Validators.inviteCodeValidator,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) return null;
+                                return Validators.inviteCodeValidator(value);
+                              },
                               hintText: "Please enter invitation code (Optional)",
                             ),
 
@@ -126,58 +129,8 @@ class RegisterPage extends StatelessWidget {
 
                             GradientButton(
                               text: "Register account",
-                              onPressed: () async {
-                                DialogLoading(subtext: "Creating...").build(context);
-
-                                final response = await vm.register();
-
-                                Navigator.of(context, rootNavigator: true).pop(); // close loading
-
-                                if (response['error'] != null) {
-                                  DialogInfo(
-                                    headerText: "Error",
-                                    subText: response['error'],
-                                    confirmText: "Try again",
-                                    onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
-                                    onConfirm: () => Navigator.of(context, rootNavigator: true).pop(),
-                                  ).build(context);
-                                } else {
-                                  DialogInfo(
-                                    headerText: "Success",
-                                    subText: "You have created an account! Logging in...",
-                                    confirmText: "OK",
-                                    onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
-                                    onConfirm: () async {
-                                      Navigator.of(context, rootNavigator: true).pop();
-
-                                      // Use LoginViewModel for login
-                                      final loginVM = LoginViewModel();
-                                      loginVM.emailController.text = vm.emailController.text.trim();
-                                      loginVM.passwordController.text = vm.passwordController.text.trim();
-
-                                      await loginVM.login(context);
-
-                                      if (loginVM.loginSuccess) {
-                                        Navigator.pushNamedAndRemoveUntil(context, "/", (route) => false);
-                                      } else {
-                                        DialogInfo(
-                                          headerText: "Login Failed",
-                                          subText: loginVM.errorMessage ?? "Something went wrong.",
-                                          confirmText: "OK",
-                                          onConfirm: () =>
-                                              Navigator.of(context, rootNavigator: true).pop(),
-                                          onCancel: () =>
-                                              Navigator.of(context, rootNavigator: true).pop(),
-                                        ).build(context);
-
-                                        Navigator.pushNamed(context, "/login");
-                                      }
-                                    },
-
-                                  ).build(context);
-                                }
-                              },
-                            )
+                              onPressed: () => vm.handleRegister(context),
+                            ),
                           ],
                         ),
                       ),
