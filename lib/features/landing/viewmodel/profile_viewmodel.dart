@@ -16,6 +16,18 @@ class ProfileViewModel extends ChangeNotifier {
   bool isLoading = true;
   String? error;
 
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void safeNotify() {
+    if (!_disposed) notifyListeners();
+  }
+
   Future<void> loadProfile(BuildContext context) async {
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -23,14 +35,15 @@ class ProfileViewModel extends ChangeNotifier {
       if (currentUser == null || currentUser.id.isEmpty) {
         error = "No logged in user";
         isLoading = false;
-        notifyListeners();
+        safeNotify();
         return;
       }
 
       final result = await _service.getProfileByUserId(currentUser.id);
+      if (_disposed) return; // prevent work after dispose
+
       if (result != null) {
         userProfile = result;
-
         if (userProfile!.profilePicture != null && userProfile!.profilePicture!.isNotEmpty) {
           profilePictureBytes = await _service.fetchProfilePicture(currentUser.id);
         }
@@ -41,7 +54,7 @@ class ProfileViewModel extends ChangeNotifier {
       error = "Failed to load profile: $e";
     } finally {
       isLoading = false;
-      notifyListeners();
+      safeNotify();
     }
   }
 
@@ -55,10 +68,12 @@ class ProfileViewModel extends ChangeNotifier {
     try {
       Navigator.of(context, rootNavigator: true).pop();
       final updated = await _service.uploadProfilePicture(currentUser.id, imageFile);
+      if (_disposed) return;
+
       if (updated != null) {
         userProfile = updated;
         profilePictureBytes = await _service.fetchProfilePicture(currentUser.id);
-        notifyListeners();
+        safeNotify();
       }
     } catch (e) {
       debugPrint("❌ Failed to update picture: $e");
