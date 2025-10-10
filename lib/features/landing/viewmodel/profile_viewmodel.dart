@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/global_widgets/dialogs/dialog_info.dart';
 import '../../../core/global_widgets/dialogs/dialog_loading.dart';
 import '../../../core/utils/user_provider.dart';
 import '../model/userProfile.dart';
@@ -29,26 +28,44 @@ class ProfileViewModel extends ChangeNotifier {
   }
 
   Future<void> loadProfile(BuildContext context) async {
+    isLoading = true;
+    safeNotify();
+
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       final currentUser = userProvider.currentUser;
-      if (currentUser == null || currentUser.id.isEmpty) {
+
+      if (currentUser == null || currentUser.userIdentification.isEmpty) {
         error = "No logged in user";
         isLoading = false;
         safeNotify();
         return;
       }
 
-      final result = await _service.getProfileByUserId(currentUser.id);
-      if (_disposed) return; // prevent work after dispose
+      // Fetch profile using numeric userIdentification
+      final result = await _service.getProfileByUserId(currentUser.userIdentification);
+
+      if (_disposed) return;
 
       if (result != null) {
         userProfile = result;
+
+        // Ensure userIdentification is always set
+        if (userProfile!.userIdentification.isEmpty) {
+          userProfile!.userIdentification = currentUser.userIdentification;
+        }
+
+        // Fetch profile picture if exists
         if (userProfile!.profilePicture != null && userProfile!.profilePicture!.isNotEmpty) {
-          profilePictureBytes = await _service.fetchProfilePicture(currentUser.id);
+          profilePictureBytes = await _service.fetchProfilePicture(currentUser.userIdentification);
         }
       } else {
-        userProfile = UserProfile(userId: currentUser.id, bio: "", profilePicture: null);
+        // Create default profile
+        userProfile = UserProfile(
+          userIdentification: currentUser.userIdentification,
+          bio: "",
+          profilePicture: null,
+        );
       }
     } catch (e) {
       error = "Failed to load profile: $e";
@@ -67,12 +84,18 @@ class ProfileViewModel extends ChangeNotifier {
 
     try {
       Navigator.of(context, rootNavigator: true).pop();
-      final updated = await _service.uploadProfilePicture(currentUser.id, imageFile);
+      final updated = await _service.uploadProfilePicture(currentUser.userIdentification, imageFile);
       if (_disposed) return;
 
       if (updated != null) {
         userProfile = updated;
-        profilePictureBytes = await _service.fetchProfilePicture(currentUser.id);
+        profilePictureBytes = await _service.fetchProfilePicture(currentUser.userIdentification);
+
+        // Ensure userIdentification remains set
+        if (userProfile!.userIdentification.isEmpty) {
+          userProfile!.userIdentification = currentUser.userIdentification;
+        }
+
         safeNotify();
       }
     } catch (e) {

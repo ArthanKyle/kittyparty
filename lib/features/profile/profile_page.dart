@@ -7,7 +7,6 @@ import '../../core/utils/user_provider.dart';
 import '../landing/landing_widgets/profile_widgets/profile_cards.dart';
 import '../landing/landing_widgets/profile_widgets/profile_gradient_background.dart';
 import '../landing/landing_widgets/profile_widgets/profile_menu.dart';
-import '../landing/landing_widgets/profile_widgets/stat_items.dart';
 import '../landing/viewmodel/profile_viewmodel.dart';
 
 class ProfilePage extends StatelessWidget {
@@ -32,11 +31,15 @@ class ProfilePage extends StatelessWidget {
           child: Consumer<ProfileViewModel>(
             builder: (context, vm, _) {
               final profile = vm.userProfile;
+
+              // Display numeric userIdentification as fallback if username is empty
               final displayName = user.username.isNotEmpty
                   ? user.username
-                  : (profile?.userId ?? "N/A");
-              final userId =
-              user.userIdentification.isNotEmpty ? user.userIdentification : (profile?.userId ?? "N/A");
+                  : profile?.userIdentification ?? user.userIdentification;
+
+              final userId = profile?.userIdentification.isNotEmpty ?? false
+                  ? profile!.userIdentification
+                  : user.userIdentification;
 
               return ProfileGradientBackground(
                 child: SafeArea(
@@ -44,7 +47,7 @@ class ProfilePage extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 16),
                     child: Column(
                       children: [
-                        // 👤 Profile Picture
+                        // Profile Picture
                         GestureDetector(
                           onTap: () async {
                             final picker = ImagePicker();
@@ -126,27 +129,6 @@ class ProfilePage extends StatelessWidget {
                             : const SizedBox.shrink(),
 
                         const SizedBox(height: 15),
-
-                        // Stats
-                        vm.isLoading
-                            ? Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: List.generate(
-                            4,
-                                (_) => Container(
-                              width: 50,
-                              height: 14,
-                              color: Colors.white24,
-                            ),
-                          ),
-                        )
-                            : Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: const [
-                          ],
-                        ),
-
-                        const SizedBox(height: 20),
                         const ProfileCards(),
                         const SizedBox(height: 20),
                         ProfileMenu(),

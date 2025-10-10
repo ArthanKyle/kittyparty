@@ -3,6 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../../../core/global_widgets/dialogs/dialog_info.dart';
 import '../../../core/global_widgets/dialogs/dialog_loading.dart';
 import '../../../core/services/api/auth_service.dart';
+import 'dart:io';
 
 class RegisterViewModel extends ChangeNotifier {
   final AuthService _authService = AuthService();
@@ -77,6 +78,7 @@ class RegisterViewModel extends ChangeNotifier {
 
   Future<Map<String, dynamic>> register() async {
     if (!formKey.currentState!.validate()) {
+      print("⚠️ Form validation failed");
       return {"error": "Form is not valid"};
     }
 
@@ -84,20 +86,43 @@ class RegisterViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final bodyData = {
+        "FullName": nameController.text.trim(),
+        "Username": usernameController.text.trim(),
+        "Email": emailController.text.trim(),
+        "PhoneNumber": phoneController.text.trim(),
+        "CountryCode": selectedCountry ?? '',
+        "Gender": selectedGender,
+        "InvitationCode": inviteController.text.trim().isEmpty
+            ? null
+            : inviteController.text.trim(),
+        "isFirstTimeRecharge": isFirstTimeRecharge,
+      };
+
+      print("📤 Registering user with data: $bodyData");
+
       final response = await _authService.register(
         fullName: nameController.text.trim(),
         username: usernameController.text.trim(),
         email: emailController.text.trim(),
         phoneNumber: phoneController.text.trim(),
         countryCode: selectedCountry ?? '',
+        gender: selectedGender,
         invitationCode: inviteController.text.trim().isEmpty
             ? null
             : inviteController.text.trim(),
         isFirstTimeRecharge: isFirstTimeRecharge,
       );
 
+      print("📥 Register response: $response");
+
+      // ✅ Always return the data, even if status code is 201
       return response;
     } catch (e) {
+      // If the exception is HttpException, extract message properly
+      if (e is HttpException) {
+        return {"error": e.message};
+      }
       return {"error": e.toString()};
     } finally {
       isLoading = false;
