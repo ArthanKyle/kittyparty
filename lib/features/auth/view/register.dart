@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/global_widgets/buttons/gradient_button.dart';
-import '../../../core/global_widgets/dialogs/dialog_info.dart';
-import '../../../core/global_widgets/dialogs/dialog_loading.dart';
 import '../../../core/global_widgets/gradient_background/gradient_background.dart';
 import '../../../core/utils/validators.dart';
-import '../viewmodel/login_viewmodel.dart';
 import '../viewmodel/register_viewmodel.dart';
 import '../widgets/arrow_back.dart';
 import '../widgets/country_dropdown.dart';
@@ -14,8 +12,34 @@ import '../widgets/gender_options.dart';
 import '../widgets/password_field.dart';
 import '../widgets/text_field.dart';
 
-class RegisterPage extends StatelessWidget {
+class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
+
+  @override
+  State<RegisterPage> createState() => _RegisterPageState();
+}
+
+class _RegisterPageState extends State<RegisterPage> {
+  bool _prefilled = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (!_prefilled) {
+      final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+
+      if (args != null) {
+        final email = args['email'] as String?;
+        final name = args['name'] as String?;
+
+        final registerVM = Provider.of<RegisterViewModel>(context, listen: false);
+        registerVM.setInitialValues(email: email, fullName: name);
+      }
+
+      _prefilled = true; // ensure we only prefill once
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +99,9 @@ class RegisterPage extends StatelessWidget {
                               controller: vm.nameController,
                               hintText: 'Please enter your Full Name.',
                               validator: (value) => value == null || value.trim().isEmpty ? "Name is required" : null,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(RegExp(r"[a-zA-ZÀ-ÿ\s\-]"))
+                              ],
                             ),
                             BasicTextField(
                               labelText: 'UserName',
@@ -100,18 +127,6 @@ class RegisterPage extends StatelessWidget {
                               validator: Validators.phoneValidator,
                               inputType: TextInputType.phone,
                             ),
-                            PasswordField(
-                              labelText: 'Password',
-                              controller: vm.passwordController,
-                              hintText: 'Password must be at least 8 characters, at least one uppercase, number, and special characters.',
-                              validator: Validators.passwordValidator,
-                            ),
-                            PasswordField(
-                              labelText: 'Confirm Password',
-                              controller: vm.confirmPasswordController,
-                              hintText: 'Password must match.',
-                              validator: (value) => Validators.cfrmPassValidator(value, vm.passwordController, vm.confirmPasswordController),
-                            ),
                             BasicTextField(
                               labelText: 'Invitational Code',
                               controller: vm.inviteController,
@@ -121,7 +136,6 @@ class RegisterPage extends StatelessWidget {
                               },
                               hintText: "Please enter invitation code (Optional)",
                             ),
-
                             CountryDropdown(
                               selectedCountry: vm.selectedCountry,
                               onChanged: vm.setCountry,

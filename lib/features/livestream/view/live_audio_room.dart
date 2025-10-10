@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/services/api/room_service.dart';
 import '../../../core/services/api/userProfile_service.dart';
 import '../../../core/utils/user_provider.dart';
 import '../viewmodel/live_audio_room_viewmodel.dart';
@@ -25,12 +26,15 @@ class LiveAudioRoom extends StatelessWidget {
   Widget build(BuildContext context) {
     // create the profile service
     final profileService = UserProfileService();
+    final roomService = RoomService(); // ✅ new instance
+
 
     return ChangeNotifierProvider(
       create: (_) => LiveAudioRoomViewmodel(
         userProvider: userProvider,
         profileService: profileService,
-      )..init(),
+        roomService: roomService,
+      )..init(roomId),
       child: Consumer<LiveAudioRoomViewmodel>(
         builder: (context, vm, _) {
           if (!vm.permissionChecked) {
@@ -48,8 +52,10 @@ class LiveAudioRoom extends StatelessWidget {
             hostId: hostId,
             roomName: roomName,
             userIdentification: vm.userIdentification!,
-            fullName: vm.fullName,
+            userName: vm.userName,
             profileCache: vm.profileCache, // Map<String, Uint8List?>
+            viewModel: vm,
+            fetchProfilePicture: vm.fetchProfilePicture,
           );
         },
       ),

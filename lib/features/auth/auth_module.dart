@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:kittyparty/features/auth/view/login.dart';
+import 'package:kittyparty/features/auth/view/login_selection.dart';
 import 'package:provider/provider.dart';
 import '../../core/utils/user_provider.dart';
 import '../navigation/page_handler.dart';
@@ -35,7 +35,7 @@ class _AuthCheckState extends State<AuthCheck> {
     if (userProvider.isLoggedIn) {
       return const PageHandler();
     } else {
-      return const Login();
+      return LoginSelection();
     }
   }
 }
