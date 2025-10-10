@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/colors.dart';
-
+import 'package:flutter/services.dart';
 
 class BasicTextField extends StatelessWidget {
   final String labelText;
@@ -11,6 +11,7 @@ class BasicTextField extends StatelessWidget {
   final TextInputType? inputType;
   final int? maxLength;
   final bool? enable;
+  final List<TextInputFormatter>? inputFormatters;
 
   const BasicTextField({
     super.key,
@@ -22,6 +23,7 @@ class BasicTextField extends StatelessWidget {
     this.onChange,
     this.maxLength,
     this.enable,
+    this.inputFormatters,
   });
 
   @override
@@ -39,6 +41,7 @@ class BasicTextField extends StatelessWidget {
           maxLength: maxLength,
           keyboardType: inputType,
           enabled: enable ?? true,
+          inputFormatters: inputFormatters,
           decoration: InputDecoration(
             counterText: "",
             contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 18.5),

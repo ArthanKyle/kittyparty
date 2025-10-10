@@ -3,8 +3,6 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../../../core/global_widgets/dialogs/dialog_info.dart';
 import '../../../core/global_widgets/dialogs/dialog_loading.dart';
 import '../../../core/services/api/auth_service.dart';
-import '../../../core/utils/validators.dart';
-import 'login_viewmodel.dart';
 
 class RegisterViewModel extends ChangeNotifier {
   final AuthService _authService = AuthService();
@@ -18,8 +16,6 @@ class RegisterViewModel extends ChangeNotifier {
   final TextEditingController inviteController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
 
   String selectedGender = "";
   String? selectedCountry;
@@ -36,9 +32,7 @@ class RegisterViewModel extends ChangeNotifier {
     usernameController.addListener(_saveFormData);
     emailController.addListener(_saveFormData);
     phoneController.addListener(_saveFormData);
-    passwordController.addListener(_saveFormData);
     inviteController.addListener(_saveFormData);
-    confirmPasswordController.addListener(_saveFormData);
   }
 
   void _saveFormData() {
@@ -47,7 +41,6 @@ class RegisterViewModel extends ChangeNotifier {
     myRegBox.put('username', usernameController.text.trim());
     myRegBox.put('email', emailController.text.trim());
     myRegBox.put('phoneNumber', phoneController.text.trim());
-    myRegBox.put('password', passwordController.text.trim());
     myRegBox.put('inviteCode', inviteController.text.trim());
     myRegBox.put('gender', selectedGender);
     myRegBox.put('nationality', selectedCountry ?? '');
@@ -64,6 +57,17 @@ class RegisterViewModel extends ChangeNotifier {
     _saveFormData();
     notifyListeners();
   }
+
+  void setInitialValues({String? email, String? fullName}) {
+    if (email != null && emailController.text.isEmpty) {
+      emailController.text = email;
+    }
+    if (fullName != null && nameController.text.isEmpty) {
+      nameController.text = fullName;
+    }
+    _saveFormData(); // save to Hive if needed
+  }
+
 
   void setCountry(String? country) {
     selectedCountry = country;
@@ -85,9 +89,10 @@ class RegisterViewModel extends ChangeNotifier {
         username: usernameController.text.trim(),
         email: emailController.text.trim(),
         phoneNumber: phoneController.text.trim(),
-        password: passwordController.text.trim(),
         countryCode: selectedCountry ?? '',
-        invitationCode: inviteController.text.trim().isEmpty ? null : inviteController.text.trim(),
+        invitationCode: inviteController.text.trim().isEmpty
+            ? null
+            : inviteController.text.trim(),
         isFirstTimeRecharge: isFirstTimeRecharge,
       );
 
@@ -108,7 +113,7 @@ class RegisterViewModel extends ChangeNotifier {
         subText: "Please select your gender.",
         confirmText: "OK",
         onConfirm: () => Navigator.of(context, rootNavigator: true).pop(),
-        onCancel: () =>  Navigator.of(context, rootNavigator: true).pop(),
+        onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
       ).build(context);
       return;
     }
@@ -120,19 +125,19 @@ class RegisterViewModel extends ChangeNotifier {
         subText: "Please select your country.",
         confirmText: "OK",
         onConfirm: () => Navigator.of(context, rootNavigator: true).pop(),
-        onCancel: () =>  Navigator.of(context, rootNavigator: true).pop(),
+        onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
       ).build(context);
       return;
     }
 
     // Validate form
     if (!(formKey.currentState?.validate() ?? false)) {
-      formKey.currentState?.validate(); // show errors
+      formKey.currentState?.validate();
       return;
     }
 
-    // Show loading
-    DialogLoading(subtext: "Creating...").build(context);
+    // Show loading dialog
+    DialogLoading(subtext: "Creating account...").build(context);
 
     final response = await register();
 
@@ -149,38 +154,20 @@ class RegisterViewModel extends ChangeNotifier {
     } else {
       DialogInfo(
         headerText: "Success",
-        subText: "You have created an account! Logging in...",
-        confirmText: "OK",
-        onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
-        onConfirm: () async {
+        subText:
+        "Your account has been created successfully.",
+        confirmText: "Go to home.",
+        onConfirm: () {
           Navigator.of(context, rootNavigator: true).pop();
-
-          final loginVM = LoginViewModel();
-          loginVM.emailController.text = emailController.text.trim();
-          loginVM.passwordController.text = passwordController.text.trim();
-
-          await loginVM.login(context);
-
-          if (loginVM.loginSuccess) {
-            Navigator.pushNamedAndRemoveUntil(context, "/", (route) => false);
-          } else {
-            DialogInfo(
-              headerText: "Login Failed",
-              subText: loginVM.errorMessage ?? "Something went wrong.",
-              confirmText: "OK",
-              onConfirm: () =>
-                  Navigator.of(context, rootNavigator: true).pop(),
-              onCancel: () =>
-                  Navigator.of(context, rootNavigator: true).pop(),
-            ).build(context);
-
-            Navigator.pushNamed(context, "/login");
-          }
+          Navigator.pushNamedAndRemoveUntil(context, "/", (_) => false);
+        },
+        onCancel: () {
+          Navigator.of(context, rootNavigator: true).pop();
+          Navigator.pushNamedAndRemoveUntil(context, "/login", (_) => false);
         },
       ).build(context);
     }
   }
-
 
   @override
   void dispose() {
@@ -188,8 +175,6 @@ class RegisterViewModel extends ChangeNotifier {
     usernameController.dispose();
     emailController.dispose();
     phoneController.dispose();
-    passwordController.dispose();
-    confirmPasswordController.dispose();
     inviteController.dispose();
     super.dispose();
   }

@@ -2,13 +2,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import '../../../core/constants/colors.dart';
-import '../../../core/utils/user_provider.dart';
-import '../profile_widgets/profile_cards.dart';
-import '../profile_widgets/profile_gradient_background.dart';
-import '../profile_widgets/profile_menu.dart';
-import '../profile_widgets/stat_items.dart';
-import '../viewmodel/profile_viewmodel.dart';
+import '../../core/constants/colors.dart';
+import '../../core/utils/user_provider.dart';
+import '../landing/landing_widgets/profile_widgets/profile_cards.dart';
+import '../landing/landing_widgets/profile_widgets/profile_gradient_background.dart';
+import '../landing/landing_widgets/profile_widgets/profile_menu.dart';
+import '../landing/landing_widgets/profile_widgets/stat_items.dart';
+import '../landing/viewmodel/profile_viewmodel.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -143,10 +143,6 @@ class ProfilePage extends StatelessWidget {
                             : Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: const [
-                            StatItem(label: 'Following', value: '0'),
-                            StatItem(label: 'Fans', value: '0'),
-                            StatItem(label: 'Friends', value: '0'),
-                            StatItem(label: 'Visitors', value: '0'),
                           ],
                         ),
 

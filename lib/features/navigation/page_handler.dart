@@ -7,7 +7,7 @@ import '../../core/global_widgets/buttons/route_button.dart';
 import '../../core/utils/index_provider.dart';
 import '../landing/view/landing_page.dart';
 import '../landing/view/post_page.dart';
-import '../landing/view/profile_page.dart';
+import '../profile/profile_page.dart';
 
 
 class PageHandler extends StatefulWidget {

@@ -140,12 +140,15 @@ class RecommendTab extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => LiveAudioRoom(
-                                roomId: room.id!,
-                                hostId: room.hostId,
-                                roomName: room.roomName,
-                                userProvider: userProvider, // only this is needed
-                              ),
+                              builder: (context) {
+                                final userProvider = context.read<UserProvider>();
+                                return LiveAudioRoom(
+                                  roomId: room.id!,
+                                  hostId: room.hostId,
+                                  roomName: room.roomName,
+                                  userProvider: userProvider,
+                                );
+                              },
                             ),
                           );
                         },

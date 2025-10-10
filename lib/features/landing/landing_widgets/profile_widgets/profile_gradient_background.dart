@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants/colors.dart';
+
+import '../../../../core/constants/colors.dart';
+
 
 class ProfileGradientBackground extends StatelessWidget {
   final Widget child;

@@ -14,7 +14,8 @@ class RoomService {
     required String userId,
     required String roomName,
   }) async {
-    print("[RoomService] Creating room for userId: $userId with name: $roomName");
+    print(
+        "[RoomService] Creating room for userId: $userId with name: $roomName");
 
     try {
       final response = await http.post(
@@ -26,14 +27,16 @@ class RoomService {
         }),
       );
 
-      print("[RoomService] Response status: ${response.statusCode}, body: ${response.body}");
+      print("[RoomService] Response status: ${response
+          .statusCode}, body: ${response.body}");
 
       if (response.statusCode == 201) {
         final room = Room.fromJson(jsonDecode(response.body));
         print("[RoomService] Room created successfully: ${room.roomName}");
         return room;
       } else {
-        print("[RoomService] Failed to create room, status: ${response.statusCode}");
+        print("[RoomService] Failed to create room, status: ${response
+            .statusCode}");
         return null;
       }
     } catch (e) {
@@ -50,13 +53,15 @@ class RoomService {
         final List data = jsonDecode(response.body);
         return data.map((e) => Room.fromJson(e)).toList();
       } else {
-        print("[RoomService] Failed to fetch all rooms, status: ${response.statusCode}");
+        print("[RoomService] Failed to fetch all rooms, status: ${response
+            .statusCode}");
       }
     } catch (e) {
       print("[RoomService] Exception fetching all rooms: $e");
     }
     return [];
   }
+
   /// Fetch rooms by host (Mine tab)
   Future<List<Room>> getRoomsByHostId(String hostId) async {
     try {
@@ -66,7 +71,8 @@ class RoomService {
         final List data = jsonDecode(response.body);
         return data.map((e) => Room.fromJson(e)).toList();
       } else {
-        print("[RoomService] Failed to fetch rooms for host, status: ${response.statusCode}");
+        print("[RoomService] Failed to fetch rooms for host, status: ${response
+            .statusCode}");
         print("[RoomService] Body: ${response.body}");
       }
     } catch (e) {
@@ -74,6 +80,7 @@ class RoomService {
     }
     return [];
   }
+
   /// Get a single room by ID
   Future<Room?> getRoomById(String id) async {
     try {
@@ -81,7 +88,8 @@ class RoomService {
       if (response.statusCode == 200) {
         return Room.fromJson(jsonDecode(response.body));
       } else {
-        print("[RoomService] Failed to fetch room by ID, status: ${response.statusCode}");
+        print("[RoomService] Failed to fetch room by ID, status: ${response
+            .statusCode}");
       }
     } catch (e) {
       print("[RoomService] Exception fetching room by ID: $e");
@@ -100,12 +108,44 @@ class RoomService {
       if (response.statusCode == 200) {
         return Room.fromJson(jsonDecode(response.body));
       } else {
-        print("[RoomService] Failed to update room, status: ${response.statusCode}");
+        print("[RoomService] Failed to update room, status: ${response
+            .statusCode}");
       }
     } catch (e) {
       print("[RoomService] Exception updating room: $e");
     }
     return null;
+  }
+
+  // Inside RoomService
+  /// Join a room as a participant
+  Future<bool> joinRoom(String roomId, String userId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/rooms/$roomId/join'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({"UserIdentification": userId}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print("[RoomService] Exception joining room: $e");
+      return false;
+    }
+  }
+
+  /// Leave a room (audience)
+  Future<bool> leaveRoom(String id, String userId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/rooms/$id/leave'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({"UserIdentification": userId}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print("[RoomService] Exception leaving room: $e");
+      return false;
+    }
   }
 
   /// End a room (host only)
@@ -119,20 +159,6 @@ class RoomService {
       return response.statusCode == 200;
     } catch (e) {
       print("[RoomService] Exception ending room: $e");
-      return false;
-    }
-  }
-
-  /// Leave a room (audience)
-  Future<bool> leaveRoom(String id) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/rooms/$id/leave'),
-        headers: {'Content-Type': 'application/json'},
-      );
-      return response.statusCode == 200;
-    } catch (e) {
-      print("[RoomService] Exception leaving room: $e");
       return false;
     }
   }
