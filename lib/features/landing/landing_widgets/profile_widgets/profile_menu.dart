@@ -101,7 +101,7 @@ class ProfileMenu extends StatelessWidget {
       'label': 'Setting',
       'icon': FontAwesomeIcons.gear,
       'onTap': (BuildContext context) {
-        Navigator.pushNamed(context, '/setting');
+        _handleLogout(context);
       },
     },
   ];

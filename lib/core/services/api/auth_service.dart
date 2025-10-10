@@ -16,6 +16,7 @@ class AuthService {
     required String email,
     required String phoneNumber,
     required String countryCode,
+    required String gender,
     String loginMethod = "Email",
     String? invitationCode,
     bool isFirstTimeRecharge = true,
@@ -26,6 +27,7 @@ class AuthService {
       "Email": email,
       "PhoneNumber": phoneNumber,
       "CountryCode": countryCode,
+      "Gender": gender,
       "LoginMethod": loginMethod,
       "isFirstTimeRecharge": isFirstTimeRecharge,
     };
@@ -46,9 +48,12 @@ class AuthService {
     if (response.statusCode == 200 || response.statusCode == 201) {
       return data;
     } else {
-      throw HttpException(data['message'] ?? 'Registration failed');
+      // ✅ Updated to check both 'message' and 'error'
+      throw HttpException(data['message'] ?? data['error'] ?? 'Registration failed');
     }
   }
+
+
 
   /// 🔐 Email / ID Login
   Future<Map<String, dynamic>> login({

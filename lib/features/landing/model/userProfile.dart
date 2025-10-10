@@ -1,23 +1,19 @@
 class UserProfile {
-  final String userId;
-  final String? profilePicture;
+  late final String userIdentification; // numeric ID
   final String bio;
+  final String? profilePicture;
 
   UserProfile({
-    required this.userId,
+    required this.userIdentification,
+    required this.bio,
     this.profilePicture,
-    this.bio = "",
   });
 
-  factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
-    userId: json['UserID'] as String,
-    profilePicture: json['ProfilePicture'] as String?,
-    bio: json['Bio'] as String? ?? "",
-  );
-
-  Map<String, dynamic> toJson() => {
-    'UserID': userId,
-    'ProfilePicture': profilePicture,
-    'Bio': bio,
-  };
+  factory UserProfile.fromJson(Map<String, dynamic> json) {
+    return UserProfile(
+      userIdentification: json['UserIdentification'] ?? '',
+      bio: json['bio'] ?? '',
+      profilePicture: json['ProfilePicture'],
+    );
+  }
 }
