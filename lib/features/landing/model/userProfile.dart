@@ -1,5 +1,5 @@
 class UserProfile {
-  late final String userIdentification; // numeric ID
+  String userIdentification; // numeric ID
   final String bio;
   final String? profilePicture;
 

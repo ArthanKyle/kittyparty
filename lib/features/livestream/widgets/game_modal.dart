@@ -1,0 +1,83 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/material.dart';
+
+import 'game_webview.dart';
+
+class GameListModal extends StatefulWidget {
+  const GameListModal({super.key});
+
+  @override
+  State<GameListModal> createState() => _GameListModalState();
+}
+
+class _GameListModalState extends State<GameListModal> {
+  List<Map<String, dynamic>> games = [];
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchGames();
+  }
+
+  Future<void> _fetchGames() async {
+    const url = "https://game-cn-test.jieyou.shop/v1/api/gamelist";
+    final body = {
+      "game_list_type": 3,
+      "app_channel": "mesh",
+      "app_id": 21397507,
+      "signature": "demo_signature",
+      "signature_nonce": "abc123",
+      "timestamp": DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    };
+
+    final response = await HttpClient()
+        .postUrl(Uri.parse(url))
+        .then((req) {
+      req.headers.contentType = ContentType.json;
+      req.write(const JsonEncoder().convert(body));
+      return req.close();
+    })
+        .then((resp) => resp.transform(const Utf8Decoder()).join());
+
+    final jsonData = json.decode(response);
+    if (jsonData["code"] == 0 && jsonData["data"] != null) {
+      setState(() {
+        games = List<Map<String, dynamic>>.from(jsonData["data"]);
+        loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.7,
+      child: loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: games.length,
+        itemBuilder: (_, i) {
+          final g = games[i];
+          return ListTile(
+            leading: Image.network(g["preview_url"], width: 50, height: 50, fit: BoxFit.cover),
+            title: Text(g["name"], style: const TextStyle(color: Colors.white)),
+            subtitle: Text("Version: ${g["game_version"]}", style: const TextStyle(color: Colors.grey)),
+            trailing: const Icon(Icons.play_arrow, color: Colors.white),
+            onTap: () => _openGame(context, g["download_url"]),
+          );
+        },
+      ),
+    );
+  }
+
+  void _openGame(BuildContext context, String url) {
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => GameWebView(url: url)),
+    );
+  }
+}

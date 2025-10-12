@@ -32,31 +32,49 @@ class ZegoRoomWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final isHost = userIdentification == hostId;
 
-    return ZegoUIKitPrebuiltLiveAudioRoom(
-      appID: ZegoConfig.appID,
-      appSign: ZegoConfig.appSign,
-      userID: userIdentification,
-      userName: userName ?? userIdentification,
-      roomID: roomId,
-      config: (isHost
-          ? (ZegoUIKitPrebuiltLiveAudioRoomConfig.host()
-        ..seat.takeIndexWhenJoining = 0)
-          : ZegoUIKitPrebuiltLiveAudioRoomConfig.audience())
-        ..seat.hostIndexes = [0]
-        ..seat.layout.rowConfigs = [
-          ZegoLiveAudioRoomLayoutRowConfig(count: 4, alignment: ZegoLiveAudioRoomLayoutAlignment.center),
-          for (int i = 0; i < 4; i++)
-            ZegoLiveAudioRoomLayoutRowConfig(count: 4, alignment: ZegoLiveAudioRoomLayoutAlignment.center),
-        ]
-        ..seat.avatarBuilder = (BuildContext context, Size size, ZegoUIKitUser? zegoUser, Map<String, dynamic> extraInfo) {
-          final vm = viewModel;
-          return UserAvatar(
-            userId: zegoUser?.id ?? "",
-            size: size.width,
-            profileCache: vm.profileCache,
-            fetchProfilePicture: vm.fetchProfilePicture,
-          );
-        }
+    return Stack(
+      children: [
+        ZegoUIKitPrebuiltLiveAudioRoom(
+          appID: ZegoConfig.appID,
+          appSign: ZegoConfig.appSign,
+          userID: userIdentification,
+          userName: userName ?? userIdentification,
+          roomID: roomId,
+          config: (isHost
+              ? (ZegoUIKitPrebuiltLiveAudioRoomConfig.host()
+            ..seat.takeIndexWhenJoining = 0)
+              : ZegoUIKitPrebuiltLiveAudioRoomConfig.audience())
+            ..seat.hostIndexes = [0]
+            ..seat.layout.rowConfigs = [
+              ZegoLiveAudioRoomLayoutRowConfig(
+                  count: 4, alignment: ZegoLiveAudioRoomLayoutAlignment.center),
+              for (int i = 0; i < 4; i++)
+                ZegoLiveAudioRoomLayoutRowConfig(count: 4,
+                    alignment: ZegoLiveAudioRoomLayoutAlignment.center),
+            ]
+            ..seat.avatarBuilder = (context, size, zegoUser, extraInfo) {
+              final vm = viewModel;
+              return UserAvatar(
+                userId: zegoUser?.id ?? "",
+                size: size.width,
+                profileCache: vm.profileCache,
+                fetchProfilePicture: vm.fetchProfilePicture,
+              );
+            },
+        ),
+
+        // 🎮 Game Button
+        Positioned(
+          right: 20,
+          bottom: 70,
+          child: FloatingActionButton.extended(
+            onPressed: () => viewModel.showGameListModal(context),
+            label: const Text('Games'),
+            icon: const Icon(Icons.videogame_asset),
+            backgroundColor: Colors.deepPurpleAccent,
+          ),
+        ),
+      ],
     );
   }
 }

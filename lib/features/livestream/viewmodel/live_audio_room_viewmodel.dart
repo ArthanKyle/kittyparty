@@ -6,6 +6,7 @@ import '../../../core/services/api/userProfile_service.dart';
 import '../../../core/utils/user_provider.dart';
 import '../../../core/services/api/room_service.dart';
 import '../../landing/model/userProfile.dart';
+import '../widgets/game_modal.dart';
 
 class LiveAudioRoomViewmodel extends ChangeNotifier {
   final UserProvider userProvider;
@@ -144,4 +145,20 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
       }
     }
   }
+// ================================================================
+// GAME
+// ================================================================
+  Future<void> showGameListModal(BuildContext context) async {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.black.withOpacity(0.9),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => const GameListModal(),
+    );
+  }
+
+
 }
