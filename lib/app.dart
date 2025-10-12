@@ -67,7 +67,11 @@ class MyApp extends StatelessWidget {
 
         // ✅ Dynamic route for LiveAudioRoom
           case AppRoutes.room:
-            final args = (settings.arguments ?? {}) as Map<String, dynamic>;
+            final rawArgs = settings.arguments;
+            final args = (rawArgs is Map)
+                ? rawArgs.map((key, value) => MapEntry(key.toString(), value))
+                : <String, dynamic>{};
+
             final userProvider = Provider.of<UserProvider>(
               globalNavigatorKey.currentContext!,
               listen: false,
