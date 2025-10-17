@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-
+import '../../../core/services/api/game_service.dart';
 import 'game_webview.dart';
 
 class GameListModal extends StatefulWidget {
@@ -12,6 +12,8 @@ class GameListModal extends StatefulWidget {
 }
 
 class _GameListModalState extends State<GameListModal> {
+  final GameService _gameService = GameService(); // ✅ Create instance
+
   List<Map<String, dynamic>> games = [];
   bool loading = true;
 
@@ -22,31 +24,15 @@ class _GameListModalState extends State<GameListModal> {
   }
 
   Future<void> _fetchGames() async {
-    const url = "https://game-cn-test.jieyou.shop/v1/api/gamelist";
-    final body = {
-      "game_list_type": 3,
-      "app_channel": "mesh",
-      "app_id": 21397507,
-      "signature": "demo_signature",
-      "signature_nonce": "abc123",
-      "timestamp": DateTime.now().millisecondsSinceEpoch ~/ 1000,
-    };
-
-    final response = await HttpClient()
-        .postUrl(Uri.parse(url))
-        .then((req) {
-      req.headers.contentType = ContentType.json;
-      req.write(const JsonEncoder().convert(body));
-      return req.close();
-    })
-        .then((resp) => resp.transform(const Utf8Decoder()).join());
-
-    final jsonData = json.decode(response);
-    if (jsonData["code"] == 0 && jsonData["data"] != null) {
+    try {
+      final fetchedGames = await _gameService.fetchGames(); // ✅ Use instance
       setState(() {
-        games = List<Map<String, dynamic>>.from(jsonData["data"]);
+        games = fetchedGames;
         loading = false;
       });
+    } catch (e) {
+      print('❌ Failed to fetch games: $e');
+      setState(() => loading = false);
     }
   }
 

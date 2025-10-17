@@ -53,7 +53,7 @@ class LiveAudioRoom extends StatelessWidget {
             roomName: roomName,
             userIdentification: vm.userIdentification!,
             userName: vm.userName,
-            profileCache: vm.profileCache, // Map<String, Uint8List?>
+            profileCache: vm.profileCache,
             viewModel: vm,
             fetchProfilePicture: vm.fetchProfilePicture,
           );
