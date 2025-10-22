@@ -40,7 +40,7 @@ dependencies:
   flutter_spinkit: ^5.2.0
   hive: ^2.2.3
   hive_flutter: ^1.1.0
-  persistent_bottom_nav_bar: ^5.0.2
+  persistent_bottom_nav_bar: ^6.2.1
   indexed: ^0.0.8
   crypto: ^3.0.2
   provider: ^6.1.1
@@ -51,12 +51,12 @@ dependencies:
   image_picker: ^1.1.2
   shared_preferences: ^2.3.2
   flutter_typeahead: ^5.2.0
-  flutter_dotenv: ^5.2.1
+  flutter_dotenv: ^6.0.0
   permission_handler: ^12.0.1
   carousel_slider: ^5.1.1
   flutter_stripe: ^12.0.2
   flutter_keyboard_visibility: ^6.0.0
-  google_sign_in: ^6.2.1
+  google_sign_in: ^7.2.0
   google_fonts: ^6.3.1
   flutter_svg: ^2.0.9
   flutter_secure_storage: ^9.2.4
@@ -65,6 +65,8 @@ dependencies:
   shimmer: ^3.0.0
   zego_uikit: ^2.28.28
   webview_flutter: ^4.13.0
+  firebase_core: ^4.2.0
+  firebase_auth: ^6.1.1
 
 
 dev_dependencies:
@@ -76,7 +78,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -96,12 +98,20 @@ flutter:
   assets:
     - assets/
     - assets/image/
+    - assets/image/Mall_Image.jpg
+    - assets/image/GetCoins.png
     - assets/icons/
     - assets/icons/home.svg
     - assets/icons/compass.svg
     - assets/icons/message.svg
     - assets/icons/profile.svg
     - assets/icons/google.svg
+    - assets/icons/item/
+    - assets/icons/item/Avatar.png
+    - assets/icons/item/Chat_bubble.png
+    - assets/icons/item/Mount.png
+    - assets/icons/item/Nameplate.png
+    - assets/icons/item/Profile_card.png
     - .env
 
   # An image asset can refer to one or more resolution-specific "variants", see
