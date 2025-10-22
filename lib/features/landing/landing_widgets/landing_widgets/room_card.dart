@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../../core/constants/colors.dart';
+import '../../../../core/services/api/userProfile_service.dart';
 import '../../model/room.dart';
+import '../../../landing/model/userProfile.dart';
+import '../../../landing/viewmodel/profile_viewmodel.dart';
 
-class RoomCard extends StatelessWidget {
+class RoomCard extends StatefulWidget {
   final Room room;
   final VoidCallback? onTap;
 
@@ -13,9 +17,43 @@ class RoomCard extends StatelessWidget {
   });
 
   @override
+  State<RoomCard> createState() => _RoomCardState();
+}
+
+class _RoomCardState extends State<RoomCard> {
+  String? profilePicUrl;
+  bool isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    profilePicUrl = widget.room.hostProfilePic;
+    _fetchHostProfileIfNeeded();
+  }
+
+  Future<void> _fetchHostProfileIfNeeded() async {
+    if (profilePicUrl != null && profilePicUrl!.isNotEmpty) return;
+
+    setState(() => isLoading = true);
+
+    try {
+      final service = UserProfileService();
+      final profile = await service.getProfileByUserId(widget.room.hostId);
+
+      if (mounted && profile?.profilePicture != null) {
+        setState(() => profilePicUrl = profile!.profilePicture);
+      }
+    } catch (e) {
+      debugPrint("⚠️ Failed to fetch host profile picture: $e");
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap,
+      onTap: widget.onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 7),
@@ -33,19 +71,9 @@ class RoomCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: (room.hostProfilePic != null &&
-                  room.hostProfilePic!.isNotEmpty)
-                  ? Image.network(
-                room.hostProfilePic!,
-                width: 56,
-                height: 56,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _fallbackAvatar(),
-              )
-                  : _fallbackAvatar(),
+              child: _buildProfileImage(),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -56,7 +84,7 @@ class RoomCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          room.roomName,
+                          widget.room.roomName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -71,7 +99,7 @@ class RoomCard extends StatelessWidget {
                           size: 20, color: Colors.amber),
                       const SizedBox(width: 4),
                       Text(
-                        room.participantsCount.toString(),
+                        widget.room.participantsCount.toString(),
                         style: const TextStyle(
                           fontWeight: FontWeight.w700,
                           color: Colors.black87,
@@ -80,29 +108,32 @@ class RoomCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  if (room.roomName.isNotEmpty)
+                  if (widget.room.roomName.isNotEmpty)
                     Text(
-                      room.roomName,
+                      widget.room.roomName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                          color: Colors.black54, fontSize: 13),
+                        color: Colors.black54,
+                        fontSize: 13,
+                      ),
                     ),
                   const SizedBox(height: 6),
                   SizedBox(
                     height: 22,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
-                      itemCount: room.participantsCount.clamp(0, 10), // show up to 10
-                      separatorBuilder: (_, __) =>
-                      const SizedBox(width: 4),
+                      itemCount: widget.room.participantsCount.clamp(0, 20),
+                      separatorBuilder: (_, __) => const SizedBox(width: 4),
                       itemBuilder: (_, i) => CircleAvatar(
                         radius: 11,
                         backgroundColor: Colors.grey.shade200,
                         child: Text(
                           '💠',
                           style: TextStyle(
-                              fontSize: 12, color: Colors.blue[700]),
+                            fontSize: 12,
+                            color: Colors.blue[700],
+                          ),
                         ),
                       ),
                     ),
@@ -114,6 +145,35 @@ class RoomCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildProfileImage() {
+    if (isLoading) {
+      return Shimmer.fromColors(
+        baseColor: Colors.grey.shade300,
+        highlightColor: Colors.grey.shade100,
+        child: Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade300,
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
+
+    if (profilePicUrl != null && profilePicUrl!.isNotEmpty) {
+      return Image.network(
+        profilePicUrl!,
+        width: 56,
+        height: 56,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _fallbackAvatar(),
+      );
+    }
+
+    return _fallbackAvatar();
   }
 
   Widget _fallbackAvatar() {

@@ -5,6 +5,7 @@ import '../../../core/config/zego_config.dart';
 import '../viewmodel/live_audio_room_viewmodel.dart';
 import 'user_avatar.dart';
 import 'package:zego_uikit/zego_uikit.dart';
+import '../../../core/services/api/room_service.dart';
 
 class ZegoRoomWidget extends StatelessWidget {
   final String roomId;
