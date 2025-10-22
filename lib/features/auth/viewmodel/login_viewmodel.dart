@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -135,7 +137,7 @@ class LoginViewModel extends ChangeNotifier {
       return false;
     }
     final passError =
-    Validators.passwordValidator(passwordController.text.trim());
+        Validators.passwordValidator(passwordController.text.trim());
     if (passError != null) {
       errorMessage = passError;
       notifyListeners();
