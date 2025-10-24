@@ -35,21 +35,22 @@ class RechargeService {
   }
 
   // 🔹 Step 2: Confirm Payment & credit coins
-  Future<TransactionModel> confirmPayment({required String paymentIntentId}) async {
+  Future<TransactionModel> confirmPayment({required String transactionId}) async {
     final url = Uri.parse("$baseUrl/recharge/confirm-payment");
     final response = await http.post(
       url,
       headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"paymentIntentId": paymentIntentId}),
+      body: jsonEncode({"transactionId": transactionId}),
     );
 
     final data = jsonDecode(response.body);
     if (!data['success']) {
-      throw Exception("Payment not succeeded: ${data['status']}");
+      throw Exception(data['error'] ?? "Payment recording failed");
     }
 
     return TransactionModel.fromJson(data['topUp']);
   }
+
 
   // 🔹 Step 3: Admin - all payments
   Future<List<TransactionModel>> getAllPayments() async {

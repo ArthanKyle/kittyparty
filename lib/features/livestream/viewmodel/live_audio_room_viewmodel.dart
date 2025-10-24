@@ -37,6 +37,15 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
     super.dispose();
   }
 
+  void pauseLiveRoom() {
+    ZegoUIKit().turnCameraOn(false);
+    ZegoUIKit().turnMicrophoneOn(false);
+  }
+
+  void resumeLiveRoom() {
+    ZegoUIKit().turnMicrophoneOn(true);
+  }
+
   void safeNotify() {
     if (!_disposed) notifyListeners();
   }

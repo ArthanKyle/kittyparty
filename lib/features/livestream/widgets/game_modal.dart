@@ -1,8 +1,8 @@
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 import '../../../core/services/api/game_service.dart';
-import 'game_webview.dart';
+import '../../../core/utils/user_provider.dart';
 
 class GameListModal extends StatefulWidget {
   const GameListModal({super.key});
@@ -12,58 +12,93 @@ class GameListModal extends StatefulWidget {
 }
 
 class _GameListModalState extends State<GameListModal> {
-  final GameService _gameService = GameService(); // ✅ Create instance
-
+  final gameService = GameService();
   List<Map<String, dynamic>> games = [];
   bool loading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchGames();
+    _loadGames();
   }
 
-  Future<void> _fetchGames() async {
+  Future<void> _loadGames() async {
     try {
-      final fetchedGames = await _gameService.fetchGames(); // ✅ Use instance
+      debugPrint('🌐 Fetching games...');
+      final result = await gameService.fetchGames();
+      debugPrint('✅ Games fetched: ${result.length}');
       setState(() {
-        games = fetchedGames;
+        games = result;
         loading = false;
       });
     } catch (e) {
-      print('❌ Failed to fetch games: $e');
+      debugPrint('❌ Failed to load games: $e');
       setState(() => loading = false);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.7,
-      child: loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: games.length,
-        itemBuilder: (_, i) {
-          final g = games[i];
-          return ListTile(
-            leading: Image.network(g["preview_url"], width: 50, height: 50, fit: BoxFit.cover),
-            title: Text(g["name"], style: const TextStyle(color: Colors.white)),
-            subtitle: Text("Version: ${g["game_version"]}", style: const TextStyle(color: Colors.grey)),
-            trailing: const Icon(Icons.play_arrow, color: Colors.white),
-            onTap: () => _openGame(context, g["download_url"]),
-          );
-        },
+
+  void _openGame(Map<String, dynamic> game) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final userId = userProvider.currentUser?.id ?? "guest_user";
+
+    // ✅ Expect play_url already includes query params from backend
+    final baseUrl = game['play_url'];
+    final url = baseUrl.contains('?')
+        ? "$baseUrl&userId=$userId&gameMode=3"
+        : "$baseUrl?userId=$userId&gameMode=3";
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            Scaffold(
+              appBar: AppBar(
+                  title: Text(game['name']),
+                  backgroundColor: Colors.white
+              ),
+              body: WebViewWidget(
+                controller: WebViewController()
+                  ..setJavaScriptMode(JavaScriptMode.unrestricted)
+                  ..loadRequest(Uri.parse(url)),
+              ),
+            ),
       ),
     );
   }
 
-  void _openGame(BuildContext context, String url) {
-    Navigator.pop(context);
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => GameWebView(url: url)),
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white, // <-- solid background
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      padding: const EdgeInsets.all(16),
+      height: MediaQuery
+          .of(context)
+          .size
+          .height * 0.7,
+      child: loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView.builder(
+        itemCount: games.length,
+        itemBuilder: (_, i) {
+          final g = games[i];
+          return ListTile(
+            leading: Image.network(
+              g['icon'],
+              width: 50,
+              height: 50,
+              errorBuilder: (_, __, ___) =>
+              const Icon(Icons.videogame_asset),
+            ),
+            title: Text(g['name']),
+            subtitle: Text("v${g['version']}"),
+            onTap: () => _openGame(g),
+          );
+        },
+      ),
     );
   }
 }

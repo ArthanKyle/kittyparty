@@ -7,6 +7,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../../../core/global_widgets/dialogs/dialog_info.dart';
 import '../../../core/global_widgets/dialogs/dialog_loading.dart';
 import '../../../core/services/api/auth_service.dart';
+import '../../../core/utils/index_provider.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/utils/user_provider.dart';
 import '../../auth/model/auth_response.dart';
@@ -27,12 +28,10 @@ class LoginViewModel extends ChangeNotifier {
       isLoading = true;
       notifyListeners();
 
-
       final googleSignIn = GoogleSignIn(
         scopes: ['email', 'profile'],
-        serverClientId: dotenv.env['GOOGLE_WEB_CLIENT_ID'], // ✅ use web client ID here
+        serverClientId: dotenv.env['GOOGLE_WEB_CLIENT_ID'],
       );
-
 
       final GoogleSignInAccount? account = await googleSignIn.signIn();
 
@@ -51,7 +50,6 @@ class LoginViewModel extends ChangeNotifier {
       DialogLoading(subtext: "Authenticating...").build(context);
 
       final response = await _authService.googleLogin(idToken: idToken);
-
       Navigator.of(context, rootNavigator: true).pop();
 
       print("✅ Google login response: $response");
@@ -72,7 +70,11 @@ class LoginViewModel extends ChangeNotifier {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       await userProvider.setUser(authResponse);
 
+      // ✅ Reset page index to LandingPage (index 0)
+      Provider.of<PageIndexProvider>(context, listen: false).pageIndex = 0;
+
       loginSuccess = true;
+
       Navigator.pushNamedAndRemoveUntil(context, "/", (route) => false);
     } catch (e, stack) {
       Navigator.of(context, rootNavigator: true).pop();
@@ -92,6 +94,7 @@ class LoginViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
+
 
   /// ------------------ EMAIL LOGIN ------------------
   Future<void> login(BuildContext context) async {
@@ -116,8 +119,14 @@ class LoginViewModel extends ChangeNotifier {
         final authResponse = AuthResponse.fromJson(response);
         await Provider.of<UserProvider>(context, listen: false)
             .setUser(authResponse);
+
+        // ✅ Reset page index to LandingPage (index 0)
+        Provider.of<PageIndexProvider>(context, listen: false).pageIndex = 0;
+
         loginSuccess = true;
         print("✅ Email login successful for ${authResponse.user.email}");
+
+        Navigator.pushNamedAndRemoveUntil(context, "/", (route) => false);
       }
     } catch (e, stack) {
       errorMessage = e.toString();
@@ -129,6 +138,7 @@ class LoginViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
+
 
   bool _validateInputs() {
     if (!Validators.isValidEmail(emailController.text.trim())) {

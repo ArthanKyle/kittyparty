@@ -156,22 +156,19 @@ class RechargeViewModel extends ChangeNotifier {
     }
   }
 
-  /// Confirm payment and credit coins
-  Future<void> confirmPayment(String paymentIntentId) async {
+  //// Confirm payment and credit coins (use transactionId from backend)
+  Future<void> confirmPayment(String transactionId) async {
     final user = userProvider.currentUser;
-    if (user == null) {
-      print("confirmPayment: no user logged in");
-      return;
-    }
+    if (user == null) return;
 
-    print("confirmPayment: confirming payment $paymentIntentId");
+    print("confirmPayment: recording transaction $transactionId");
     isPaymentProcessing = true;
     notifyListeners();
 
     try {
-      final topUp = await rechargeService.confirmPayment(paymentIntentId: paymentIntentId);
+      final topUp = await rechargeService.confirmPayment(transactionId: transactionId);
       final coinsFinal = topUp.coinsFinal;
-      print("confirmPayment: confirmed payment, final coins $coinsFinal");
+      print("confirmPayment: transaction recorded, final coins $coinsFinal");
 
       userProvider.updateCoins(coinsFinal);
       print("confirmPayment: updated user's coins locally to ${user.coins}");
@@ -184,6 +181,7 @@ class RechargeViewModel extends ChangeNotifier {
       print("confirmPayment: finished processing");
     }
   }
+
 
   /// Helper to map currency code to symbol
   String _getCurrencySymbol(String code) {

@@ -4,28 +4,18 @@ import 'package:http/http.dart' as http;
 
 class GameService {
   final String baseUrl;
+  GameService({String? baseUrl}) : baseUrl = baseUrl ?? dotenv.env['BASE_URL']!;
 
-
-  GameService({String? baseUrl})
-      : baseUrl = baseUrl ?? dotenv.env['BASE_URL']!;
-
-  Future<List<Map<String, dynamic>>> fetchGames({int gameListType = 3}) async {
+  Future<List<Map<String, dynamic>>> fetchGames() async {
     final url = Uri.parse('$baseUrl/games/list');
-
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'game_list_type': gameListType}),
-    );
+    final response = await http.get(url);
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-
       if (data['code'] == 0 && data['data'] != null) {
         return List<Map<String, dynamic>>.from(data['data']);
-      } else {
-        throw Exception('Backend error: ${data['message'] ?? 'Unknown error'}');
       }
+      throw Exception('Backend error: ${data['message'] ?? 'Unknown error'}');
     } else {
       throw Exception('HTTP ${response.statusCode}: Failed to fetch games');
     }

@@ -23,6 +23,13 @@ import 'features/profile/profile_page.dart';
 import 'package:provider/provider.dart';
 import 'core/utils/user_provider.dart';
 
+//profile
+import 'package:kittyparty/features/profile/profile_pages/collection_page.dart';
+import 'package:kittyparty/features/profile/profile_pages/item_page.dart';
+import 'package:kittyparty/features/profile/profile_pages/level_page.dart';
+import 'package:kittyparty/features/profile/profile_pages/mall_page.dart';
+import 'package:kittyparty/features/profile/profile_pages/setting_page.dart';
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -33,7 +40,7 @@ class MyApp extends StatelessWidget {
       navigatorKey: globalNavigatorKey,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      initialRoute: AppRoutes.auth,
+      initialRoute: AppRoutes.test,
 
       // ✅ Use onGenerateRoute for dynamic routes
       onGenerateRoute: (settings) {
@@ -64,6 +71,17 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute(builder: (_) => const Next());
           case AppRoutes.setting:
             return MaterialPageRoute(builder: (_) => const SettingPage());
+
+        // ✅ Profile subpages
+          case AppRoutes.collection:
+            return MaterialPageRoute(builder: (_) => const CollectionPage());
+          case AppRoutes.item:
+            return MaterialPageRoute(builder: (_) => const ItemPage());
+          case AppRoutes.level:
+            return MaterialPageRoute(builder: (_) => const LevelPage());
+          case AppRoutes.mall:
+            return MaterialPageRoute(builder: (_) => const MallPage());
+
 
         // ✅ Dynamic route for LiveAudioRoom
           case AppRoutes.room:
@@ -115,5 +133,9 @@ abstract class AppRoutes {
   static const setting = "/setting";
   static const emailLogin = "/login/email";
   static const idLogin = "/login/id";
+  static const collection = "/profile/collection";
+  static const item = "/profile/item";
+  static const level = "/profile/level";
+  static const mall = "/profile/mall";
 
 }
