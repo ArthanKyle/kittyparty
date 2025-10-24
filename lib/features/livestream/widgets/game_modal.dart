@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../../../core/services/api/game_service.dart';
 import '../../../core/utils/user_provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class GameListModal extends StatefulWidget {
   const GameListModal({super.key});
@@ -86,12 +87,12 @@ class _GameListModalState extends State<GameListModal> {
         itemBuilder: (_, i) {
           final g = games[i];
           return ListTile(
-            leading: Image.network(
-              g['icon'],
+            leading: CachedNetworkImage(
+              imageUrl: g['icon'],
               width: 50,
               height: 50,
-              errorBuilder: (_, __, ___) =>
-              const Icon(Icons.videogame_asset),
+              placeholder: (_, __) => const CircularProgressIndicator(strokeWidth: 1.5),
+              errorWidget: (_, __, ___) => const Icon(Icons.videogame_asset),
             ),
             title: Text(g['name']),
             subtitle: Text("v${g['version']}"),

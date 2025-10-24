@@ -17,6 +17,7 @@ class RechargeService {
     required double amount,
     required String countryCode,
     String? method,
+    required int coins, // <- add coins here
   }) async {
     final url = Uri.parse("$baseUrl/recharge/create-payment-intent");
     final response = await http.post(
@@ -27,12 +28,14 @@ class RechargeService {
         "amount": amount,
         "countryCode": countryCode,
         "method": method ?? "card",
+        "coins": coins, // <- send package coins
       }),
     );
 
     final data = jsonDecode(response.body);
     return data;
   }
+
 
   // 🔹 Step 2: Confirm Payment & credit coins
   Future<TransactionModel> confirmPayment({required String transactionId}) async {

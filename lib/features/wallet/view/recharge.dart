@@ -7,6 +7,7 @@ import '../../../core/global_widgets/buttons/recharge_button.dart';
 import '../../../core/global_widgets/dialogs/dialog_info.dart';
 import '../../../core/global_widgets/dialogs/dialog_loading.dart';
 import '../../../core/services/api/recharge_service.dart';
+import '../../../core/services/api/socket_service.dart';
 import '../../../core/utils/user_provider.dart';
 import '../../auth/widgets/arrow_back.dart';
 import '../viewmodel/recharge_viewmodel.dart';
@@ -14,7 +15,10 @@ import '../viewmodel/wallet_viewmodel.dart';
 import '../wallet_widgets/coin_card.dart';
 
 class RechargeScreen extends StatelessWidget {
-  const RechargeScreen({super.key});
+  final SocketService socketService;
+
+  const RechargeScreen({super.key, required this.socketService});
+
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +31,7 @@ class RechargeScreen extends StatelessWidget {
           create: (_) => RechargeViewModel(
             userProvider: userProvider,
             rechargeService: rechargeService,
+            socketService: socketService,
           )..fetchPackages(),
         ),
         ChangeNotifierProvider(
@@ -108,17 +113,21 @@ class RechargeScreen extends StatelessWidget {
                                       Positioned(
                                         top: 0,
                                         right: 0,
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: Colors.orange.shade200,
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: Text(
-                                            "+ ${pkg.bonus}",
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.orange.shade800,
+                                        child: AnimatedOpacity(
+                                          duration: const Duration(milliseconds: 300),
+                                          opacity: pkg.bonus > 0 ? 1.0 : 0.0,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.orange.shade200,
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            child: Text(
+                                              "+ ${pkg.bonus}",
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.orange.shade800,
+                                              ),
                                             ),
                                           ),
                                         ),

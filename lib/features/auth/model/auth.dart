@@ -9,13 +9,13 @@ class User {
   final String? passwordHash;
   final String countryCode;
   final int vipLevel;
-  late final int coins;
+  int coins;
   final int diamonds;
   final String status;
   final DateTime dateJoined;
   final DateTime? lastLogin;
   final String? invitationCode;
-  late final bool isFirstTimeRecharge;
+  bool isFirstTimeRecharge;
 
   User({
     required this.id,

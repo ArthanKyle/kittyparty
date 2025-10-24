@@ -1,14 +1,14 @@
-import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 class SocketService {
   late IO.Socket socket;
-  late String _userId;
   Function(int)? _onCoinsUpdated;
+  Function()? _onBonusHidden;
 
-  void initSocket(String userId, Function(int) onCoinsUpdated) {
-    _userId = userId;
+  void initSocket(String userId, Function(int) onCoinsUpdated, {Function()? onBonusHidden}) {
     _onCoinsUpdated = onCoinsUpdated;
+    _onBonusHidden = onBonusHidden;
 
     final baseUrl = dotenv.env['BASE_URL']!.replaceAll('/api', '');
     socket = IO.io(
@@ -22,31 +22,27 @@ class SocketService {
 
     socket.onConnect((_) {
       print('✅ Socket connected');
-      _joinRoom();
+      socket.emit('joinRoom', userId);
     });
 
     socket.onReconnect((_) {
-      print('🔁 Reconnected, joining room again');
-      _joinRoom();
+      print('🔁 Socket reconnected');
+      socket.emit('joinRoom', userId);
     });
 
     socket.onDisconnect((_) => print('❌ Socket disconnected'));
 
     socket.on('coin_update', (data) {
-      if (data['coins'] != null) {
-        final coins = data['coins'] as int;
-        print('💰 Coins updated: $coins');
-        _onCoinsUpdated?.call(coins);
-      }
+      final coins = data['coins'] as int?;
+      if (coins != null) _onCoinsUpdated?.call(coins);
+    });
+
+    socket.on('bonus_hidden', (_) {
+      _onBonusHidden?.call();
     });
   }
 
-  void _joinRoom() {
-    socket.emit('joinRoom', _userId);
-    print('🔹 Joined room: $_userId');
-  }
-
   void dispose() {
-    socket.disconnect();
+    socket.dispose();
   }
 }
