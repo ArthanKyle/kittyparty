@@ -113,7 +113,7 @@ class AuthService {
   Future<Map<String, dynamic>> googleLogin({
     required String idToken,
   }) async {
-    final uri = Uri.parse('$baseUrl/auth/google-login');
+    final uri = Uri.parse('$baseUrl/api/auth/google-login'); // ✅ Ensure your URL is correct
 
     final response = await http.post(
       uri,
@@ -121,15 +121,8 @@ class AuthService {
       body: jsonEncode({"idToken": idToken}),
     );
 
-    final data = _decodeResponse(response);
-    print("🔹 Google Login Response: $data");
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      return data;
-    } else {
-      print("❌ Google Login Error: ${data['error'] ?? data['message']}");
-      throw HttpException(data['error'] ?? data['message'] ?? 'Google login failed');
-    }
+    // ✅ Pass the full response to the decoder
+    return _decodeResponse(response);
   }
 
   /// 🚪 Logout (client-side clear)

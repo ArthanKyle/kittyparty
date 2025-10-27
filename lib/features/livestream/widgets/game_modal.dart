@@ -5,6 +5,8 @@ import '../../../core/services/api/game_service.dart';
 import '../../../core/utils/user_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
+import 'game_webview.dart';
+
 class GameListModal extends StatefulWidget {
   const GameListModal({super.key});
 
@@ -25,9 +27,13 @@ class _GameListModalState extends State<GameListModal> {
 
   Future<void> _loadGames() async {
     try {
-      debugPrint('🌐 Fetching games...');
-      final result = await gameService.fetchGames();
-      debugPrint('✅ Games fetched: ${result.length}');
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final userId = userProvider.currentUser?.userIdentification ?? "guest_user";
+
+      debugPrint('🌐 Fetching games for user: $userId...');
+      final result = await gameService.fetchGames(userId);
+      debugPrint('✅ Games fetched with secure URLs: ${result.length}');
+
       setState(() {
         games = result;
         loading = false;
@@ -41,29 +47,20 @@ class _GameListModalState extends State<GameListModal> {
 
   void _openGame(Map<String, dynamic> game) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final userId = userProvider.currentUser?.id ?? "guest_user";
+    final userId = userProvider.currentUser?.userIdentification ?? "guest_user";
 
-    // ✅ Expect play_url already includes query params from backend
     final baseUrl = game['play_url'];
+
     final url = baseUrl.contains('?')
-        ? "$baseUrl&userId=$userId&gameMode=3"
-        : "$baseUrl?userId=$userId&gameMode=3";
+        ? "$baseUrl&user_id=$userId&gameMode=3"
+        : "$baseUrl?user_id=$userId&gameMode=3";
+
+    debugPrint("🚀 Launching game with URL: $url");
 
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            Scaffold(
-              appBar: AppBar(
-                  title: Text(game['name']),
-                  backgroundColor: Colors.white
-              ),
-              body: WebViewWidget(
-                controller: WebViewController()
-                  ..setJavaScriptMode(JavaScriptMode.unrestricted)
-                  ..loadRequest(Uri.parse(url)),
-              ),
-            ),
+        builder: (_) => GameWebView(url: url, gameName: game['name']),
       ),
     );
   }

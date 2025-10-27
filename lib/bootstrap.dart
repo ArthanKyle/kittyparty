@@ -11,13 +11,16 @@ import 'features/wallet/viewmodel/diamond_viewmodel.dart';
 import 'core/utils/index_provider.dart';
 import 'core/services/api/user_service.dart';
 
+
 late Box myRegBox;
 late Box sessionsBox;
 
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
+
+
 
   // Load env
   await dotenv.load(fileName: ".env");

@@ -40,7 +40,7 @@ class MyApp extends StatelessWidget {
       navigatorKey: globalNavigatorKey,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      initialRoute: AppRoutes.auth,
+      initialRoute: AppRoutes.test,
 
       // ✅ Use onGenerateRoute for dynamic routes
       onGenerateRoute: (settings) {

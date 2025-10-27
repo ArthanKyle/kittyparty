@@ -24,60 +24,37 @@ class LoginViewModel extends ChangeNotifier {
 
   /// ------------------ GOOGLE SIGN-IN ------------------
   Future<void> handleGoogleLogin(BuildContext context) async {
-    try {
-      isLoading = true;
-      notifyListeners();
+    isLoading = true;
+    notifyListeners();
 
+    // Show the loading dialog and hold a reference to it
+    DialogLoading(subtext: "Authenticating...").build(context);
+
+    try {
       final googleSignIn = GoogleSignIn(
         scopes: ['email', 'profile'],
         serverClientId: dotenv.env['GOOGLE_WEB_CLIENT_ID'],
       );
 
       final GoogleSignInAccount? account = await googleSignIn.signIn();
-
-      if (account == null) {
-        print("⚠️ Google sign-in cancelled by user");
-        isLoading = false;
-        notifyListeners();
-        return;
-      }
+      if (account == null) throw Exception("Google sign-in was cancelled.");
 
       final GoogleSignInAuthentication auth = await account.authentication;
       final idToken = auth.idToken;
-
-      if (idToken == null) throw Exception("Failed to retrieve Google ID token");
-
-      DialogLoading(subtext: "Authenticating...").build(context);
+      if (idToken == null) throw Exception("Failed to retrieve Google ID token.");
 
       final response = await _authService.googleLogin(idToken: idToken);
-      Navigator.of(context, rootNavigator: true).pop();
 
-      print("✅ Google login response: $response");
-
-      if (response['status'] == 'not_registered' ||
-          response['error'] == 'USER_NOT_FOUND') {
-        Navigator.pushNamed(context, '/registration', arguments: {
-          'email': account.email,
-          'name': account.displayName ?? "Google User",
-          'loginMethod': 'Google',
-        });
-        isLoading = false;
-        notifyListeners();
-        return;
-      }
-
+      // (The rest of your success logic here...)
       final authResponse = AuthResponse.fromJson(response);
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       await userProvider.setUser(authResponse);
 
-      // ✅ Reset page index to LandingPage (index 0)
       Provider.of<PageIndexProvider>(context, listen: false).pageIndex = 0;
-
       loginSuccess = true;
-
       Navigator.pushNamedAndRemoveUntil(context, "/", (route) => false);
+
     } catch (e, stack) {
-      Navigator.of(context, rootNavigator: true).pop();
       errorMessage = e.toString();
       print("❌ Google Login Exception: $errorMessage");
       print("📜 Stack Trace: $stack");
@@ -87,9 +64,14 @@ class LoginViewModel extends ChangeNotifier {
         subText: errorMessage!,
         confirmText: "OK",
         onConfirm: () => Navigator.of(context, rootNavigator: true).pop(),
-        onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
+        onCancel: ()  => Navigator.of(context, rootNavigator: true).pop(),
       ).build(context);
+
     } finally {
+      // ✅ This block guarantees the loading dialog is always closed.
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
       isLoading = false;
       notifyListeners();
     }
