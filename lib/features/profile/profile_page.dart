@@ -146,22 +146,10 @@ class ProfilePage extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
-                              StatItem(
-                                label: "Following",
-                                value: vm.userSocial!.following.length.toString(),
-                              ),
-                              StatItem(
-                                label: "Fans",
-                                value: vm.userSocial!.fans.length.toString(),
-                              ),
-                              StatItem(
-                                label: "Friends",
-                                value: vm.userSocial!.friends.length.toString(),
-                              ),
-                              StatItem(
-                                label: "Visitors",
-                                value: vm.userSocial!.visitors.length.toString(),
-                              ),
+                              StatItem(label: "Following", value: vm.userSocial!.following.toString()),
+                              StatItem(label: "Fans", value: vm.userSocial!.fans.toString()),
+                              StatItem(label: "Friends", value: vm.userSocial!.friends.toString()),
+                              StatItem(label: "Visitors", value: vm.userSocial!.visitors.toString()),
                             ],
                           ),
 

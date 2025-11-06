@@ -1,9 +1,9 @@
 class Social {
   final int user;
-  final List<int> following;
-  final List<int> fans;
-  final List<int> friends;
-  final List<int> visitors;
+  final int following;
+  final int fans;
+  final int friends;
+  final int visitors;
 
   Social({
     required this.user,
@@ -16,10 +16,10 @@ class Social {
   factory Social.fromJson(Map<String, dynamic> json) {
     return Social(
       user: json['user'] ?? 0,
-      following: List<int>.from(json['following'] ?? []),
-      fans: List<int>.from(json['fans'] ?? []),
-      friends: List<int>.from(json['friends'] ?? []),
-      visitors: List<int>.from(json['visitors'] ?? []),
+      following: json['following'] ?? 0,
+      fans: json['fans'] ?? 0,
+      friends: json['friends'] ?? 0,
+      visitors: json['visitors'] ?? 0,
     );
   }
 
@@ -33,11 +33,11 @@ class Social {
     };
   }
 
-  /// Simple counts for display
+  /// Readable stats for UI
   Map<String, String> get counts => {
-    'Following': following.length.toString(),
-    'Fans': fans.length.toString(),
-    'Friends': friends.length.toString(),
-    'Visitors': visitors.length.toString(),
+    'Following': following.toString(),
+    'Fans': fans.toString(),
+    'Friends': friends.toString(),
+    'Visitors': visitors.toString(),
   };
 }
