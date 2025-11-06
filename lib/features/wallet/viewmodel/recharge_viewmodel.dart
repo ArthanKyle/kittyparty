@@ -16,65 +16,16 @@ class RechargeViewModel extends ChangeNotifier {
     required this.rechargeService,
     required this.userProvider,
     required this.socketService,
-  }) {
-    _initSocket();
-  }
-
-  @override
-  void dispose() {
-    _disposed = true;
-    socketService.dispose();
-    super.dispose();
-  }
+  });
 
   List<RechargePackage> packages = [];
   RechargePackage? selectedPackage;
   bool isLoading = false;
   bool isPaymentProcessing = false;
 
-
   double displayAmount = 0.0;
   String displayCurrency = "USD";
   String displaySymbol = "\$";
-
-  void _initSocket() {
-    final userId = userProvider.currentUser?.id;
-    if (userId == null) return;
-
-    socketService.initSocket(
-      userId,
-          (coins) {
-        if (!_disposed) {
-          userProvider.currentUser?.coins = coins;
-          notifyListeners();
-        }
-      },
-      onBonusHidden: () {
-        if (!_disposed) _hideBonusesIfNotFirstRecharge();
-      },
-    );
-  }
-
-  void _hideBonusesIfNotFirstRecharge() {
-    final user = userProvider.currentUser;
-    if (user == null || user.isFirstTimeRecharge) return; // Only hide if it's NOT first recharge
-    if (packages.isEmpty) return;
-
-    // Map all packages to remove bonus
-    packages = packages.map((pkg) {
-      return RechargePackage(
-        coins: pkg.coins,
-        bonus: 0, // remove bonus
-        price: pkg.price,
-        symbol: pkg.symbol,
-        currency: pkg.currency,
-      );
-    }).toList();
-
-    if (!_disposed) notifyListeners();
-    print("📦 Bonuses hidden for user ${user.id}");
-  }
-
 
   Future<void> fetchPackages() async {
     final user = userProvider.currentUser;
@@ -188,7 +139,6 @@ class RechargeViewModel extends ChangeNotifier {
         print("💡 First-time recharge completed for user ${user.id}");
       }
 
-      // 🔹 Immediately hide bonuses on packages
       _hideBonusesIfNotFirstRecharge();
     } catch (e) {
       print("confirmPayment failed: $e");
@@ -199,6 +149,25 @@ class RechargeViewModel extends ChangeNotifier {
     }
   }
 
+  void _hideBonusesIfNotFirstRecharge() {
+    final user = userProvider.currentUser;
+    if (user == null || user.isFirstTimeRecharge) return;
+    if (packages.isEmpty) return;
+
+    packages = packages.map((pkg) {
+      return RechargePackage(
+        coins: pkg.coins,
+        bonus: 0,
+        price: pkg.price,
+        symbol: pkg.symbol,
+        currency: pkg.currency,
+      );
+    }).toList();
+
+    if (!_disposed) notifyListeners();
+    print("📦 Bonuses hidden for user ${user.id}");
+  }
+
   String _getCurrencySymbol(String code) {
     switch (code.toUpperCase()) {
       case "PHP":
@@ -207,5 +176,11 @@ class RechargeViewModel extends ChangeNotifier {
       default:
         return "\$";
     }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }

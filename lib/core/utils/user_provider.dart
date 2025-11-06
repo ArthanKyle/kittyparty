@@ -13,22 +13,15 @@ class UserProvider extends ChangeNotifier {
   User? currentUser;
   String? _token;
   bool isLoading = true;
-  late SocketService socketService;
 
-  // Stream for real-time updates
   final _userController = StreamController<User>.broadcast();
   Stream<User> get userStream => _userController.stream;
 
+  late SocketService _socketService;
+  bool _socketInitialized = false;
+
   String? get token => _token;
   bool get isLoggedIn => currentUser != null && _token != null;
-
-  /// Initialize socket with callback for real-time coin updates
-  void initSocket(String userId) {
-    socketService = SocketService();
-    socketService.initSocket(userId, (newCoins) {
-      updateCoins(newCoins); // automatically update coins
-    });
-  }
 
   Future<void> loadUser() async {
     try {
@@ -40,19 +33,18 @@ class UserProvider extends ChangeNotifier {
       }
 
       final response = await _authService.authCheck(_token!);
-
-      if (response['user'] != null) {
-        currentUser = User.fromJson(response['user']);
-
-        // Emit initial user
-        _userController.add(currentUser!);
-
-        // 🔥 Initialize socket for real-time updates automatically
-        initSocket(currentUser!.id);
-        debugPrint("💰 Loaded user coins: ${currentUser!.coins}");
-      } else {
+      final userData = response['user'];
+      if (userData == null) {
         await logout();
+        return;
       }
+
+      currentUser = User.fromJson(userData);
+      _userController.add(currentUser!);
+
+      _initSocketIfNeeded(currentUser!.id);
+
+      debugPrint("💰 Loaded user coins: ${currentUser!.coins}");
     } catch (e) {
       debugPrint("User load failed: $e");
     } finally {
@@ -61,11 +53,35 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
+  void _initSocketIfNeeded(String userId) {
+    if (_socketInitialized) return;
+
+    _socketService = SocketService();
+    _socketService.initSocket(userId);
+
+    // Listen to socket streams
+    _socketService.coinsStream.listen((newCoins) {
+      updateCoins(newCoins);
+    });
+
+    _socketService.diamondsStream.listen((newDiamonds) {
+      if (currentUser != null) {
+        currentUser!.diamonds = newDiamonds;
+        _userController.add(currentUser!);
+        notifyListeners();
+      }
+    });
+
+    _socketInitialized = true;
+  }
+
+
   Future<void> setUser(AuthResponse authResponse) async {
     _token = authResponse.token;
     currentUser = authResponse.user;
     await _storage.write(key: "auth_token", value: _token);
     _userController.add(currentUser!);
+    _initSocketIfNeeded(currentUser!.id);
     notifyListeners();
   }
 
@@ -80,6 +96,10 @@ class UserProvider extends ChangeNotifier {
       await _storage.delete(key: "auth_token");
       _token = null;
       currentUser = null;
+      if (_socketInitialized) {
+        _socketService.dispose();
+        _socketInitialized = false;
+      }
       _userController.addStream(Stream.empty());
       notifyListeners();
     }
@@ -87,32 +107,17 @@ class UserProvider extends ChangeNotifier {
 
   void updateCoins(int newCoins) {
     if (currentUser == null) return;
-    currentUser = User(
-      id: currentUser!.id,
-      userIdentification: currentUser!.userIdentification,
-      fullName: currentUser!.fullName,
-      email: currentUser!.email,
-      phoneNumber: currentUser!.phoneNumber,
-      loginMethod: currentUser!.loginMethod,
-      passwordHash: currentUser!.passwordHash,
-      countryCode: currentUser!.countryCode,
-      vipLevel: currentUser!.vipLevel,
-      coins: newCoins, // 👈 updated here
-      diamonds: currentUser!.diamonds,
-      status: currentUser!.status,
-      dateJoined: currentUser!.dateJoined,
-      lastLogin: currentUser!.lastLogin,
-      invitationCode: currentUser!.invitationCode,
-      username: currentUser!.username,
-    );
+
+    currentUser!.coins = newCoins; // Directly update
     _userController.add(currentUser!);
     notifyListeners();
   }
 
+
   @override
   void dispose() {
+    if (_socketInitialized) _socketService.dispose();
     _userController.close();
     super.dispose();
   }
-
 }

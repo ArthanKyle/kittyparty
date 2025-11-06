@@ -10,7 +10,7 @@ class User {
   final String countryCode;
   final int vipLevel;
   int coins;
-  final int diamonds;
+  int diamonds;
   final String status;
   final DateTime dateJoined;
   final DateTime? lastLogin;
@@ -49,7 +49,7 @@ class User {
     fullName: json['FullName']?.toString() ??
         json['fullName']?.toString() ??
         "",
-    email: json['Email'] ?? json['email'],
+    email: json['Email'],
     phoneNumber: json['PhoneNumber'] ?? json['phoneNumber'],
     loginMethod: json['LoginMethod'] ?? "Email",
     passwordHash: json['PasswordHash'],

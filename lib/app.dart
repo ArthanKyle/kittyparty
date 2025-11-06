@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:kittyparty/features/auth/view/login_selection.dart';
 import 'package:kittyparty/features/livestream/view/live_audio_room.dart';
+import 'package:kittyparty/features/profile/profile_pages/daily_task_page.dart';
+import 'package:kittyparty/features/profile/profile_pages/invite_page.dart';
 import 'package:kittyparty/features/profile/profile_pages/setting_page.dart';
 import 'core/config/app_theme.dart';
 import 'bootstrap.dart';
@@ -13,6 +15,7 @@ import 'features/auth/view/register.dart';
 import 'features/auth/auth_module.dart';
 
 // Navigation / Pages
+import 'features/auth/viewmodel/register_viewmodel.dart';
 import 'features/landing/view/landing_page.dart';
 import 'features/landing/view/messages_page.dart';
 import 'features/navigation/page_handler.dart';
@@ -40,7 +43,7 @@ class MyApp extends StatelessWidget {
       navigatorKey: globalNavigatorKey,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      initialRoute: AppRoutes.test,
+      initialRoute: AppRoutes.auth,
 
       // ✅ Use onGenerateRoute for dynamic routes
       onGenerateRoute: (settings) {
@@ -48,7 +51,19 @@ class MyApp extends StatelessWidget {
           case AppRoutes.home:
             return MaterialPageRoute(builder: (_) => const PageHandler());
           case AppRoutes.registration:
-            return MaterialPageRoute(builder: (_) => const RegisterPage());
+            final args = settings.arguments as Map<String, dynamic>?;
+
+            return MaterialPageRoute(
+              builder: (_) => ChangeNotifierProvider(
+                create: (_) => RegisterViewModel()..setInitialValues(
+                  email: args?['email'],
+                  fullName: args?['name'],
+                  pictureUrl: args?['picture'],
+                  isGoogleSignIn: true, // 👈 add this
+                ),
+                child: const RegisterPage(),
+              ),
+            );
           case AppRoutes.landing:
             return MaterialPageRoute(builder: (_) => const LandingPage());
           case AppRoutes.auth:
@@ -81,6 +96,11 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute(builder: (_) => const LevelPage());
           case AppRoutes.mall:
             return MaterialPageRoute(builder: (_) => const MallPage());
+          case AppRoutes.invite:
+            return MaterialPageRoute(builder: (_) => const InvitePage());
+          case AppRoutes.tasks:
+            return MaterialPageRoute(builder: (_) => const DailyTaskPage());
+
 
 
         // ✅ Dynamic route for LiveAudioRoom
@@ -137,5 +157,7 @@ abstract class AppRoutes {
   static const item = "/profile/item";
   static const level = "/profile/level";
   static const mall = "/profile/mall";
+  static const invite = "/profile/invite";
+  static const tasks = "/profile/tasks";
 
 }

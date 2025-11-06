@@ -54,14 +54,16 @@ class EmailLogin extends StatelessWidget {
               child: SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  child: ListView(
+                    physics: const BouncingScrollPhysics(),
                     children: [
+                      const SizedBox(height: 100),
                       ArrowBack(onTap: () => Navigator.pop(context)),
                       Image.asset('assets/image/kitty-party-logo.jpg', height: 120),
                       const SizedBox(height: 16),
                       const Text(
                         'Login with Email',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,

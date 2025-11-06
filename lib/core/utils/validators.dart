@@ -68,13 +68,13 @@ class Validators {
 
   static String? passwordValidator(String? value) {
     final bool passwordValid = RegExp(
-        r"^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-.+=_]).{8,}$")
+        r"^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-.+=_]).{6,}$")
         .hasMatch(value!);
     if (passwordValid) {
       return null;
     }
 
-    return "Password must be at least 8 characters, at least one uppercase, number, and special characters.";
+    return "Password must be at least 6 characters, at least one uppercase, number, and special characters.";
   }
 
   static String? inviteCodeValidator(String? value) {

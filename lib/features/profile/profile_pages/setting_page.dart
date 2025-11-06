@@ -1,5 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:kittyparty/features/profile/profile_pages/settings/VIPSettings_page.dart';
+import 'package:kittyparty/features/profile/profile_pages/settings/bind_number.dart';
+import 'package:kittyparty/features/profile/profile_pages/settings/language_page.dart';
+import 'package:kittyparty/features/profile/profile_pages/settings/payment_pass_page.dart';
+import 'package:kittyparty/features/profile/profile_pages/settings/reset_pass_page.dart';
+import 'package:kittyparty/features/profile/profile_pages/settings/set_password_page.dart';
 import 'package:provider/provider.dart';
+
+// 🔹 Auth + Core Imports
 import 'package:kittyparty/features/auth/view/login_selection.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/global_widgets/buttons/primary_button.dart';
@@ -7,6 +15,8 @@ import '../../../core/global_widgets/dialogs/dialog_info.dart';
 import '../../../core/global_widgets/dialogs/dialog_loading.dart';
 import '../../../core/utils/index_provider.dart';
 import '../../../core/utils/user_provider.dart';
+// 🔹 Feature Pages
+import '../../livestream/widgets/game_modal.dart';
 
 class SettingPage extends StatefulWidget {
   const SettingPage({super.key});
@@ -60,6 +70,15 @@ class _SettingPageState extends State<SettingPage> {
     ).build(context);
   }
 
+  /// ✅ Opens the Game Modal
+  void _openGameListModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const GameListModal(),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -81,37 +100,102 @@ class _SettingPageState extends State<SettingPage> {
             child: ListView(
               padding: const EdgeInsets.all(12),
               children: [
+                // 🔹 Account Group
                 _buildGroup([
                   Consumer<UserProvider>(
                     builder: (context, userProvider, _) {
                       final email = userProvider.currentUser?.email ?? 'No email';
-                      return _buildItem('Change Email', trailingText: email);
+                      final phoneNumber = userProvider.currentUser?.phoneNumber ?? 'No phone number';
+
+                      return Column(
+                        children: [
+                          _buildItem(
+                            'Change Email',
+                            trailingText: email,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const SetPasswordPage()),
+                            ),
+                          ),
+                          _buildItem(
+                            'Bind Phone Number',
+                            trailingText: phoneNumber,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const BindNumberPage()),
+                            ),
+                          ),
+                          _buildItem(
+                            userProvider.currentUser?.passwordHash != null &&
+                                userProvider.currentUser!.passwordHash!.isNotEmpty
+                                ? 'Reset Password'
+                                : 'Set Password',
+                            onTap: () {
+                              final hasPassword = userProvider.currentUser?.passwordHash != null &&
+                                  userProvider.currentUser!.passwordHash!.isNotEmpty;
+
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => hasPassword
+                                      ? const ResetPassPage()   // navigate to reset
+                                      : const SetPasswordPage(),    // navigate to set
+                                ),
+                              );
+                            },
+                          ),
+
+                          _buildItem(
+                            'Payment Password',
+                            trailingText: 'Modify',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const PaymentPassPage()),
+                            ),
+                          ),
+                        ],
+                      );
                     },
                   ),
-                  _buildItem('Bind Phone Number'),
-                  _buildItem('Reset password'),
-                  _buildItem('Payment Password', trailingText: 'Modify'),
                 ]),
+
+                // 🔹 Preferences Group
                 _buildGroup([
-                  _buildItem('VIP Setting'),
-                  _buildItem('Notification Setting'),
-                  _buildItem('Language'),
+                  _buildItem(
+                    'VIP Setting',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const VIPSettingsPage()),
+                    ),
+                  ),
+                  _buildItem('Notification Setting', onTap: () {}),
+                  _buildItem(
+                    'Language',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LanguagePage()),
+                    ),
+                  ),
                 ]),
+
+                // 🔹 Privacy / Management Group
                 _buildGroup([
-                  _buildItem('Shield Manager'),
-                  _buildItem('Blacklist Management'),
+                  _buildItem('Shield Manager', onTap: () {}),
+                  _buildItem('Blacklist Management', onTap: () {}),
                 ]),
+
+                // 🔹 Info / Support Group
                 _buildGroup([
-                  _buildItem('Personal Information and Permissions'),
-                  _buildItem('Help'),
-                  _buildItem('Clear Cache'),
-                  _buildItem('About MoliParty'),
+                  _buildItem('Personal Information and Permissions', onTap: () {}),
+                  _buildItem('Help', onTap: () {}),
+                  _buildItem('Clear Cache', onTap: () {}),
+                  _buildItem('About MoliParty', onTap: () {}),
                 ]),
               ],
             ),
           ),
 
-          // ✅ Logout Button
+          // 🔹 Logout Button
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: SizedBox(
@@ -122,12 +206,26 @@ class _SettingPageState extends State<SettingPage> {
               ),
             ),
           ),
+          const SizedBox(height: 10),
+
+          // 🔹 Game Testing Button
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: SizedBox(
+              width: double.infinity,
+              child: PrimaryButton(
+                text: "🎮 Game for Testing",
+                onPressed: () async => _openGameListModal(context),
+              ),
+            ),
+          ),
           const SizedBox(height: 30),
         ],
       ),
     );
   }
 
+  // 🔸 Group Container
   Widget _buildGroup(List<Widget> children) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -141,7 +239,12 @@ class _SettingPageState extends State<SettingPage> {
             children: [
               children[index],
               if (index != children.length - 1)
-                const Divider(height: 1, thickness: 0.5, indent: 16, endIndent: 16),
+                const Divider(
+                  height: 1,
+                  thickness: 0.5,
+                  indent: 16,
+                  endIndent: 16,
+                ),
             ],
           );
         }),
@@ -149,7 +252,8 @@ class _SettingPageState extends State<SettingPage> {
     );
   }
 
-  Widget _buildItem(String title, {String? trailingText}) {
+  // 🔸 Reusable List Item
+  Widget _buildItem(String title, {String? trailingText, VoidCallback? onTap}) {
     return ListTile(
       title: Text(title, style: const TextStyle(fontSize: 16)),
       trailing: Row(
@@ -166,7 +270,7 @@ class _SettingPageState extends State<SettingPage> {
           const Icon(Icons.chevron_right, color: Colors.grey),
         ],
       ),
-      onTap: () {},
+      onTap: onTap,
       visualDensity: const VisualDensity(vertical: -2),
     );
   }

@@ -48,12 +48,9 @@ class AuthService {
     if (response.statusCode == 200 || response.statusCode == 201) {
       return data;
     } else {
-      // ✅ Updated to check both 'message' and 'error'
       throw HttpException(data['message'] ?? data['error'] ?? 'Registration failed');
     }
   }
-
-
 
   /// 🔐 Email / ID Login
   Future<Map<String, dynamic>> login({
@@ -80,6 +77,30 @@ class AuthService {
       throw HttpException(data['message'] ?? 'Login failed');
     }
   }
+  /// 🔐 Email / ID Login
+  Future<Map<String, dynamic>> IDlogin({
+    required String identifier,
+    required String password,
+  }) async {
+    final uri = Uri.parse('$baseUrl/auth/login');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        "identifier": identifier,
+        "Password": password,
+        "LoginMethod": "ID", // explicitly set
+      }),
+    );
+
+    final data = _decodeResponse(response);
+
+    if (response.statusCode == 200) {
+      return data;
+    } else {
+      throw HttpException(data['error'] ?? 'Login failed');
+    }
+  }
 
   /// 🔄 Auth Check (JWT validation)
   Future<Map<String, dynamic>> authCheck(String token) async {
@@ -96,7 +117,6 @@ class AuthService {
 
       return _decodeResponse(response);
     } on SocketException {
-      // Retry once (for Railway cold start)
       await Future.delayed(const Duration(seconds: 2));
       final retryResponse = await http.get(
         uri,
@@ -110,19 +130,43 @@ class AuthService {
   }
 
   /// 🔵 Google Sign-In → Backend Login
-  Future<Map<String, dynamic>> googleLogin({
-    required String idToken,
-  }) async {
-    final uri = Uri.parse('$baseUrl/api/auth/google-login'); // ✅ Ensure your URL is correct
-
+  Future<Map<String, dynamic>> googleLogin({required String idToken}) async {
     final response = await http.post(
-      uri,
+      Uri.parse('$baseUrl/auth/google-login'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({"idToken": idToken}),
+      body: jsonEncode({
+        'token': idToken,
+        'countryCode': 'PH',
+      }),
     );
 
-    // ✅ Pass the full response to the decoder
     return _decodeResponse(response);
+  }
+
+  /// 🧱 Set or Update Password
+  Future<Map<String, dynamic>> setPassword({
+    required String token,
+    required String password,
+  }) async {
+    final uri = Uri.parse('$baseUrl/auth/set-password');
+    final response = await http.post(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token', // JWT required for security
+      },
+      body: jsonEncode({
+        "password": password,
+      }),
+    );
+
+    final data = _decodeResponse(response);
+
+    if (response.statusCode == 200) {
+      return data;
+    } else {
+      throw HttpException(data['message'] ?? 'Failed to set password');
+    }
   }
 
   /// 🚪 Logout (client-side clear)
@@ -148,6 +192,7 @@ class AuthService {
 
   /// 🧩 Private: Handle JSON decoding safely
   Map<String, dynamic> _decodeResponse(http.Response response) {
+    print("🔍 Raw Response (${response.statusCode}): ${response.body}");
     try {
       return jsonDecode(response.body) as Map<String, dynamic>;
     } catch (_) {

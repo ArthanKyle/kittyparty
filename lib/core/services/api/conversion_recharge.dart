@@ -1,12 +1,13 @@
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 class ConversionService {
   final String baseUrl;
 
-  ConversionService({required this.baseUrl});
+  ConversionService({String? baseUrl})
+      : baseUrl = baseUrl ?? dotenv.env['BASE_URL']!;
 
-  // Convert coins into diamonds
   Future<Map<String, dynamic>> convertCoinsToDiamonds({
     required String userId,
     required int coins,
@@ -17,9 +18,13 @@ class ConversionService {
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "userId": userId,
-        "coins": coins,
+        "coinsToConvert": coins,
       }),
     );
+
+    if (response.statusCode != 200) {
+      throw Exception("Conversion failed: ${response.body}");
+    }
 
     return jsonDecode(response.body);
   }

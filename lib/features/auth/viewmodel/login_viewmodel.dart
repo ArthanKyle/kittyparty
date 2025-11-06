@@ -17,6 +17,7 @@ class LoginViewModel extends ChangeNotifier {
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final idController = TextEditingController();
 
   bool isLoading = false;
   String? errorMessage;
@@ -27,7 +28,6 @@ class LoginViewModel extends ChangeNotifier {
     isLoading = true;
     notifyListeners();
 
-    // Show the loading dialog and hold a reference to it
     DialogLoading(subtext: "Authenticating...").build(context);
 
     try {
@@ -45,42 +45,95 @@ class LoginViewModel extends ChangeNotifier {
 
       final response = await _authService.googleLogin(idToken: idToken);
 
-      // (The rest of your success logic here...)
-      final authResponse = AuthResponse.fromJson(response);
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      await userProvider.setUser(authResponse);
+      Navigator.of(context, rootNavigator: true).pop(); // close loading
 
-      Provider.of<PageIndexProvider>(context, listen: false).pageIndex = 0;
-      loginSuccess = true;
-      Navigator.pushNamedAndRemoveUntil(context, "/", (route) => false);
+      if (response['status'] == 'not_registered') {
+        Navigator.pushNamed(
+          context,
+          '/registration',
+          arguments: {
+            'email': response['email'],
+            'name': response['name'],
+            'picture': response['picture'],
+          },
+        );
+      } else if (response['status'] == 'success') {
+        final authResponse = AuthResponse.fromJson(response);
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        await userProvider.setUser(authResponse);
 
+        Provider.of<PageIndexProvider>(context, listen: false).pageIndex = 0;
+        loginSuccess = true;
+        Navigator.pushNamedAndRemoveUntil(context, "/", (route) => false);
+      }
     } catch (e, stack) {
       errorMessage = e.toString();
-      print("❌ Google Login Exception: $errorMessage");
-      print("📜 Stack Trace: $stack");
+      print("❌ Google Login Exception: $errorMessage\n📜 $stack");
+
+      if (Navigator.of(context).canPop()) Navigator.of(context).pop();
 
       DialogInfo(
         headerText: "Google Sign-In Failed",
         subText: errorMessage!,
         confirmText: "OK",
         onConfirm: () => Navigator.of(context, rootNavigator: true).pop(),
-        onCancel: ()  => Navigator.of(context, rootNavigator: true).pop(),
+        onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
       ).build(context);
-
     } finally {
-      // ✅ This block guarantees the loading dialog is always closed.
-      if (Navigator.of(context, rootNavigator: true).canPop()) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
       isLoading = false;
       notifyListeners();
     }
   }
 
+  /// ------------------ ID LOGIN ------------------
+  Future<void> loginWithID(BuildContext context) async {
+    if (!_validateIDLogin()) return;
+
+    isLoading = true;
+    errorMessage = null;
+    notifyListeners();
+
+    DialogLoading(subtext: "Logging in with ID...").build(context);
+
+    try {
+      final response = await _authService.IDlogin(
+        identifier: idController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+
+      Navigator.of(context, rootNavigator: true).pop();
+
+      if (response['error'] != null) {
+        errorMessage = response['error'];
+        print("⚠️ Login error: ${response['error']}");
+        _showErrorDialog(context, "Login Failed", errorMessage!);
+      } else {
+        final authResponse = AuthResponse.fromJson(response);
+        await Provider.of<UserProvider>(context, listen: false)
+            .setUser(authResponse);
+
+        Provider.of<PageIndexProvider>(context, listen: false).pageIndex = 0;
+
+        loginSuccess = true;
+        print("✅ ID login successful for ${authResponse.user.userIdentification}");
+
+        Navigator.pushNamedAndRemoveUntil(context, "/", (route) => false);
+      }
+    } catch (e, stack) {
+      errorMessage = e.toString();
+      print("❌ ID Login Exception: $errorMessage\n📜 $stack");
+
+      if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+      _showErrorDialog(context, "Login Failed", "Something went wrong.");
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
 
   /// ------------------ EMAIL LOGIN ------------------
   Future<void> login(BuildContext context) async {
-    if (!_validateInputs()) return;
+    if (!_validateEmailLogin()) return;
 
     isLoading = true;
     errorMessage = null;
@@ -94,15 +147,17 @@ class LoginViewModel extends ChangeNotifier {
         password: passwordController.text.trim(),
       );
 
+      Navigator.of(context, rootNavigator: true).pop();
+
       if (response['error'] != null) {
         errorMessage = response['error'];
         print("⚠️ Login error: ${response['error']}");
+        _showErrorDialog(context, "Login Failed", errorMessage!);
       } else {
         final authResponse = AuthResponse.fromJson(response);
         await Provider.of<UserProvider>(context, listen: false)
             .setUser(authResponse);
 
-        // ✅ Reset page index to LandingPage (index 0)
         Provider.of<PageIndexProvider>(context, listen: false).pageIndex = 0;
 
         loginSuccess = true;
@@ -112,24 +167,25 @@ class LoginViewModel extends ChangeNotifier {
       }
     } catch (e, stack) {
       errorMessage = e.toString();
-      print("❌ Email Login Exception: $errorMessage");
-      print("📜 Stack Trace: $stack");
+      print("❌ Email Login Exception: $errorMessage\n📜 $stack");
+
+      if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+      _showErrorDialog(context, "Login Failed", "Something went wrong.");
     } finally {
       isLoading = false;
-      Navigator.of(context, rootNavigator: true).pop();
       notifyListeners();
     }
   }
 
-
-  bool _validateInputs() {
+  /// ------------------ VALIDATION ------------------
+  bool _validateEmailLogin() {
     if (!Validators.isValidEmail(emailController.text.trim())) {
       errorMessage = "Invalid email format";
       notifyListeners();
       return false;
     }
-    final passError =
-        Validators.passwordValidator(passwordController.text.trim());
+
+    final passError = Validators.passwordValidator(passwordController.text.trim());
     if (passError != null) {
       errorMessage = passError;
       notifyListeners();
@@ -138,10 +194,37 @@ class LoginViewModel extends ChangeNotifier {
     return true;
   }
 
+  bool _validateIDLogin() {
+    if (idController.text.trim().isEmpty) {
+      errorMessage = "User ID is required";
+      notifyListeners();
+      return false;
+    }
+
+    final passError = Validators.passwordValidator(passwordController.text.trim());
+    if (passError != null) {
+      errorMessage = passError;
+      notifyListeners();
+      return false;
+    }
+    return true;
+  }
+
+  void _showErrorDialog(BuildContext context, String header, String message) {
+    DialogInfo(
+      headerText: header,
+      subText: message,
+      confirmText: "OK",
+      onConfirm: () => Navigator.of(context, rootNavigator: true).pop(),
+      onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
+    ).build(context);
+  }
+
   @override
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
+    idController.dispose();
     super.dispose();
   }
 }

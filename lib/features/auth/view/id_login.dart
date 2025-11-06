@@ -53,14 +53,16 @@ class IdLogin extends StatelessWidget {
               child: SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  child: ListView(
+                    physics: const BouncingScrollPhysics(),
                     children: [
+                      const SizedBox(height: 100),
                       ArrowBack(onTap: () => Navigator.pop(context)),
                       Image.asset('assets/image/kitty-party-logo.jpg', height: 120),
                       const SizedBox(height: 16),
                       const Text(
                         'Login with ID',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
@@ -70,11 +72,12 @@ class IdLogin extends StatelessWidget {
                       const SizedBox(height: 32),
 
                       BasicTextField(
-                        controller: vm.emailController,
+                        controller: vm.idController,
                         labelText: 'User ID',
                         hintText: 'Enter your ID',
                         validator: (val) =>
                         val != null && val.trim().isNotEmpty ? null : 'ID required',
+                        inputType: TextInputType.number,
                       ),
                       const SizedBox(height: 12),
 
@@ -88,7 +91,7 @@ class IdLogin extends StatelessWidget {
                       const SizedBox(height: 24),
 
                       LoginButton(
-                        onPressed: vm.isLoading ? null : () => vm.login(context),
+                        onPressed: vm.isLoading ? null : () => vm.loginWithID(context),
                         text: 'Login',
                         isDisabled: vm.isLoading,
                       ),
@@ -105,3 +108,4 @@ class IdLogin extends StatelessWidget {
     );
   }
 }
+

@@ -10,36 +10,32 @@ class DiamondsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<DiamondViewModel>(
-      builder: (context, diamondVM, _) {
-        return Column(
-          children: [
-            DiamondCard(
-              balance: diamondVM.diamond.diamonds,
-              onConvert: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ConvertCoinsPage(),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 20),
-            ConvertButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ConvertCoinsPage(),
-                  ),
-                );
-              },
-            ),
-            const Spacer(),
-          ],
-        );
-      },
+    return Column(
+      children: [
+        // DiamondCard now listens to the ViewModel directly
+        DiamondCard(
+          onConvert: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ConvertCoinsPage(),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 20),
+        ConvertButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ConvertCoinsPage(),
+              ),
+            );
+          },
+        ),
+        const Spacer(),
+      ],
     );
   }
 }

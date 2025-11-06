@@ -27,7 +27,7 @@ class ProfileMenu extends StatelessWidget {
     {
       'label': 'Daily Tasks',
       'icon': FontAwesomeIcons.calendar,
-      'route': '/tasks',
+      'route': AppRoutes.tasks,
     },
     {
       'label': 'My Medals',
@@ -37,7 +37,7 @@ class ProfileMenu extends StatelessWidget {
     {
       'label': 'Invite',
       'icon': FontAwesomeIcons.userPlus,
-      'route': '/invite',
+      'route': AppRoutes.invite,
     },
     {
       'label': 'My Level',
