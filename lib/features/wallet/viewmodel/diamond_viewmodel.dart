@@ -35,8 +35,14 @@ class DiamondViewModel extends ChangeNotifier {
   void _listenToSocket() {
     socketService.diamondsStream.listen((newDiamonds) {
       if (_disposed) return;
+      print("💎 Socket update received: $newDiamonds");
       diamond.diamonds = newDiamonds;
-      userProvider.currentUser?.diamonds = newDiamonds;
+
+      // ⭐️ FIX: Call the update method on UserProvider
+      // This ensures the central state is updated correctly.
+      // userProvider.currentUser?.diamonds = newDiamonds; // <-- OLD (BUG)
+      userProvider.updateDiamonds(newDiamonds); // <-- NEW (FIX)
+
       notifyListeners();
     });
 
@@ -57,21 +63,12 @@ class DiamondViewModel extends ChangeNotifier {
       print("🔹 Converting coins for user: ${user.id}");
       print("🔹 Coins to convert: $coinsToConvert");
 
-      final result = await conversionService.convertCoinsToDiamonds(
+      await conversionService.convertCoinsToDiamonds(
         userId: user.id,
         coins: coinsToConvert,
       );
 
-      final updatedCoins = result['updatedCoins'] ?? 0;
-      final updatedDiamonds = result['updatedDiamonds'] ?? 0;
-
-      print("✅ Conversion successful!");
-      print("🪙 New coins: $updatedCoins");
-      print("💎 New diamonds: $updatedDiamonds");
-
-      userProvider.updateCoins(updatedCoins);
-      userProvider.currentUser?.diamonds = updatedDiamonds;
-      diamond.diamonds = updatedDiamonds;
+      print("✅ Conversion API call successful. Waiting for socket update.");
 
     } catch (e) {
       print("❌ convertCoinsToDiamonds failed: $e");

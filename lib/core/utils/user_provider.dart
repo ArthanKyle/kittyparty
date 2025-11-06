@@ -113,6 +113,12 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateDiamonds(int newDiamonds) {
+    if (currentUser != null) {
+      currentUser!.diamonds = newDiamonds;
+      notifyListeners(); // Make sure to notify listeners
+    }
+  }
 
   @override
   void dispose() {

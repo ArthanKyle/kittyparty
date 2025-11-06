@@ -1,13 +1,14 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/constants/colors.dart';
-import '../viewmodel/diamond_viewmodel.dart';
 
 class DiamondCard extends StatefulWidget {
+  final int balance;
   final VoidCallback onConvert;
 
   const DiamondCard({
     super.key,
+    required this.balance,
     required this.onConvert,
   });
 
@@ -19,11 +20,12 @@ class _DiamondCardState extends State<DiamondCard>
     with SingleTickerProviderStateMixin {
   late int oldBalance;
   late AnimationController _scaleController;
+  final List<Widget> _particles = [];
 
   @override
   void initState() {
     super.initState();
-    oldBalance = 0;
+    oldBalance = widget.balance;
 
     _scaleController = AnimationController(
       vsync: this,
@@ -34,6 +36,47 @@ class _DiamondCardState extends State<DiamondCard>
   }
 
   @override
+  void didUpdateWidget(DiamondCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.balance != widget.balance) {
+      // Trigger pop animation
+      _scaleController.forward(from: 1.0).then((_) => _scaleController.reverse());
+
+      // Trigger floating sparkles
+      _spawnParticles();
+
+      oldBalance = oldWidget.balance;
+    }
+  }
+
+  void _spawnParticles() {
+    final random = Random();
+    final newParticles = List.generate(5, (index) {
+      final startX = random.nextDouble() * 60 - 30;
+      final duration = random.nextInt(400) + 600;
+
+      return FloatingDiamond(
+        key: UniqueKey(),
+        startX: startX,
+        duration: duration,
+      );
+    });
+
+    setState(() {
+      _particles.addAll(newParticles);
+    });
+
+    // Remove particles after animation
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      if (mounted) {
+        setState(() {
+          _particles.clear();
+        });
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _scaleController.dispose();
     super.dispose();
@@ -41,96 +84,153 @@ class _DiamondCardState extends State<DiamondCard>
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<DiamondViewModel>(
-      builder: (context, diamondVM, child) {
-        final diamonds = diamondVM.diamond.diamonds;
+    const double imageSize = 170.0;
+    const double overlapAmount = 35.0;
 
-        // Animate scale when diamonds change
-        if (oldBalance != diamonds) {
-          _scaleController.forward(from: 1.0).then((_) => _scaleController.reverse());
-          oldBalance = diamonds;
-        }
-
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: AppColors.diamondGradient,
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.3),
-                      spreadRadius: 1,
-                      blurRadius: 5,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12 + overlapAmount / 2),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: AppColors.diamondGradient,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.3),
+                  spreadRadius: 1,
+                  blurRadius: 5,
+                  offset: const Offset(0, 3),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "My Diamonds",
-                          style: TextStyle(fontSize: 14, color: AppColors.gray),
-                        ),
-                        const SizedBox(height: 8),
-                        AnimatedBuilder(
-                          animation: _scaleController,
-                          builder: (context, child) {
-                            return Transform.scale(
-                              scale: _scaleController.value,
-                              child: TweenAnimationBuilder<int>(
-                                tween: IntTween(begin: oldBalance, end: diamonds),
-                                duration: const Duration(milliseconds: 800),
-                                builder: (context, value, child) {
-                                  return Text(
-                                    value.toString(),
-                                    style: const TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  );
-                                },
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 8),
-                        GestureDetector(
-                          onTap: widget.onConvert,
-                          child: const Text(
-                            "Convert >",
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
-                          ),
-                        ),
-                      ],
+                    const Text(
+                      "My Diamonds",
+                      style: TextStyle(fontSize: 14, color: AppColors.gray),
                     ),
-                    const SizedBox(width: 170 - 35),
+                    const SizedBox(height: 8),
+                    AnimatedBuilder(
+                      animation: _scaleController,
+                      builder: (context, child) {
+                        return Transform.scale(
+                          scale: _scaleController.value,
+                          child: TweenAnimationBuilder<int>(
+                            tween: IntTween(begin: oldBalance, end: widget.balance),
+                            duration: const Duration(milliseconds: 800),
+                            builder: (context, value, child) {
+                              return Text(
+                                value.toString(),
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: widget.onConvert,
+                      child: const Text(
+                        "Convert >",
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ),
                   ],
                 ),
-              ),
-              Positioned(
-                top: -35,
-                right: -35 / 2,
-                child: Image.asset(
-                  "assets/icons/jewel.PNG",
-                  height: 170,
-                  width: 170,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ],
+                SizedBox(width: imageSize - overlapAmount),
+              ],
+            ),
+          ),
+          Positioned(
+            top: -overlapAmount,
+            right: -overlapAmount / 2,
+            child: Image.asset(
+              "assets/icons/jewel.PNG",
+              height: imageSize,
+              width: imageSize,
+              fit: BoxFit.contain,
+            ),
+          ),
+          // Floating particles
+          ..._particles,
+        ],
+      ),
+    );
+  }
+}
+
+class FloatingDiamond extends StatefulWidget {
+  final double startX;
+  final int duration;
+
+  const FloatingDiamond({
+    super.key,
+    required this.startX,
+    required this.duration,
+  });
+
+  @override
+  State<FloatingDiamond> createState() => _FloatingDiamondState();
+}
+
+class _FloatingDiamondState extends State<FloatingDiamond>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _yAnimation;
+  late Animation<double> _opacityAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: widget.duration),
+    );
+
+    _yAnimation = Tween<double>(begin: 0, end: -80 - Random().nextDouble() * 40).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+    _opacityAnimation = Tween<double>(begin: 1, end: 0).animate(_controller);
+
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Positioned(
+          left: 50 + widget.startX,
+          top: 30 + _yAnimation.value,
+          child: Opacity(
+            opacity: _opacityAnimation.value,
+            child: Image.asset(
+              "assets/icons/jewel.PNG",
+              height: 20,
+              width: 20,
+            ),
           ),
         );
       },

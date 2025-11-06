@@ -40,19 +40,16 @@ class User {
   factory User.fromJson(Map<String, dynamic> json) => User(
     id: json['_id'] ?? json['id'] ?? '',
     userIdentification: json['UserIdentification']?.toString() ??
-        json['userIdentification']?.toString() ??
-        "",
+        json['userIdentification']?.toString() ?? "",
     username: json['Username']?.toString() ??
         json['username']?.toString() ??
-        json['userName']?.toString() ??
-        "",
+        json['userName']?.toString() ?? "",
     fullName: json['FullName']?.toString() ??
-        json['fullName']?.toString() ??
-        "",
-    email: json['Email'],
+        json['fullName']?.toString() ?? "",
+    email: json['Email'] ?? json['email'], // ✅ added lowercase
     phoneNumber: json['PhoneNumber'] ?? json['phoneNumber'],
-    loginMethod: json['LoginMethod'] ?? "Email",
-    passwordHash: json['PasswordHash'],
+    loginMethod: json['LoginMethod'] ?? json['loginMethod'] ?? "Email",
+    passwordHash: json['PasswordHash'] ?? json['passwordHash'], // ✅ added lowercase
     countryCode: json['CountryCode'] ?? json['countryCode'] ?? "",
     vipLevel: (json['VIPLevel'] is int)
         ? json['VIPLevel']
@@ -63,22 +60,20 @@ class User {
         ? json['coins']
         : int.tryParse(json['Coins']?.toString() ??
         json['coins']?.toString() ??
-        "0") ??
-        0,
+        "0") ?? 0,
     diamonds: (json['Diamonds'] is int)
         ? json['Diamonds']
         : int.tryParse(json['Diamonds']?.toString() ?? "0") ?? 0,
-    status: json['Status'] ?? "offline",
+    status: json['Status'] ?? json['status'] ?? "offline",
     dateJoined: json['DateJoined'] != null
         ? DateTime.parse(json['DateJoined'])
         : DateTime.now(),
     lastLogin: json['LastLogin'] != null
         ? DateTime.parse(json['LastLogin'])
         : null,
-    invitationCode: json['InvitationCode'],
+    invitationCode: json['InvitationCode'] ?? json['invitationCode'],
     isFirstTimeRecharge: json['isFirstTimeRecharge'] ?? true,
   );
-
   Map<String, dynamic> toJson() => {
     '_id': id,
     'UserIdentification': userIdentification,

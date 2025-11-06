@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:kittyparty/features/landing/landing_widgets/profile_widgets/stat_items.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/colors.dart';
 import '../../core/utils/user_provider.dart';
@@ -32,7 +33,6 @@ class ProfilePage extends StatelessWidget {
             builder: (context, vm, _) {
               final profile = vm.userProfile;
 
-              // Display numeric userIdentification as fallback if username is empty
               final displayName = user.username.isNotEmpty
                   ? user.username
                   : profile?.userIdentification ?? user.userIdentification;
@@ -44,16 +44,22 @@ class ProfilePage extends StatelessWidget {
               return ProfileGradientBackground(
                 child: SafeArea(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 30,
+                      horizontal: 16,
+                    ),
                     child: Column(
                       children: [
                         // Profile Picture
                         GestureDetector(
                           onTap: () async {
                             final picker = ImagePicker();
-                            final picked = await picker.pickImage(source: ImageSource.gallery);
+                            final picked = await picker.pickImage(
+                              source: ImageSource.gallery,
+                            );
                             if (picked != null) {
-                              await vm.changeProfilePicture(context, File(picked.path));
+                              await vm.changeProfilePicture(
+                                  context, File(picked.path));
                             }
                           },
                           child: CircleAvatar(
@@ -61,10 +67,11 @@ class ProfilePage extends StatelessWidget {
                             radius: 40,
                             backgroundColor: AppColors.accentWhite,
                             backgroundImage: vm.profilePictureBytes != null
-                                ? MemoryImage(vm.profilePictureBytes!) as ImageProvider
+                                ? MemoryImage(vm.profilePictureBytes!)
                                 : null,
                             child: vm.profilePictureBytes == null
-                                ? const Icon(Icons.person, size: 40, color: Colors.grey)
+                                ? const Icon(Icons.person,
+                                size: 40, color: Colors.grey)
                                 : null,
                           ),
                         ),
@@ -102,8 +109,12 @@ class ProfilePage extends StatelessWidget {
                         )
                             : Text(
                           'ID: $userId',
-                          style: const TextStyle(fontSize: 14, color: Colors.white70),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.white70,
+                          ),
                         ),
+
                         const SizedBox(height: 10),
 
                         // Bio
@@ -128,7 +139,33 @@ class ProfilePage extends StatelessWidget {
                         )
                             : const SizedBox.shrink(),
 
-                        const SizedBox(height: 15),
+                        const SizedBox(height: 20),
+
+                        // Social Stats
+                        if (vm.userSocial != null)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              StatItem(
+                                label: "Following",
+                                value: vm.userSocial!.following.length.toString(),
+                              ),
+                              StatItem(
+                                label: "Fans",
+                                value: vm.userSocial!.fans.length.toString(),
+                              ),
+                              StatItem(
+                                label: "Friends",
+                                value: vm.userSocial!.friends.length.toString(),
+                              ),
+                              StatItem(
+                                label: "Visitors",
+                                value: vm.userSocial!.visitors.length.toString(),
+                              ),
+                            ],
+                          ),
+
+                        const SizedBox(height: 20),
                         const ProfileCards(),
                         const SizedBox(height: 20),
                         ProfileMenu(),

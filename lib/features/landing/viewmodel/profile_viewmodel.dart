@@ -6,12 +6,16 @@ import '../../../core/global_widgets/dialogs/dialog_loading.dart';
 import '../../../core/utils/user_provider.dart';
 import '../model/userProfile.dart';
 import '../../../core/services/api/userProfile_service.dart';
+import '../../../core/services/api/social_service.dart';
+import '../../landing/model/socials.dart';
 
 class ProfileViewModel extends ChangeNotifier {
-  final UserProfileService _service = UserProfileService();
+  final UserProfileService _profileService = UserProfileService();
+  final SocialService _socialService = SocialService();
 
   UserProfile? userProfile;
   Uint8List? profilePictureBytes;
+  Social? userSocial;
   bool isLoading = true;
   String? error;
 
@@ -42,30 +46,38 @@ class ProfileViewModel extends ChangeNotifier {
         return;
       }
 
-      // Fetch profile using numeric userIdentification
-      final result = await _service.getProfileByUserId(currentUser.userIdentification);
+      // Fetch profile data
+      final result = await _profileService.getProfileByUserId(currentUser.userIdentification);
 
       if (_disposed) return;
 
       if (result != null) {
         userProfile = result;
 
-        // Ensure userIdentification is always set
         if (userProfile!.userIdentification.isEmpty) {
           userProfile!.userIdentification = currentUser.userIdentification;
         }
 
         // Fetch profile picture if exists
-        if (userProfile!.profilePicture != null && userProfile!.profilePicture!.isNotEmpty) {
-          profilePictureBytes = await _service.fetchProfilePicture(currentUser.userIdentification);
+        if (userProfile!.profilePicture != null &&
+            userProfile!.profilePicture!.isNotEmpty) {
+          profilePictureBytes = await _profileService
+              .fetchProfilePicture(currentUser.userIdentification);
         }
       } else {
-        // Create default profile
         userProfile = UserProfile(
           userIdentification: currentUser.userIdentification,
           bio: "",
           profilePicture: null,
         );
+      }
+
+      // Fetch socials (followings, fans, etc.)
+      final social = await _socialService
+          .fetchSocialData(int.tryParse(currentUser.userIdentification) ?? 0);
+
+      if (social != null) {
+        userSocial = social;
       }
     } catch (e) {
       error = "Failed to load profile: $e";
@@ -84,14 +96,17 @@ class ProfileViewModel extends ChangeNotifier {
 
     try {
       Navigator.of(context, rootNavigator: true).pop();
-      final updated = await _service.uploadProfilePicture(currentUser.userIdentification, imageFile);
+      final updated = await _profileService.uploadProfilePicture(
+        currentUser.userIdentification,
+        imageFile,
+      );
       if (_disposed) return;
 
       if (updated != null) {
         userProfile = updated;
-        profilePictureBytes = await _service.fetchProfilePicture(currentUser.userIdentification);
+        profilePictureBytes = await _profileService
+            .fetchProfilePicture(currentUser.userIdentification);
 
-        // Ensure userIdentification remains set
         if (userProfile!.userIdentification.isEmpty) {
           userProfile!.userIdentification = currentUser.userIdentification;
         }

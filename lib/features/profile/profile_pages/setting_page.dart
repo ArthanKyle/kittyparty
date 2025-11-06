@@ -82,10 +82,13 @@ class _SettingPageState extends State<SettingPage> {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = context.watch<UserProvider>();
+    final user = userProvider.currentUser;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Setting',
+          'Settings',
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
         centerTitle: true,
@@ -96,66 +99,93 @@ class _SettingPageState extends State<SettingPage> {
       backgroundColor: const Color(0xfff8f8f8),
       body: Column(
         children: [
+          // 🔹 Profile Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            margin: const EdgeInsets.only(bottom: 8),
+            color: Colors.white,
+            child: Row(
+              children: [
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user?.username ?? "Guest",
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Logged in via ${user?.loginMethod ?? 'Email'}",
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 🔹 Settings List
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(12),
               children: [
                 // 🔹 Account Group
                 _buildGroup([
-                  Consumer<UserProvider>(
-                    builder: (context, userProvider, _) {
-                      final email = userProvider.currentUser?.email ?? 'No email';
-                      final phoneNumber = userProvider.currentUser?.phoneNumber ?? 'No phone number';
+                  _buildItem(
+                    'Change Email',
+                    trailingText: user?.email ?? 'No email',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SetPasswordPage()),
+                    ),
+                  ),
+                  _buildItem(
+                    user?.phoneNumber?.isNotEmpty == true
+                        ? 'Change Phone Number'
+                        : 'Bind Phone Number',
+                    trailingText: user?.phoneNumber?.isNotEmpty == true
+                        ? user!.phoneNumber!
+                        : 'Not Bound',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const BindNumberPage()),
+                    ),
+                  ),
+                  if (user?.loginMethod?.toLowerCase() != 'google') // Disable reset for Google login
+                    _buildItem(
+                      (user?.passwordHash != null && user!.passwordHash!.isNotEmpty)
+                          ? 'Reset Password'
+                          : 'Set Password',
+                      onTap: () {
+                        final hasPassword = user?.passwordHash != null &&
+                            user!.passwordHash!.isNotEmpty;
 
-                      return Column(
-                        children: [
-                          _buildItem(
-                            'Change Email',
-                            trailingText: email,
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const SetPasswordPage()),
-                            ),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => hasPassword
+                                ? const ResetPassPage()
+                                : const SetPasswordPage(),
                           ),
-                          _buildItem(
-                            'Bind Phone Number',
-                            trailingText: phoneNumber,
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const BindNumberPage()),
-                            ),
-                          ),
-                          _buildItem(
-                            userProvider.currentUser?.passwordHash != null &&
-                                userProvider.currentUser!.passwordHash!.isNotEmpty
-                                ? 'Reset Password'
-                                : 'Set Password',
-                            onTap: () {
-                              final hasPassword = userProvider.currentUser?.passwordHash != null &&
-                                  userProvider.currentUser!.passwordHash!.isNotEmpty;
-
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => hasPassword
-                                      ? const ResetPassPage()   // navigate to reset
-                                      : const SetPasswordPage(),    // navigate to set
-                                ),
-                              );
-                            },
-                          ),
-
-                          _buildItem(
-                            'Payment Password',
-                            trailingText: 'Modify',
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const PaymentPassPage()),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
+                        );
+                      },
+                    ),
+                  _buildItem(
+                    'Payment Password',
+                    trailingText: 'Modify',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PaymentPassPage()),
+                    ),
                   ),
                 ]),
 
@@ -189,7 +219,7 @@ class _SettingPageState extends State<SettingPage> {
                   _buildItem('Personal Information and Permissions', onTap: () {}),
                   _buildItem('Help', onTap: () {}),
                   _buildItem('Clear Cache', onTap: () {}),
-                  _buildItem('About MoliParty', onTap: () {}),
+                  _buildItem('About KittyParty', onTap: () {}),
                 ]),
               ],
             ),

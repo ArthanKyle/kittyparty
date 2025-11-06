@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:kittyparty/core/global_widgets/dialogs/dialog_loading.dart';
 import 'package:kittyparty/core/global_widgets/dialogs/dialog_info.dart';
+import '../../../core/services/api/socket_service.dart';
 import '../../../core/utils/user_provider.dart';
 import '../../wallet/viewmodel/wallet_viewmodel.dart';
 import '../viewmodel/diamond_viewmodel.dart';
 import '../wallet_widgets/wallet_diamond_appbar.dart';
+import '../wallet_widgets/diamond_card.dart';
 
 class ConvertCoinsPage extends StatefulWidget {
-  const ConvertCoinsPage({super.key});
+  final SocketService socketService;
+  const ConvertCoinsPage({super.key, required this.socketService});
 
   @override
   State<ConvertCoinsPage> createState() => _ConvertCoinsPageState();
@@ -29,11 +32,19 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
     final int currentCoins = walletVM.wallet.coins;
 
     return Scaffold(
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
             const ConvertDiamondsAppBar(),
+            const SizedBox(height: 10),
+
+            // 💎 Diamond balance card display
+            DiamondCard(
+              balance: diamondVM.diamond.diamonds,
+              onConvert: () {}, // Disabled — just for display
+            ),
+
             const SizedBox(height: 20),
 
             Align(
@@ -45,7 +56,7 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
             ),
             const SizedBox(height: 10),
 
-            // Input field
+            // 🔢 Input field for coins
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
@@ -79,7 +90,7 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
 
             const SizedBox(height: 20),
 
-            // Diamonds preview
+            // 💠 Diamonds preview (conversion result)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
               width: double.infinity,
@@ -111,7 +122,7 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
 
             const SizedBox(height: 20),
 
-            // Conversion rule
+            // 📘 Conversion rule box
             Container(
               padding: const EdgeInsets.all(14),
               width: double.infinity,
@@ -128,13 +139,12 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
 
             const SizedBox(height: 20),
 
-            // Confirm button
+            // ✅ Confirm button
             ElevatedButton(
               onPressed: (coinsToConvert > 0 &&
                   coinsToConvert <= currentCoins &&
                   !diamondVM.isConverting)
                   ? () async {
-                // Show loading dialog
                 DialogLoading(subtext: "Processing").build(context);
 
                 try {
@@ -148,7 +158,6 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
                     diamonds = 0;
                   });
 
-                  // Show success dialog
                   DialogInfo(
                     headerText: "Conversion Successful",
                     subText:
