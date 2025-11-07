@@ -22,17 +22,24 @@ class _GameWebViewState extends State<GameWebView> {
   bool hasError = false;
   String? errorMessage;
 
+  final String backendUrl = "https://kittypartybackend-production.up.railway.app";
+
   @override
   void initState() {
     super.initState();
 
-    // immersive fullscreen
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..enableZoom(false)
       ..setBackgroundColor(Colors.black)
+      ..addJavaScriptChannel(
+        "GameBridge",
+        onMessageReceived: (msg) {
+          debugPrint("🎮 Game Message: ${msg.message}");
+        },
+      )
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (_) {
@@ -41,7 +48,11 @@ class _GameWebViewState extends State<GameWebView> {
               hasError = false;
             });
           },
-          onPageFinished: (_) => setState(() => isLoading = false),
+          onPageFinished: (_) async {
+            // Inject our proxy script after page loads
+            await controller.runJavaScript(_jsProxyCode(backendUrl));
+            setState(() => isLoading = false);
+          },
           onWebResourceError: (error) {
             debugPrint('❌ WebView error: ${error.description}');
             setState(() {
@@ -53,6 +64,34 @@ class _GameWebViewState extends State<GameWebView> {
         ),
       )
       ..loadRequest(Uri.parse(widget.url));
+  }
+
+  String _jsProxyCode(String base) {
+    return """
+      (function() {
+        const backend = "$base";
+
+        // Patch fetch
+        const originalFetch = window.fetch;
+        window.fetch = function(resource, options) {
+          if (typeof resource === 'string' && resource.startsWith('/v1/api/')) {
+            resource = backend + resource;
+          }
+          return originalFetch(resource, options);
+        };
+
+        // Patch XMLHttpRequest
+        const originalOpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function(method, url) {
+          if (typeof url === 'string' && url.startsWith('/v1/api/')) {
+            arguments[1] = backend + url;
+          }
+          return originalOpen.apply(this, arguments);
+        };
+
+        console.log('✅ Game API proxy enabled to:', backend);
+      })();
+    """;
   }
 
   @override
