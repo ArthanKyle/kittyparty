@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/colors.dart';
-import '../../model/post.dart'; // adjust import if needed
+import '../../model/post.dart';
 
 class RecommendPostItem extends StatelessWidget {
   final Post post;
@@ -9,10 +9,7 @@ class RecommendPostItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final author = post.author;
     final media = post.media ?? [];
-    final comments = post.comments ?? [];
-    final likes = post.likes ?? [];
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -30,7 +27,9 @@ class RecommendPostItem extends StatelessWidget {
                   radius: 20,
                   backgroundColor: AppColors.primaryLight,
                   child: Text(
-                    (author?.fullName?.substring(0, 1) ?? '?').toUpperCase(),
+                    post.authorId.isNotEmpty
+                        ? post.authorId.substring(0, 1).toUpperCase()
+                        : '?',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -40,7 +39,7 @@ class RecommendPostItem extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    author?.fullName ?? 'Unknown User',
+                    "User ${post.authorId.substring(0, 6)}", // temporary placeholder
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
@@ -54,9 +53,9 @@ class RecommendPostItem extends StatelessWidget {
             const SizedBox(height: 10),
 
             // --- Caption / Content ---
-            if (post.content != null && post.content!.isNotEmpty)
+            if (post.content.isNotEmpty)
               Text(
-                post.content!,
+                post.content,
                 style: const TextStyle(fontSize: 15, color: Colors.black87),
               ),
 
@@ -67,10 +66,17 @@ class RecommendPostItem extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: Image.network(
-                  media.first.url ?? '',
+                  media.first['url'] ?? '',
                   height: 220,
                   width: double.infinity,
                   fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    height: 220,
+                    width: double.infinity,
+                    color: Colors.grey.shade200,
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.broken_image, color: Colors.grey),
+                  ),
                 ),
               ),
 
@@ -84,14 +90,14 @@ class RecommendPostItem extends StatelessWidget {
                   children: [
                     const Icon(Icons.favorite, size: 20, color: Colors.pinkAccent),
                     const SizedBox(width: 4),
-                    Text("${likes.length}"),
+                    Text("${post.likesCount}"),
                   ],
                 ),
                 Row(
                   children: [
                     const Icon(Icons.comment, size: 20, color: Colors.blueAccent),
                     const SizedBox(width: 4),
-                    Text("${comments.length}"),
+                    Text("${post.commentsCount}"),
                   ],
                 ),
               ],
