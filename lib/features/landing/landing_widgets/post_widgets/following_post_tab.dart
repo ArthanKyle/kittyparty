@@ -37,7 +37,7 @@ class _FollowingPostTabState extends State<FollowingPostTab> {
       return const Center(
         child: Text(
           "No posts from followed users",
-          style: TextStyle(fontSize: 16, color: Colors.grey),
+          style: TextStyle(fontSize: 16, color: Colors.black),
         ),
       );
     }

@@ -37,7 +37,6 @@ class PostViewModel with ChangeNotifier {
     try {
       final body = {'content': content, 'author': authorId};
       final resp = await _service.createPost(body: body, mediaFiles: mediaFiles);
-      // Optionally insert new post to top
       posts.insert(0, Post.fromJson(resp as Map<String, dynamic>));
       return true;
     } catch (e) {
@@ -52,7 +51,6 @@ class PostViewModel with ChangeNotifier {
   Future<void> addLike(String postId, String userId) async {
     try {
       await _service.addLike({'postId': postId, 'userId': userId});
-      // optimistic update: increase like count locally (simple approach)
       final idx = posts.indexWhere((p) => p.id == postId);
       if (idx != -1) {
         final p = posts[idx];
@@ -103,5 +101,4 @@ class PostViewModel with ChangeNotifier {
       notifyListeners();
     }
   }
-
 }

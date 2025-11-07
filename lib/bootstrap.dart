@@ -7,6 +7,7 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'app.dart';
 import 'core/services/api/socket_service.dart';
 import 'core/utils/user_provider.dart';
+import 'features/landing/viewmodel/post_viewmodel.dart';
 import 'features/wallet/viewmodel/wallet_viewmodel.dart';
 import 'features/wallet/viewmodel/diamond_viewmodel.dart';
 import 'core/utils/index_provider.dart';
@@ -42,6 +43,7 @@ Future<void> bootstrap() async {
       providers: [
         ChangeNotifierProvider(create: (_) => userProvider),
         ChangeNotifierProvider(create: (_) => PageIndexProvider()),
+        ChangeNotifierProvider(create: (_) => PostViewModel()),
         ChangeNotifierProvider(
           create: (_) => WalletViewModel(userProvider: userProvider),
         ),

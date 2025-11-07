@@ -9,7 +9,7 @@ class CreatePostButton extends StatelessWidget {
   const CreatePostButton({
     super.key,
     this.icon = Icons.videogame_asset,
-    this.gradientColors = AppColors.buttonGradient,
+    this.gradientColors = AppColors.buttonGradient, required Color backgroundColor,
   });
 
   @override
@@ -31,7 +31,7 @@ class CreatePostButton extends StatelessWidget {
         ],
       ),
       child: IconButton(
-        icon: Icon(Icons.send, color: Colors.white),
+        icon: Icon(icon, color: Colors.white),
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const CreatePostPage()),

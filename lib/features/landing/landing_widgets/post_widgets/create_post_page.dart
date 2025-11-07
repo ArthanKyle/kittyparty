@@ -25,7 +25,6 @@ class _CreatePostPageState extends State<CreatePostPage> {
   }
 
   Future<void> _pickMedia() async {
-    // pick images (multiple)
     final List<XFile>? files = await _picker.pickMultiImage();
     if (files != null && files.isNotEmpty) {
       setState(() {
@@ -36,127 +35,146 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
   @override
   Widget build(BuildContext context) {
-    final vm = Provider.of<PostViewModel>(context, listen: false);
-    return Scaffold(
-      body: GradientBackground(
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
-            child: Column(
-              children: [
-                Row(children: [
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back_ios, size: 20),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text('Post graphics and text', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                ]),
-                const SizedBox(height: 12),
-                Container(
-                  height: 160,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: TextField(
-                    controller: _controller,
-                    maxLines: null,
-                    maxLength: maxLen,
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      hintText: 'Record your life at this moment and share it with interesting people...',
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Text('${_controller.text.length}/$maxLen'),
-                ),
-                const SizedBox(height: 12),
-                // media grid (first tile is add)
-                SizedBox(
-                  height: 120,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
+    // Wrap the page in its own ChangeNotifierProvider
+    return ChangeNotifierProvider(
+      create: (_) => PostViewModel(),
+      child: Consumer<PostViewModel>(
+        builder: (context, vm, child) {
+          return Scaffold(
+            body: GradientBackground(
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
+                  child: Column(
                     children: [
-                      GestureDetector(
-                        onTap: _pickMedia,
-                        child: Container(
-                          width: 100,
-                          margin: const EdgeInsets.only(right: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.deepPurple.shade50,
-                            borderRadius: BorderRadius.circular(12),
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(Icons.arrow_back_ios, size: 20),
                           ),
-                          child: const Center(child: Icon(Icons.add, size: 48, color: Colors.white70)),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Post graphics and text',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        height: 160,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: TextField(
+                          controller: _controller,
+                          maxLines: null,
+                          maxLength: maxLen,
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            hintText:
+                            'Record your life at this moment and share it with interesting people...',
+                          ),
                         ),
                       ),
-                      ..._picked.map((f) {
-                        return Container(
-                          width: 100,
-                          margin: const EdgeInsets.only(right: 12),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.file(File(f.path), fit: BoxFit.cover),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Text('${_controller.text.length}/$maxLen'),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 120,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: [
+                            GestureDetector(
+                              onTap: _pickMedia,
+                              child: Container(
+                                width: 100,
+                                margin: const EdgeInsets.only(right: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.deepPurple.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Center(
+                                  child: Icon(Icons.add, size: 48, color: Colors.white70),
+                                ),
+                              ),
+                            ),
+                            ..._picked.map((f) {
+                              return Container(
+                                width: 100,
+                                margin: const EdgeInsets.only(right: 12),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(File(f.path), fit: BoxFit.cover),
+                                ),
+                              );
+                            }).toList(),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 20),
+                        child: SizedBox(
+                          height: 56,
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(40)),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              elevation: 4,
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                            ),
+                            onPressed: vm.posting
+                                ? null
+                                : () async {
+                              final content = _controller.text.trim();
+                              final mediaFiles = _picked.map((x) => File(x.path)).toList();
+                              final success = await vm.createPost(
+                                content: content,
+                                authorId: 'CURRENT_USER_ID',
+                                mediaFiles: mediaFiles,
+                              );
+                              if (success) {
+                                Navigator.of(context).pop();
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text('Failed to create post')),
+                                );
+                              }
+                            },
+                            child: Ink(
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF88D8F7), Color(0xFF8FA8FF)],
+                                ),
+                                borderRadius: BorderRadius.circular(40),
+                              ),
+                              child: Container(
+                                alignment: Alignment.center,
+                                child: vm.posting
+                                    ? const CircularProgressIndicator()
+                                    : const Text('Post', style: TextStyle(fontSize: 18)),
+                              ),
+                            ),
                           ),
-                        );
-                      }).toList(),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                const Spacer(),
-                // big rounded post button
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 20),
-                  child: SizedBox(
-                    height: 56,
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        elevation: 4,
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                      ).copyWith(
-                        // remove default overlay color
-                      ),
-                      onPressed: vm.posting
-                          ? null
-                          : () async {
-                        final content = _controller.text.trim();
-                        // convert XFile to File for service
-                        final mediaFiles = _picked.map((x) => File(x.path)).toList();
-                        final success = await vm.createPost(content: content, authorId: 'CURRENT_USER_ID', mediaFiles: mediaFiles);
-                        if (success) {
-                          Navigator.of(context).pop();
-                        } else {
-                          // simple feedback
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to create post')));
-                        }
-                      },
-                      child: Ink(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF88D8F7), Color(0xFF8FA8FF)],
-                          ),
-                          borderRadius: BorderRadius.circular(40),
-                        ),
-                        child: Container(
-                          alignment: Alignment.center,
-                          child: vm.posting ? const CircularProgressIndicator() : const Text('Post', style: TextStyle(fontSize: 18)),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
