@@ -220,12 +220,12 @@ class PostService {
     }
     return false;
   }
-  Future<List<dynamic>> getFollowingPosts(String userId) async {
+  Future<List<dynamic>> getFollowingPosts(String userId, {int page = 1, int limit = 20}) async {
     try {
-      final url = Uri.parse('$baseUrl/posts/following/$userId');
+      final url = Uri.parse('$baseUrl/posts/following/$userId?page=$page&limit=$limit');
       final res = await http.get(url);
 
-      print("[PostService] GET /posts/following/$userId -> ${res.statusCode}");
+      print("[PostService] GET /posts/following/$userId?page=$page&limit=$limit -> ${res.statusCode}");
 
       if (res.statusCode == 200) {
         return jsonDecode(res.body) as List;
@@ -235,6 +235,5 @@ class PostService {
     }
     return [];
   }
-
 
 }

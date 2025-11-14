@@ -68,6 +68,7 @@ dependencies:
   archive: ^4.0.7
   cached_network_image: ^3.4.1
   webview_flutter_android: ^4.10.1
+  flutter_launcher_icons: ^0.14.4
 
 
 dev_dependencies:
@@ -85,6 +86,11 @@ dev_dependencies:
 # following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/image/kitty-party-logo.jpg"
+
 flutter:
 
   # The following line ensures that the Material Icons font is

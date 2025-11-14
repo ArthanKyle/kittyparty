@@ -5,7 +5,7 @@ class Post {
   final List<dynamic> media;
   final int likesCount;
   final int commentsCount;
-  final String createdAt;
+  final DateTime createdAt;
 
   Post({
     required this.id,
@@ -18,15 +18,37 @@ class Post {
   });
 
   factory Post.fromJson(Map<String, dynamic> json) {
+    // Safely extract author ID
+    String authorId = '';
+    if (json['author'] != null) {
+      if (json['author'] is Map) {
+        authorId = json['author']['_id'] ?? '';
+      } else if (json['author'] is String) {
+        authorId = json['author'];
+      }
+    }
+
+    // Safely parse createdAt
+    DateTime createdAt;
+    if (json['createdAt'] != null) {
+      createdAt = DateTime.tryParse(json['createdAt']) ?? DateTime.now();
+    } else {
+      createdAt = DateTime.now();
+    }
+
+    // Safely parse media, likes, comments
+    final media = json['media'] is List ? List<dynamic>.from(json['media']) : <dynamic>[];
+    final likesCount = json['likes'] is List ? json['likes'].length : 0;
+    final commentsCount = json['comments'] is List ? json['comments'].length : 0;
+
     return Post(
       id: json['_id'] ?? '',
-      // If 'author' is a map, extract _id; otherwise use string
-      authorId: json['author'] is Map ? json['author']['_id'] ?? '' : json['author'] ?? '',
+      authorId: authorId,
       content: json['content'] ?? '',
-      media: List<dynamic>.from(json['media'] ?? []),
-      likesCount: (json['likes'] as List?)?.length ?? 0,
-      commentsCount: (json['comments'] as List?)?.length ?? 0,
-      createdAt: json['createdAt'] ?? '',
+      media: media,
+      likesCount: likesCount,
+      commentsCount: commentsCount,
+      createdAt: createdAt,
     );
   }
 }

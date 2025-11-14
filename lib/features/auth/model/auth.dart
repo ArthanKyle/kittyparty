@@ -16,6 +16,7 @@ class User {
   final DateTime? lastLogin;
   final String? invitationCode;
   bool isFirstTimeRecharge;
+  final String? myInvitationCode;
 
   User({
     required this.id,
@@ -35,6 +36,7 @@ class User {
     this.lastLogin,
     this.invitationCode,
     this.isFirstTimeRecharge = true,
+    this.myInvitationCode,
   }) : dateJoined = dateJoined ?? DateTime.now();
 
   factory User.fromJson(Map<String, dynamic> json) => User(
@@ -73,6 +75,7 @@ class User {
         : null,
     invitationCode: json['InvitationCode'] ?? json['invitationCode'],
     isFirstTimeRecharge: json['isFirstTimeRecharge'] ?? true,
+    myInvitationCode: json['MyInvitationCode'] ?? json['myInvitationCode'],
   );
   Map<String, dynamic> toJson() => {
     '_id': id,
@@ -92,5 +95,6 @@ class User {
     'LastLogin': lastLogin?.toIso8601String(),
     if (invitationCode != null) 'InvitationCode': invitationCode,
     'isFirstTimeRecharge': isFirstTimeRecharge,
+    if (myInvitationCode != null) 'MyInvitationCode': myInvitationCode,
   };
 }

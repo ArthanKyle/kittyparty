@@ -124,6 +124,10 @@ class RegisterViewModel extends ChangeNotifier {
         loginMethod: isGoogleSignIn ? "Google" : "Email",
       );
 
+      if (response['MyInvitationCode'] != null) {
+        myRegBox.put('myInvitationCode', response['MyInvitationCode']);
+      }
+
       print("📥 Register response: $response");
 
       return response;

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/constants/colors.dart';
 import '../../../../core/global_widgets/gradient_background/gradient_background.dart';
 import '../../viewmodel/post_viewmodel.dart';
 
@@ -162,7 +163,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                                 alignment: Alignment.center,
                                 child: vm.posting
                                     ? const CircularProgressIndicator()
-                                    : const Text('Post', style: TextStyle(fontSize: 18)),
+                                    : const Text('Post', style: TextStyle(fontSize: 18, color: AppColors.accentWhite)),
                               ),
                             ),
                           ),

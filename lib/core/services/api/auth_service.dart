@@ -46,7 +46,10 @@ class AuthService {
     final data = _decodeResponse(response);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
-      return data;
+      return {
+        ...data,
+        'MyInvitationCode': data['MyInvitationCode'] ?? data['myInvitationCode']
+      };
     } else {
       throw HttpException(data['message'] ?? data['error'] ?? 'Registration failed');
     }

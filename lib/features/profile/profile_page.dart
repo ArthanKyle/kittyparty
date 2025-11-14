@@ -42,41 +42,47 @@ class ProfilePage extends StatelessWidget {
                   : user.userIdentification;
 
               return ProfileGradientBackground(
-                child: SafeArea(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 30,
-                      horizontal: 16,
-                    ),
-                    child: Column(
-                      children: [
-                        // Profile Picture
-                        GestureDetector(
-                          onTap: () async {
-                            final picker = ImagePicker();
-                            final picked = await picker.pickImage(
-                              source: ImageSource.gallery,
-                            );
-                            if (picked != null) {
-                              await vm.changeProfilePicture(
-                                  context, File(picked.path));
-                            }
-                          },
-                          child: CircleAvatar(
-                            key: ValueKey(profile?.profilePicture ?? 'default'),
-                            radius: 40,
-                            backgroundColor: AppColors.accentWhite,
-                            backgroundImage: vm.profilePictureBytes != null
-                                ? MemoryImage(vm.profilePictureBytes!)
-                                : null,
-                            child: vm.profilePictureBytes == null
-                                ? const Icon(Icons.person,
-                                size: 40, color: Colors.grey)
-                                : null,
-                          ),
+                  child: SafeArea(
+                    child: RefreshIndicator(
+                      onRefresh: () async {
+                        // Reload profile and socials when pulled down
+                        await Provider.of<ProfileViewModel>(context, listen: false)
+                            .loadProfile(context);
+                      },
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(), // required for pull-to-refresh
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 30,
+                          horizontal: 16,
                         ),
-                        const SizedBox(height: 10),
+                        child: Column(
+                          children: [
+                            // Profile Picture
+                            GestureDetector(
+                              onTap: () async {
+                                final picker = ImagePicker();
+                                final picked = await picker.pickImage(
+                                  source: ImageSource.gallery,
+                                );
+                                if (picked != null) {
+                                  await Provider.of<ProfileViewModel>(context, listen: false)
+                                      .changeProfilePicture(context, File(picked.path));
+                                }
+                              },
+                              child: CircleAvatar(
+                                key: ValueKey(vm.userProfile?.profilePicture ?? 'default'),
+                                radius: 40,
+                                backgroundColor: AppColors.accentWhite,
+                                backgroundImage: vm.profilePictureBytes != null
+                                    ? MemoryImage(vm.profilePictureBytes!)
+                                    : null,
+                                child: vm.profilePictureBytes == null
+                                    ? const Icon(Icons.person, size: 40, color: Colors.grey)
+                                    : null,
+                              ),
+                            ),
 
+                            const SizedBox(height: 10),
                         // Name
                         vm.isLoading
                             ? Container(
@@ -139,19 +145,30 @@ class ProfilePage extends StatelessWidget {
                         )
                             : const SizedBox.shrink(),
 
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 10),
 
-                        // Social Stats
-                        if (vm.userSocial != null)
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              StatItem(label: "Following", value: vm.userSocial!.following.toString()),
-                              StatItem(label: "Fans", value: vm.userSocial!.fans.toString()),
-                              StatItem(label: "Friends", value: vm.userSocial!.friends.toString()),
-                              StatItem(label: "Visitors", value: vm.userSocial!.visitors.toString()),
-                            ],
-                          ),
+                        // Stats Row
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            StatItem(
+                              label: "Following",
+                              value: (vm.userSocial?.following ?? 0).toString(),
+                            ),
+                            StatItem(
+                              label: "Fans",
+                              value: (vm.userSocial?.fans ?? 0).toString(),
+                            ),
+                            StatItem(
+                              label: "Friends",
+                              value: (vm.userSocial?.friends ?? 0).toString(),
+                            ),
+                            StatItem(
+                              label: "Visitors",
+                              value: (vm.userSocial?.visitors ?? 0).toString(),
+                            ),
+                          ],
+                        ),
 
                         const SizedBox(height: 20),
                         const ProfileCards(),
@@ -161,6 +178,7 @@ class ProfilePage extends StatelessWidget {
                     ),
                   ),
                 ),
+              )
               );
             },
           ),

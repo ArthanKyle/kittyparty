@@ -15,19 +15,23 @@ class SocialService {
     try {
       final response = await http.get(Uri.parse('$baseUrl/socials/$userId'));
 
-      print("[SocialService] GET /socials/$userId -> ${response.statusCode}");
-
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        print('✅ Social Data Received: $data');
         return Social.fromJson(data);
+      } else if (response.statusCode == 404) {
+        print('⚠️ Social data not found, returning default zeros');
+        return Social(user: userId, following: 0, fans: 0, friends: 0, visitors: 0);
       } else {
-        print("[SocialService] Failed to fetch socials, body: ${response.body}");
+        print('⚠️ Failed to load social data. Status code: ${response.statusCode}');
+        return null;
       }
     } catch (e) {
-      print("[SocialService] Exception fetching social data: $e");
+      print('❌ Social API Error: $e');
+      return Social(user: userId, following: 0, fans: 0, friends: 0, visitors: 0);
     }
-    return null;
   }
+
 
   /// Follow another user
   Future<bool> followUser(int userId, int targetId) async {
