@@ -17,11 +17,9 @@ class _FollowingPostTabState extends State<FollowingPostTab> {
   void initState() {
     super.initState();
 
+    // Fetch following posts using currentUserId from PostViewModel
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final user = context.read<UserProvider>().currentUser;
-      if (user != null) {
-        context.read<PostViewModel>().fetchFollowingPosts(user.id);
-      }
+      context.read<PostViewModel>().fetchFollowingPosts();
     });
   }
 
@@ -44,10 +42,7 @@ class _FollowingPostTabState extends State<FollowingPostTab> {
 
     return RefreshIndicator(
       onRefresh: () async {
-        final user = context.read<UserProvider>().currentUser;
-        if (user != null) {
-          await context.read<PostViewModel>().fetchFollowingPosts(user.id);
-        }
+        await context.read<PostViewModel>().fetchFollowingPosts();
       },
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),

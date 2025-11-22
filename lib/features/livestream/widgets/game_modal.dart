@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 import '../../../core/services/api/game_service.dart';
 import '../../../core/utils/user_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-
 import 'game_webview.dart';
 
 class GameListModal extends StatefulWidget {
@@ -30,16 +28,13 @@ class _GameListModalState extends State<GameListModal> {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       final userId = userProvider.currentUser?.userIdentification ?? "guest_user";
 
-      debugPrint('🌐 Fetching games for user: $userId...');
       final result = await gameService.fetchGames(userId);
-      debugPrint('✅ Games fetched with secure URLs: ${result.length}');
 
       setState(() {
         games = result;
         loading = false;
       });
     } catch (e) {
-      debugPrint('❌ Failed to load games: $e');
       setState(() => loading = false);
     }
   }
@@ -51,16 +46,19 @@ class _GameListModalState extends State<GameListModal> {
 
     final baseUrl = game['play_url'];
 
+    // You can keep adding it to the URL if the game needs it there too
     final url = baseUrl.contains('?')
         ? "$baseUrl&user_id=$userId&gameMode=3"
         : "$baseUrl?user_id=$userId&gameMode=3";
 
-    debugPrint("🚀 Launching game with URL: $url");
-
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => GameWebView(url: url, gameName: game['name']),
+        builder: (_) => GameWebView(
+          url: url,
+          gameName: game['name'],
+          userId: userId, // <--- PASS IT HERE
+        ),
       ),
     );
   }
@@ -68,9 +66,9 @@ class _GameListModalState extends State<GameListModal> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white, // <-- solid background
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       padding: const EdgeInsets.all(16),
       height: MediaQuery

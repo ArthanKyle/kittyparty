@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/global_widgets/buttons/create_post_button.dart';
 import '../../../core/global_widgets/gradient_background/gradient_background.dart';
+import '../../../core/utils/user_provider.dart';
 import '../viewmodel/post_viewmodel.dart';
 import '../../landing/landing_widgets/post_widgets/recommend_post.dart';
 import '../../landing/landing_widgets/post_widgets/following_post_tab.dart';
@@ -30,8 +31,14 @@ class _PostPageState extends State<PostPage> with SingleTickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => PostViewModel()..fetchPosts(),
+    final currentUser = context.read<UserProvider>().currentUser;
+
+    if (currentUser == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return ChangeNotifierProvider.value(
+      value: context.read<PostViewModel>(), // already initialized in bootstrap
       child: GradientBackground(
         child: SafeArea(
           child: Stack(
@@ -42,7 +49,7 @@ class _PostPageState extends State<PostPage> with SingleTickerProviderStateMixin
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 6, 8, 0),
                     child: Transform.translate(
-                      offset: const Offset(-45, 0), // nudges TabBar left
+                      offset: const Offset(-45, 0),
                       child: Material(
                         color: Colors.transparent,
                         child: TabBar(
@@ -66,14 +73,19 @@ class _PostPageState extends State<PostPage> with SingleTickerProviderStateMixin
                     ),
                   ),
                   Expanded(
-                    child: TabBarView(
-                      controller: _tab,
-                      children: const [
-                        RecommendPost(),
-                        FollowingPostTab(),
-                      ],
+                    child: RefreshIndicator(
+                      onRefresh: () async {
+                        await context.read<PostViewModel>().fetchPosts();
+                      },
+                      child: TabBarView(
+                        controller: _tab,
+                        children: const [
+                          RecommendPost(),
+                          FollowingPostTab(),
+                        ],
+                      ),
                     ),
-                  ),
+                  )
                 ],
               ),
               Positioned(

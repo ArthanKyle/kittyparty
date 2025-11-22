@@ -83,102 +83,102 @@ class ProfilePage extends StatelessWidget {
                             ),
 
                             const SizedBox(height: 10),
-                        // Name
-                        vm.isLoading
-                            ? Container(
-                          width: 120,
-                          height: 20,
-                          decoration: BoxDecoration(
-                            color: Colors.white24,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        )
-                            : Text(
-                          displayName,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-
-                        // User ID
-                        vm.isLoading
-                            ? Container(
-                          width: 80,
-                          height: 14,
-                          decoration: BoxDecoration(
-                            color: Colors.white24,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                        )
-                            : Text(
-                          'ID: $userId',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.white70,
-                          ),
-                        ),
-
-                        const SizedBox(height: 10),
-
-                        // Bio
-                        vm.isLoading
-                            ? Container(
-                          width: double.infinity,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: Colors.white24,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        )
-                            : (profile?.bio.isNotEmpty ?? false)
-                            ? Text(
-                          profile!.bio,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.white,
-                            fontStyle: FontStyle.italic,
-                          ),
-                          textAlign: TextAlign.center,
-                        )
-                            : const SizedBox.shrink(),
-
-                        const SizedBox(height: 10),
-
-                        // Stats Row
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            StatItem(
-                              label: "Following",
-                              value: (vm.userSocial?.following ?? 0).toString(),
+                            // Name
+                            vm.isLoading
+                                ? Container(
+                              width: 120,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                color: Colors.white24,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            )
+                                : Text(
+                              displayName,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
-                            StatItem(
-                              label: "Fans",
-                              value: (vm.userSocial?.fans ?? 0).toString(),
+                            const SizedBox(height: 5),
+
+                            // User ID
+                            vm.isLoading
+                                ? Container(
+                              width: 80,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                color: Colors.white24,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            )
+                                : Text(
+                              'ID: $userId',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.white70,
+                              ),
                             ),
-                            StatItem(
-                              label: "Friends",
-                              value: (vm.userSocial?.friends ?? 0).toString(),
+
+                            const SizedBox(height: 10),
+
+                            // Bio
+                            vm.isLoading
+                                ? Container(
+                              width: double.infinity,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.white24,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            )
+                                : (profile?.bio.isNotEmpty ?? false)
+                                ? Text(
+                              profile!.bio,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.white,
+                                fontStyle: FontStyle.italic,
+                              ),
+                              textAlign: TextAlign.center,
+                            )
+                                : const SizedBox.shrink(),
+
+                            const SizedBox(height: 10),
+
+                            // Stats Row
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                StatItem(
+                                  label: "Following",
+                                  value: (vm.userSocial?.following ?? 0).toString(),
+                                ),
+                                StatItem(
+                                  label: "Fans",
+                                  value: (vm.userSocial?.fans ?? 0).toString(),
+                                ),
+                                StatItem(
+                                  label: "Friends",
+                                  value: (vm.userSocial?.friends ?? 0).toString(),
+                                ),
+                                StatItem(
+                                  label: "Visitors",
+                                  value: (vm.userSocial?.visitors ?? 0).toString(),
+                                ),
+                              ],
                             ),
-                            StatItem(
-                              label: "Visitors",
-                              value: (vm.userSocial?.visitors ?? 0).toString(),
-                            ),
+
+                            const SizedBox(height: 20),
+                            const ProfileCards(),
+                            const SizedBox(height: 20),
+                            ProfileMenu(),
                           ],
                         ),
-
-                        const SizedBox(height: 20),
-                        const ProfileCards(),
-                        const SizedBox(height: 20),
-                        ProfileMenu(),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
-              )
+                  )
               );
             },
           ),

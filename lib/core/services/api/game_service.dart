@@ -8,17 +8,28 @@ class GameService {
   GameService({String? baseUrl})
       : baseUrl = baseUrl ?? dotenv.env['BASE_URL'] ?? '';
 
+  void _printRawResponse(String tag, http.Response res, {bool pretty = true}) {
+    print("[$tag] Status: ${res.statusCode}");
+    try {
+      final decoded = jsonDecode(res.body);
+      print(
+        "[$tag] Body: ${pretty ? JsonEncoder.withIndent('  ').convert(decoded) : res.body}",
+      );
+    } catch (_) {
+      print("[$tag] Body (raw): ${res.body}");
+    }
+  }
+
   Future<List<Map<String, dynamic>>> fetchGames(String userId) async {
     if (baseUrl.isEmpty) {
       throw Exception('BASE_URL is not defined in .env');
     }
 
-    final uri = Uri.parse('$baseUrl/games?userId=$userId');
+    final uri = Uri.parse('$baseUrl/games');
     final response = await http.get(uri);
 
-    print('🌍 [GameService] GET $uri');
-    print('📦 [Response Code] ${response.statusCode}');
-    print('📜 [Response Body] ${response.body}');
+    // 🔥 print the raw response
+    _printRawResponse("GET /games", response);
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -27,25 +38,19 @@ class GameService {
         final List<Map<String, dynamic>> games =
         List<Map<String, dynamic>>.from(data['data']);
 
-        // 🔹 Clean and format each name nicely
         final formattedGames = games.map((game) {
           final rawName = (game['name'] ?? '').toString();
 
-          // ✅ Replace underscores with spaces and capitalize each word properly
           final readableName = rawName
-              .replaceAll('_', ' ') // "color_game" → "color game"
+              .replaceAll('_', ' ')
               .replaceAllMapped(
-            RegExp(r'(^\w)|(\s\w)'), // capitalizes first letter of each word
+            RegExp(r'(^\w)|(\s\w)'),
                 (Match m) => m.group(0)!.toUpperCase(),
           );
 
-          return {
-            ...game,
-            'name': readableName,
-          };
+          return {...game, 'name': readableName};
         }).toList();
 
-        print('✅ [Formatted Games] ${formattedGames.map((g) => g['name']).toList()}');
         return formattedGames;
       }
 

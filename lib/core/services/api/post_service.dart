@@ -10,13 +10,24 @@ class PostService {
   PostService({String? baseUrl})
       : baseUrl = baseUrl ?? dotenv.env['BASE_URL']!;
 
-  /// Fetch all posts with pagination
+  // ---------------- Helper ----------------
+  void _printRawResponse(String tag, http.Response res, {bool pretty = true}) {
+    print("[$tag] Status: ${res.statusCode}");
+    try {
+      final decoded = jsonDecode(res.body);
+      print(
+          "[$tag] Body: ${pretty ? JsonEncoder.withIndent('  ').convert(decoded) : res.body}");
+    } catch (_) {
+      print("[$tag] Body (raw): ${res.body}");
+    }
+  }
+
+  // ---------------- Posts ----------------
   Future<List<dynamic>> getPosts({int page = 1, int limit = 20}) async {
     try {
       final url = Uri.parse('$baseUrl/posts?page=$page&limit=$limit');
       final res = await http.get(url);
-
-      print("[PostService] GET /posts -> ${res.statusCode}");
+      _printRawResponse("GET /posts", res);
 
       if (res.statusCode == 200) {
         return jsonDecode(res.body) as List<dynamic>;
@@ -27,13 +38,11 @@ class PostService {
     return [];
   }
 
-  /// Fetch a single post by ID
   Future<Map<String, dynamic>?> getPost(String id) async {
     try {
       final url = Uri.parse('$baseUrl/posts/$id');
       final res = await http.get(url);
-
-      print("[PostService] GET /posts/$id -> ${res.statusCode}");
+      _printRawResponse("GET /posts/$id", res);
 
       if (res.statusCode == 200) {
         return jsonDecode(res.body);
@@ -44,7 +53,6 @@ class PostService {
     return null;
   }
 
-  /// Create post with optional media (images/videos)
   Future<Map<String, dynamic>?> createPost({
     required Map<String, dynamic> body,
     List<File>? mediaFiles,
@@ -52,24 +60,22 @@ class PostService {
     try {
       final url = Uri.parse('$baseUrl/posts');
 
-      // No media — simple JSON request
       if (mediaFiles == null || mediaFiles.isEmpty) {
         final res = await http.post(
           url,
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode(body),
         );
-        print("[PostService] POST /posts -> ${res.statusCode}");
-        if (res.statusCode == 201 || res.statusCode == 200) {
+        _printRawResponse("POST /posts", res);
+
+        if (res.statusCode == 200 || res.statusCode == 201) {
           return jsonDecode(res.body);
         }
         return null;
       }
 
-      // With media — multipart request
       final request = http.MultipartRequest('POST', url);
       body.forEach((key, value) => request.fields[key] = value.toString());
-
       for (var file in mediaFiles) {
         final fileName = p.basename(file.path);
         request.files.add(await http.MultipartFile.fromPath('media', file.path, filename: fileName));
@@ -77,10 +83,9 @@ class PostService {
 
       final streamed = await request.send();
       final response = await http.Response.fromStream(streamed);
+      _printRawResponse("POST /posts (multipart)", response);
 
-      print("[PostService] POST /posts (multipart) -> ${response.statusCode}");
-
-      if (response.statusCode == 201 || response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         return jsonDecode(response.body);
       }
     } catch (e) {
@@ -89,7 +94,6 @@ class PostService {
     return null;
   }
 
-  /// Add media to existing post
   Future<Map<String, dynamic>?> addMedia(String postId, File file) async {
     try {
       final url = Uri.parse('$baseUrl/posts/$postId/media');
@@ -98,8 +102,7 @@ class PostService {
 
       final streamed = await request.send();
       final response = await http.Response.fromStream(streamed);
-
-      print("[PostService] POST /posts/$postId/media -> ${response.statusCode}");
+      _printRawResponse("POST /posts/$postId/media", response);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         return jsonDecode(response.body);
@@ -110,13 +113,12 @@ class PostService {
     return null;
   }
 
-  /// Fetch post comments
+  // ---------------- Comments ----------------
   Future<List<dynamic>> getComments(String postId) async {
     try {
       final url = Uri.parse('$baseUrl/posts/$postId/comments');
       final res = await http.get(url);
-
-      print("[PostService] GET /posts/$postId/comments -> ${res.statusCode}");
+      _printRawResponse("GET /posts/$postId/comments", res);
 
       if (res.statusCode == 200) {
         return jsonDecode(res.body);
@@ -127,7 +129,6 @@ class PostService {
     return [];
   }
 
-  /// Add comment
   Future<Map<String, dynamic>?> addComment(String postId, Map<String, dynamic> data) async {
     try {
       final url = Uri.parse('$baseUrl/posts/$postId/comments');
@@ -136,10 +137,9 @@ class PostService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(data),
       );
+      _printRawResponse("POST /posts/$postId/comments", res);
 
-      print("[PostService] POST /posts/$postId/comments -> ${res.statusCode}");
-
-      if (res.statusCode == 201 || res.statusCode == 200) {
+      if (res.statusCode == 200 || res.statusCode == 201) {
         return jsonDecode(res.body);
       }
     } catch (e) {
@@ -148,7 +148,7 @@ class PostService {
     return null;
   }
 
-  /// Like a post
+  // ---------------- Likes ----------------
   Future<bool> addLike(Map<String, dynamic> data) async {
     try {
       final url = Uri.parse('$baseUrl/posts/likes');
@@ -157,40 +157,38 @@ class PostService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(data),
       );
+      _printRawResponse("POST /posts/likes", res);
 
-      print("[PostService] POST /posts/likes -> ${res.statusCode}");
-      return res.statusCode == 201 || res.statusCode == 200;
+      return res.statusCode == 200 || res.statusCode == 201;
     } catch (e) {
       print("[PostService] Error adding like: $e");
       return false;
     }
   }
 
-  /// Remove like
   Future<bool> removeLike(Map<String, dynamic> data) async {
     try {
       final url = Uri.parse('$baseUrl/posts/likes');
-      final res = await http.Request('DELETE', url)
+      final req = http.Request('DELETE', url)
         ..headers['Content-Type'] = 'application/json'
         ..body = jsonEncode(data);
 
-      final streamed = await res.send();
-      print("[PostService] DELETE /posts/likes -> ${streamed.statusCode}");
+      final streamed = await req.send();
+      final response = await http.Response.fromStream(streamed);
+      _printRawResponse("DELETE /posts/likes", response);
 
-      return streamed.statusCode == 200;
+      return response.statusCode == 200;
     } catch (e) {
       print("[PostService] Error removing like: $e");
       return false;
     }
   }
 
-  /// Get likes
   Future<List<dynamic>> getLikes(String postId) async {
     try {
       final url = Uri.parse('$baseUrl/posts/$postId/likes');
       final res = await http.get(url);
-
-      print("[PostService] GET /posts/$postId/likes -> ${res.statusCode}");
+      _printRawResponse("GET /posts/$postId/likes", res);
 
       if (res.statusCode == 200) {
         return jsonDecode(res.body);
@@ -201,13 +199,11 @@ class PostService {
     return [];
   }
 
-  /// Check if user has liked post
   Future<bool> hasLiked(String postId, String userId) async {
     try {
       final url = Uri.parse('$baseUrl/posts/$postId/hasLiked/$userId');
       final res = await http.get(url);
-
-      print("[PostService] GET /posts/$postId/hasLiked/$userId -> ${res.statusCode}");
+      _printRawResponse("GET /posts/$postId/hasLiked/$userId", res);
 
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body);
@@ -220,12 +216,12 @@ class PostService {
     }
     return false;
   }
+
   Future<List<dynamic>> getFollowingPosts(String userId, {int page = 1, int limit = 20}) async {
     try {
       final url = Uri.parse('$baseUrl/posts/following/$userId?page=$page&limit=$limit');
       final res = await http.get(url);
-
-      print("[PostService] GET /posts/following/$userId?page=$page&limit=$limit -> ${res.statusCode}");
+      _printRawResponse("GET /posts/following/$userId", res);
 
       if (res.statusCode == 200) {
         return jsonDecode(res.body) as List;
@@ -235,5 +231,4 @@ class PostService {
     }
     return [];
   }
-
 }

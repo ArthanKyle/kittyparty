@@ -5,6 +5,7 @@ import '../../../core/utils/user_provider.dart';
 import '../model/recharge.dart';
 import '../model/transaction.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:meta/meta.dart';
 
 class RechargeViewModel extends ChangeNotifier {
   final UserProvider userProvider;

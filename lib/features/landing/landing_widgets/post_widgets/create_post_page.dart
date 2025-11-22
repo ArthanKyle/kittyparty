@@ -17,6 +17,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
   final TextEditingController _controller = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   final List<XFile> _picked = [];
+  final Map<String, double> _uploadProgress = {};
   int maxLen = 500;
 
   @override
@@ -26,157 +27,154 @@ class _CreatePostPageState extends State<CreatePostPage> {
   }
 
   Future<void> _pickMedia() async {
-    final List<XFile>? files = await _picker.pickMultiImage();
+    final files = await _picker.pickMultiImage();
     if (files != null && files.isNotEmpty) {
-      setState(() {
-        _picked.addAll(files);
-      });
+      setState(() => _picked.addAll(files));
     }
+  }
+
+  Future<void> _submitPost(PostViewModel vm) async {
+    final content = _controller.text.trim();
+    if (content.isEmpty && _picked.isEmpty) return;
+
+    // Check for currentUserId
+    if (vm.currentUserId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User not logged in.')),
+      );
+      return;
+    }
+
+    final success = await vm.createPost(
+      content: content,
+      mediaFiles: _picked.map((x) => File(x.path)).toList(),
+    );
+
+    if (success) {
+      Navigator.of(context).pop();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(vm.error ?? 'Failed to create post')),
+      );
+    }
+  }
+
+
+  Widget _buildMediaPreview(XFile file) {
+    final progress = _uploadProgress[file.path] ?? 0.0;
+    return Stack(
+      children: [
+        Container(
+          width: 100,
+          margin: const EdgeInsets.only(right: 12),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.file(File(file.path), fit: BoxFit.cover),
+          ),
+        ),
+        if (progress > 0 && progress < 1.0)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black38,
+              child: Center(
+                child: CircularProgressIndicator(
+                  value: progress,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // Wrap the page in its own ChangeNotifierProvider
-    return ChangeNotifierProvider(
-      create: (_) => PostViewModel(),
-      child: Consumer<PostViewModel>(
-        builder: (context, vm, child) {
-          return Scaffold(
-            body: GradientBackground(
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
-                  child: Column(
-                    children: [
-                      Row(
+    return Consumer<PostViewModel>(
+      builder: (context, vm, child) {
+        return Scaffold(
+          body: GradientBackground(
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 20),
+                    Container(
+                      height: 160,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TextField(
+                        controller: _controller,
+                        maxLines: null,
+                        maxLength: maxLen,
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          hintText: 'Record your life at this moment...',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Text('${_controller.text.length}/$maxLen'),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 120,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
                         children: [
-                          IconButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            icon: const Icon(Icons.arrow_back_ios, size: 20),
+                          GestureDetector(
+                            onTap: _pickMedia,
+                            child: Container(
+                              width: 100,
+                              margin: const EdgeInsets.only(right: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.deepPurple.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Center(
+                                child: Icon(Icons.add, size: 48, color: Colors.white70),
+                              ),
+                            ),
                           ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Post graphics and text',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                          ),
+                          ..._picked.map(_buildMediaPreview).toList(),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      Container(
-                        height: 160,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: TextField(
-                          controller: _controller,
-                          maxLines: null,
-                          maxLength: maxLen,
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            hintText:
-                            'Record your life at this moment and share it with interesting people...',
+                    ),
+                    const Spacer(),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 20),
+                      child: SizedBox(
+                        height: 56,
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: vm.posting ? null : () => _submitPost(vm),
+                          style: ElevatedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(40),
+                            ),
+                          ),
+                          child: vm.posting
+                              ? const CircularProgressIndicator()
+                              : const Text(
+                            'Post',
+                            style: TextStyle(fontSize: 18, color: AppColors.accentWhite),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Text('${_controller.text.length}/$maxLen'),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        height: 120,
-                        child: ListView(
-                          scrollDirection: Axis.horizontal,
-                          children: [
-                            GestureDetector(
-                              onTap: _pickMedia,
-                              child: Container(
-                                width: 100,
-                                margin: const EdgeInsets.only(right: 12),
-                                decoration: BoxDecoration(
-                                  color: Colors.deepPurple.shade50,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Center(
-                                  child: Icon(Icons.add, size: 48, color: Colors.white70),
-                                ),
-                              ),
-                            ),
-                            ..._picked.map((f) {
-                              return Container(
-                                width: 100,
-                                margin: const EdgeInsets.only(right: 12),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.file(File(f.path), fit: BoxFit.cover),
-                                ),
-                              );
-                            }).toList(),
-                          ],
-                        ),
-                      ),
-                      const Spacer(),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 20),
-                        child: SizedBox(
-                          height: 56,
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(40)),
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              elevation: 4,
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                            ),
-                            onPressed: vm.posting
-                                ? null
-                                : () async {
-                              final content = _controller.text.trim();
-                              final mediaFiles = _picked.map((x) => File(x.path)).toList();
-                              final success = await vm.createPost(
-                                content: content,
-                                authorId: 'CURRENT_USER_ID',
-                                mediaFiles: mediaFiles,
-                              );
-                              if (success) {
-                                Navigator.of(context).pop();
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text('Failed to create post')),
-                                );
-                              }
-                            },
-                            child: Ink(
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF88D8F7), Color(0xFF8FA8FF)],
-                                ),
-                                borderRadius: BorderRadius.circular(40),
-                              ),
-                              child: Container(
-                                alignment: Alignment.center,
-                                child: vm.posting
-                                    ? const CircularProgressIndicator()
-                                    : const Text('Post', style: TextStyle(fontSize: 18, color: AppColors.accentWhite)),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }
