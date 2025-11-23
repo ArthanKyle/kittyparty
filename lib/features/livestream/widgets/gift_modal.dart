@@ -226,13 +226,33 @@ class _GiftModalState extends State<GiftModal>
             ),
           ),
           const SizedBox(height: 4),
-          Text(gift.name,
+          Text(
+              gift.name,
               style: const TextStyle(color: Colors.white, fontSize: 10),
               maxLines: 2,
               overflow: TextOverflow.ellipsis),
           const SizedBox(height: 2),
-          Text("${gift.price}",
-              style: const TextStyle(color: Colors.orangeAccent, fontSize: 10)),
+
+          /// PRICE WITH JEWEL ICON
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                "assets/icons/jewel.PNG",
+                height: 12,
+                width: 12,
+              ),
+              const SizedBox(width: 3),
+              Text(
+                "${gift.price}",
+                style: const TextStyle(
+                  color: Colors.blueAccent,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

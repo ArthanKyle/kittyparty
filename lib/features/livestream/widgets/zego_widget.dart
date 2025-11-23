@@ -45,7 +45,8 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
   }
 
   Future<void> _editRoomName(BuildContext context) async {
-    final TextEditingController controller = TextEditingController(text: _roomName);
+    final TextEditingController controller =
+    TextEditingController(text: _roomName);
 
     final newName = await showDialog<String>(
       context: context,
@@ -66,7 +67,8 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel", style: TextStyle(color: AppColors.accentBlack)),
+            child: const Text("Cancel",
+                style: TextStyle(color: AppColors.accentBlack)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
@@ -82,16 +84,16 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
           .updateRoom(widget.roomId, {"RoomName": newName});
 
       if (success != null) {
-        setState(() {
-          _roomName = newName;
-        });
+        setState(() => _roomName = newName);
 
         DialogInfo(
           headerText: "Room Name Updated",
           subText: "Your room name has been changed to \"$newName\".",
           confirmText: "OK",
-          onConfirm: () => Navigator.of(context, rootNavigator: true).pop(),
-          onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
+          onConfirm: () =>
+              Navigator.of(context, rootNavigator: true).pop(),
+          onCancel: () =>
+              Navigator.of(context, rootNavigator: true).pop(),
         ).build(context);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -109,8 +111,7 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
     final isHost = widget.userIdentification == widget.hostId;
 
     final config = (isHost
-        ? (ZegoUIKitPrebuiltLiveAudioRoomConfig.host()
-      ..seat.takeIndexWhenJoining = 0)
+        ? ZegoUIKitPrebuiltLiveAudioRoomConfig.host()
         : ZegoUIKitPrebuiltLiveAudioRoomConfig.audience())
       ..seat.hostIndexes = [0]
       ..seat.layout.rowConfigs = [
@@ -131,7 +132,7 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
       }
       ..topMenuBar = ZegoLiveAudioRoomTopMenuBarConfig(buttons: []);
 
-    // 🎁 Gift Button
+    // Gift Button
     final giftButton = ElevatedButton(
       style: ElevatedButton.styleFrom(
         shape: const CircleBorder(),
@@ -146,15 +147,14 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
           builder: (_) => GiftModal(
             viewModel: widget.viewModel,
             roomId: widget.roomId,
-            receiverId: widget.hostId,       // dynamic target
-            senderId: widget.userIdentification, // now valid
+            receiverId: widget.hostId,
+            senderId: widget.userIdentification,
           ),
         );
       },
       child: const Icon(Icons.card_giftcard, color: Colors.white),
     );
 
-    // Add gift button to correct menu
     if (isHost) {
       config.bottomMenuBar.hostExtendButtons = [giftButton];
     } else {
@@ -163,7 +163,6 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
 
     return Stack(
       children: [
-        /// 🎤 Live Audio Room
         ZegoUIKitPrebuiltLiveAudioRoom(
           appID: ZegoConfig.appID,
           appSign: ZegoConfig.appSign,
@@ -173,9 +172,9 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
           config: config,
         ),
 
-        /// 🏷️ Room Name (editable if host)
+        // Room name UI
         Positioned(
-          top:70,
+          top: 70,
           left: 20,
           right: 80,
           child: Row(
@@ -186,7 +185,7 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 14, // adjust here if needed
+                    fontSize: 14,
                     shadows: [
                       Shadow(
                         blurRadius: 4,
@@ -208,18 +207,15 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
                       color: Colors.black.withOpacity(0.6),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      Icons.edit,
-                      color: Colors.white,
-                      size: 18,
-                    ),
+                    child: const Icon(Icons.edit,
+                        color: Colors.white, size: 18),
                   ),
                 ),
             ],
           ),
         ),
 
-        /// 🕹 Game Button
+        // Games Button
         Positioned(
           right: 20,
           bottom: 200,
@@ -231,7 +227,7 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
           ),
         ),
 
-        /// 🔌 End/Leave Button
+        // End / Leave Button
         Positioned(
           top: 60,
           right: 20,
@@ -248,7 +244,8 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
                     TextButton(
                       onPressed: () => Navigator.pop(context, false),
                       child: const Text('Cancel',
-                          style: TextStyle(color: AppColors.accentBlack)),
+                          style:
+                          TextStyle(color: AppColors.accentBlack)),
                     ),
                     ElevatedButton(
                       onPressed: () => Navigator.pop(context, true),
@@ -264,9 +261,10 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
               if (shouldExit == true) {
                 final roomService = widget.viewModel.roomService;
                 final success = isHost
-                    ? await roomService.endRoom(widget.roomId, widget.hostId)
-                    : await roomService.leaveRoom(
-                    widget.roomId, widget.userIdentification);
+                    ? await roomService.endRoom(
+                    widget.roomId, widget.hostId)
+                    : await roomService.leaveRoom(widget.roomId,
+                    widget.userIdentification);
 
                 if (success) {
                   Navigator.of(context).pop();
@@ -288,8 +286,8 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
                 color: Colors.grey.shade800.withOpacity(0.9),
               ),
               padding: const EdgeInsets.all(10),
-              child:
-              const Icon(Icons.power_settings_new, color: Colors.white, size: 28),
+              child: const Icon(Icons.power_settings_new,
+                  color: Colors.white, size: 28),
             ),
           ),
         ),
