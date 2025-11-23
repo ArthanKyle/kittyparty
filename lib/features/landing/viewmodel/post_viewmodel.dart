@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-
 import '../../../core/services/api/post_service.dart';
 import '../../auth/model/auth.dart';
 import '../model/post.dart';
@@ -24,12 +23,11 @@ class PostViewModel with ChangeNotifier {
     String? currentUserId,
   })  : _service = PostService(),
         currentUserId = currentUserId {
-    // Initial fetch if user already loaded
+
     if (this.currentUserId != null && this.currentUserId!.isNotEmpty) {
       _initialFetch();
     }
 
-    // React to user changes (login, restored session, etc.)
     _userSub = userProvider.userStream.listen((user) {
       this.currentUserId = user.userIdentification;
       _initialFetch();
@@ -37,12 +35,10 @@ class PostViewModel with ChangeNotifier {
   }
 
   void _initialFetch() {
-    // You can separate recommend/following logic if needed
     fetchPosts();
     fetchFollowingPosts();
   }
 
-  // ---------------- FETCH POSTS (Recommend) ----------------
   Future<void> fetchPosts() async {
     loading = true;
     notifyListeners();
@@ -59,11 +55,8 @@ class PostViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  // ---------------- FETCH FOLLOWING POSTS ----------------
   Future<void> fetchFollowingPosts() async {
-    if (currentUserId == null || currentUserId!.isEmpty) {
-      return;
-    }
+    if (currentUserId == null || currentUserId!.isEmpty) return;
 
     loading = true;
     notifyListeners();
@@ -80,7 +73,6 @@ class PostViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  // ---------------- CREATE POST ----------------
   Future<bool> createPost({
     required String content,
     List<File>? mediaFiles,

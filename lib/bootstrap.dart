@@ -49,7 +49,7 @@ Future<void> bootstrap() async {
         // ⚡ PostViewModel is ALWAYS created, even if user is null at startup
         ChangeNotifierProvider(
           create: (_) => PostViewModel(
-            currentUserId: userProvider.currentUser!.userIdentification,
+            currentUserId: userProvider.currentUser?.userIdentification ?? "",
             userProvider: userProvider,
           ),
         ),

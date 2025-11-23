@@ -108,6 +108,11 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
 
   @override
   Widget build(BuildContext context) {
+    // FIX: ensure SVGA context exists
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.viewModel.initContext(context);
+    });
+
     final isHost = widget.userIdentification == widget.hostId;
 
     final config = (isHost

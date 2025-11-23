@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
 import '../services/api/auth_service.dart';
 import '../../features/auth/model/auth_response.dart';
 import '../../features/auth/model/auth.dart';
 import '../services/api/socket_service.dart';
+import 'dart:typed_data';
 
 class UserProvider extends ChangeNotifier {
   final _authService = AuthService();
@@ -23,6 +23,18 @@ class UserProvider extends ChangeNotifier {
 
   String? get token => _token;
   bool get isLoggedIn => currentUser != null && _token != null;
+  Uint8List? profilePictureBytes;
+  String? profilePictureUrl;
+
+  void setProfilePictureBytes(Uint8List bytes) {
+    profilePictureBytes = bytes;
+    notifyListeners();
+  }
+
+  void setProfilePictureUrl(String url) {
+    profilePictureUrl = url;
+    notifyListeners();
+  }
 
   Future<void> loadUser() async {
     try {
@@ -76,15 +88,13 @@ class UserProvider extends ChangeNotifier {
     _socketInitialized = true;
   }
 
+
   Future<void> setUser(AuthResponse authResponse) async {
     _token = authResponse.token;
     currentUser = authResponse.user;
-
     await _storage.write(key: "auth_token", value: _token);
-
     _userController.add(currentUser!);
     _initSocketIfNeeded(currentUser!.id);
-
     notifyListeners();
   }
 
@@ -99,12 +109,10 @@ class UserProvider extends ChangeNotifier {
       await _storage.delete(key: "auth_token");
       _token = null;
       currentUser = null;
-
       if (_socketInitialized) {
         _socketService.dispose();
         _socketInitialized = false;
       }
-
       _userController.addStream(Stream.empty());
       notifyListeners();
     }
@@ -113,7 +121,7 @@ class UserProvider extends ChangeNotifier {
   void updateCoins(int newCoins) {
     if (currentUser == null) return;
 
-    currentUser!.coins = newCoins;
+    currentUser!.coins = newCoins; // Directly update
     _userController.add(currentUser!);
     notifyListeners();
   }
@@ -121,15 +129,13 @@ class UserProvider extends ChangeNotifier {
   void updateDiamonds(int newDiamonds) {
     if (currentUser != null) {
       currentUser!.diamonds = newDiamonds;
-      notifyListeners();
+      notifyListeners(); // Make sure to notify listeners
     }
   }
 
   @override
   void dispose() {
-    if (_socketInitialized) {
-      _socketService.dispose();
-    }
+    if (_socketInitialized) _socketService.dispose();
     _userController.close();
     super.dispose();
   }

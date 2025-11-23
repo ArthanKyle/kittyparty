@@ -100,13 +100,16 @@ flutter_icons:
 
 flutter:
   uses-material-design: true
+
   assets:
     - assets/
+    - assets/image/
     - assets/image/gift/
     - assets/image/avatar/
     - assets/image/medal/
     - assets/image/banner/
-    - assets/image/
+    - assets/icons/
+    - assets/icons/item/
     - assets/image/banner/ad-event-banner.jpg
     - assets/image/banner/couple-event-banner.jpg
     - assets/image/banner/invite-banner.jpg
@@ -119,21 +122,12 @@ flutter:
     - assets/image/banner/win-coin-back-banner.jpg
     - assets/image/Mall_Image.jpg
     - assets/image/GetCoins.png
-    - assets/icons/
     - assets/icons/home.svg
     - assets/icons/compass.svg
     - assets/icons/message.svg
     - assets/icons/profile.svg
     - assets/icons/google.svg
-    - assets/icons/item/
-    - assets/icons/item/Avatar.png
-    - assets/icons/item/Chat_bubble.png
-    - assets/icons/item/Mount.png
-    - assets/icons/item/Nameplate.png
-    - assets/icons/item/Profile_card.png
     - .env
-
-
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

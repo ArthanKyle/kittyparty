@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:kittyparty/features/livestream/widgets/user_selector.dart';
 import '../viewmodel/live_audio_room_viewmodel.dart';
+import 'gift_assets.dart';
 
 class GiftModal extends StatefulWidget {
   final LiveAudioRoomViewmodel viewModel;
   final String roomId;
   final String receiverId;
-  final String senderId;   // <-- ADD THIS
+  final String senderId;
 
   const GiftModal({
     super.key,
     required this.viewModel,
     required this.roomId,
     required this.receiverId,
-    required this.senderId,   // <-- ADD THIS
+    required this.senderId,
   });
 
   @override
@@ -42,15 +43,13 @@ class _GiftModalState extends State<GiftModal>
 
   GiftItem _buildGift({
     required String id,
-    required String name,
-    required String pngFileName,
+    required String baseName,
     required int price,
     required bool isLucky,
   }) {
     return GiftItem(
       id: id,
-      name: name,
-      pngFileName: pngFileName,
+      baseName: baseName,
       price: price,
       isLucky: isLucky,
     );
@@ -58,31 +57,26 @@ class _GiftModalState extends State<GiftModal>
 
   List<GiftItem> get _allGifts {
     return [
-      // ===========================
-      // GENERAL
-      // ===========================
-      _buildGift(id: "2001", name: "Red Rose Book Pavilion", pngFileName: "Red Rose Bookstore.png", price: 200, isLucky: false),
-      _buildGift(id: "2002", name: "Charming Female Singer", pngFileName: "Charming female singer.png", price: 400, isLucky: false),
-      _buildGift(id: "2003", name: "Rose String Sound", pngFileName: "rose string tone.png", price: 200, isLucky: false),
-      _buildGift(id: "2004", name: "Rolex A", pngFileName: "Rolex.png", price: 200, isLucky: false),
-      _buildGift(id: "2005", name: "Rose Crystal Bottle", pngFileName: "rose crystal bottle.png", price: 150, isLucky: false),
-      _buildGift(id: "2006", name: "Passionate Love Bouquet", pngFileName: "love bouquet.png", price: 200, isLucky: false),
-      _buildGift(id: "2007", name: "Wedding Dress", pngFileName: "wedding dress.png", price: 260, isLucky: false),
-      _buildGift(id: "2008", name: "Romantic Love Songs", pngFileName: "Romantic love songs.png", price: 150, isLucky: false),
-      _buildGift(id: "2009", name: "Lion Beauty", pngFileName: "lion beauty.png", price: 300, isLucky: false),
-      _buildGift(id: "2010", name: "Wealth-Bringing Demon Mask", pngFileName: "Wealth-Bringing Demon Mask.png", price: 238, isLucky: false),
-      _buildGift(id: "2011", name: "Silver Crown Daughter", pngFileName: "Silver Crown Daughter.png", price: 300, isLucky: false),
-      _buildGift(id: "2012", name: "Misty Valley White Tiger", pngFileName: "Misty Valley White Tiger.png", price: 230, isLucky: false),
+      _buildGift(id: "2001", baseName: "Red Rose Bookstore", price: 200, isLucky: false),
+      _buildGift(id: "2002", baseName: "Charming female singer", price: 400, isLucky: false),
+      _buildGift(id: "2003", baseName: "rose string tone", price: 200, isLucky: false),
+      _buildGift(id: "2004", baseName: "Rolex", price: 200, isLucky: false),
+      _buildGift(id: "2005", baseName: "rose crystal bottle", price: 150, isLucky: false),
+      _buildGift(id: "2006", baseName: "love bouquet", price: 200, isLucky: false),
+      _buildGift(id: "2007", baseName: "wedding dress", price: 260, isLucky: false),
+      _buildGift(id: "2008", baseName: "Romantic love songs", price: 150, isLucky: false),
+      _buildGift(id: "2009", baseName: "lion beauty", price: 300, isLucky: false),
+      _buildGift(id: "2010", baseName: "Wealth-Bringing Demon Mask", price: 238, isLucky: false),
+      _buildGift(id: "2011", baseName: "Silver Crown Daughter", price: 300, isLucky: false),
+      _buildGift(id: "2012", baseName: "Misty Valley White Tiger", price: 230, isLucky: false),
 
-      // ===========================
-      // LUCKY
-      // ===========================
-      _buildGift(id: "3001", name: "Donut", pngFileName: "Donut.png", price: 66, isLucky: true),
-      _buildGift(id: "3002", name: "7 Red Roses & 9 Blossoms", pngFileName: "9 red roses.png", price: 200, isLucky: true),
-      _buildGift(id: "3003", name: "5 White Rose Bouquets", pngFileName: "Bouquet of 5 white roses.png", price: 166, isLucky: true),
-      _buildGift(id: "3004", name: "5 Goddess Letters", pngFileName: "Goddess Letter.png", price: 150, isLucky: true),
-      _buildGift(id: "3005", name: "Love Language Rose", pngFileName: "love rose.png", price: 200, isLucky: true),
-      _buildGift(id: "3006", name: "Love Phonograph", pngFileName: "Love Gramophone.png", price: 200, isLucky: true),
+      // Lucky category
+      _buildGift(id: "3001", baseName: "Donut", price: 66, isLucky: true),
+      _buildGift(id: "3002", baseName: "9 red roses", price: 200, isLucky: true),
+      _buildGift(id: "3003", baseName: "Bouquet of 5 white roses", price: 166, isLucky: true),
+      _buildGift(id: "3004", baseName: "Goddess Letter", price: 150, isLucky: true),
+      _buildGift(id: "3005", baseName: "love rose", price: 200, isLucky: true),
+      _buildGift(id: "3006", baseName: "Love Gramophone", price: 200, isLucky: true),
     ];
   }
 
@@ -201,7 +195,7 @@ class _GiftModalState extends State<GiftModal>
   Widget _tile(GiftItem gift) {
     return GestureDetector(
       onTap: () async {
-        Navigator.pop(context); // close gift modal
+        Navigator.pop(context);
 
         final selectedReceiverId = await showModalBottomSheet<String>(
           context: context,
@@ -233,20 +227,19 @@ class _GiftModalState extends State<GiftModal>
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Image.asset(
-                "assets/image/gift/${gift.pngFileName}",
+                gift.png,
                 fit: BoxFit.contain,
               ),
             ),
           ),
           const SizedBox(height: 4),
           Text(
-              gift.name,
-              style: const TextStyle(color: Colors.white, fontSize: 10),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis),
+            gift.baseName,
+            style: const TextStyle(color: Colors.white, fontSize: 10),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
           const SizedBox(height: 2),
-
-          /// PRICE WITH JEWEL ICON
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -274,16 +267,26 @@ class _GiftModalState extends State<GiftModal>
 
 class GiftItem {
   final String id;
-  final String name;
-  final String pngFileName;
+  final String baseName;
   final int price;
   final bool isLucky;
 
   GiftItem({
     required this.id,
-    required this.name,
-    required this.pngFileName,
+    required this.baseName,
     required this.price,
     required this.isLucky,
   });
+
+  String get png {
+    final p = GiftAssets.png(baseName);
+    print("🔍 PNG Path for '$baseName': $p");
+    return p;
+  }
+
+  String get svga {
+    final s = GiftAssets.svga(baseName);
+    print("🎬 SVGA Path for '$baseName': $s");
+    return s;
+  }
 }
