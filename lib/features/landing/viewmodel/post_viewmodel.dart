@@ -1,21 +1,48 @@
+import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
+
 import '../../../core/services/api/post_service.dart';
+import '../../auth/model/auth.dart';
 import '../model/post.dart';
+import '../../../core/utils/user_provider.dart';
 
 class PostViewModel with ChangeNotifier {
   final PostService _service;
-  final String currentUserId;
+  String? currentUserId;
 
   List<Post> posts = [];
   bool loading = false;
   bool posting = false;
   String? error;
 
-  PostViewModel({required this.currentUserId})
-      : _service = PostService();
+  late final StreamSubscription<User> _userSub;
 
-  // ---------------- FETCH POSTS ----------------
+  PostViewModel({
+    required UserProvider userProvider,
+    String? currentUserId,
+  })  : _service = PostService(),
+        currentUserId = currentUserId {
+    // Initial fetch if user already loaded
+    if (this.currentUserId != null && this.currentUserId!.isNotEmpty) {
+      _initialFetch();
+    }
+
+    // React to user changes (login, restored session, etc.)
+    _userSub = userProvider.userStream.listen((user) {
+      this.currentUserId = user.userIdentification;
+      _initialFetch();
+    });
+  }
+
+  void _initialFetch() {
+    // You can separate recommend/following logic if needed
+    fetchPosts();
+    fetchFollowingPosts();
+  }
+
+  // ---------------- FETCH POSTS (Recommend) ----------------
   Future<void> fetchPosts() async {
     loading = true;
     notifyListeners();
@@ -23,6 +50,28 @@ class PostViewModel with ChangeNotifier {
     try {
       final raw = await _service.getPosts();
       posts = raw.map((e) => Post.fromJson(e)).toList();
+      error = null;
+    } catch (e) {
+      error = e.toString();
+    }
+
+    loading = false;
+    notifyListeners();
+  }
+
+  // ---------------- FETCH FOLLOWING POSTS ----------------
+  Future<void> fetchFollowingPosts() async {
+    if (currentUserId == null || currentUserId!.isEmpty) {
+      return;
+    }
+
+    loading = true;
+    notifyListeners();
+
+    try {
+      final raw = await _service.getFollowingPosts(currentUserId!);
+      posts = raw.map((e) => Post.fromJson(e)).toList();
+      error = null;
     } catch (e) {
       error = e.toString();
     }
@@ -36,12 +85,18 @@ class PostViewModel with ChangeNotifier {
     required String content,
     List<File>? mediaFiles,
   }) async {
+    if (currentUserId == null || currentUserId!.isEmpty) {
+      error = "User not loaded. Cannot create post.";
+      notifyListeners();
+      return false;
+    }
+
     posting = true;
     notifyListeners();
 
     try {
       final body = {
-        'authorId': currentUserId,   // FIXED
+        'authorId': currentUserId!,
         'content': content,
       };
 
@@ -51,7 +106,6 @@ class PostViewModel with ChangeNotifier {
       );
 
       if (resp != null && resp['postId'] != null) {
-        // fetch the new post
         await fetchPosts();
         posting = false;
         notifyListeners();
@@ -68,21 +122,10 @@ class PostViewModel with ChangeNotifier {
       return false;
     }
   }
-  Future<void> fetchFollowingPosts() async {
-    if (currentUserId.isEmpty) return;
 
-    loading = true;
-    notifyListeners();
-
-    try {
-      final raw = await _service.getFollowingPosts(currentUserId);
-      posts = raw.map((e) => Post.fromJson(e)).toList();
-    } catch (e) {
-      error = e.toString();
-    }
-
-    loading = false;
-    notifyListeners();
+  @override
+  void dispose() {
+    _userSub.cancel();
+    super.dispose();
   }
-
 }

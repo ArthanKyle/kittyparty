@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
+
 import 'app.dart';
 import 'core/services/api/socket_service.dart';
 import 'core/services/api/user_service.dart';
@@ -21,16 +22,17 @@ Future<void> bootstrap() async {
 
   await dotenv.load(fileName: ".env");
   await Hive.initFlutter();
+
   myRegBox = await Hive.openBox("myRegistrationBox");
   sessionsBox = await Hive.openBox("sessions");
 
   Stripe.publishableKey = dotenv.env["STRIPE_PUBLISHABLE_KEY"] ?? "";
 
-  // Load user
+  // Load user BEFORE building the widget tree
   final userProvider = UserProvider();
   await userProvider.loadUser();
 
-  // Initialize socket
+  // Global socket instance used by other services/viewmodels
   final socketService = SocketService();
   if (userProvider.currentUser != null) {
     socketService.initSocket(userProvider.currentUser!.id);
@@ -39,20 +41,23 @@ Future<void> bootstrap() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => userProvider),
+        // Already-created userProvider instance
+        ChangeNotifierProvider<UserProvider>.value(value: userProvider),
+
         ChangeNotifierProvider(create: (_) => PageIndexProvider()),
 
-        // Always create PostViewModel
+        // ⚡ PostViewModel is ALWAYS created, even if user is null at startup
         ChangeNotifierProvider(
           create: (_) => PostViewModel(
             currentUserId: userProvider.currentUser!.userIdentification,
+            userProvider: userProvider,
           ),
         ),
 
+        // Wallet & diamonds
         ChangeNotifierProvider(
           create: (_) => WalletViewModel(userProvider: userProvider),
         ),
-
         ChangeNotifierProvider(
           create: (_) => DiamondViewModel(
             userProvider: userProvider,
@@ -60,8 +65,13 @@ Future<void> bootstrap() async {
           ),
         ),
 
-        Provider(create: (_) => UserService(baseUrl: dotenv.env["BASE_URL"] ?? "")),
-        Provider(create: (_) => socketService),
+        // Plain services
+        Provider(
+          create: (_) => UserService(
+            baseUrl: dotenv.env["BASE_URL"] ?? "",
+          ),
+        ),
+        Provider<SocketService>.value(value: socketService),
       ],
       child: const MyApp(),
     ),

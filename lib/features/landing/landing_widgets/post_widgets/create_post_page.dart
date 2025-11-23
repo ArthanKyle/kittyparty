@@ -37,8 +37,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
     final content = _controller.text.trim();
     if (content.isEmpty && _picked.isEmpty) return;
 
-    // Check for currentUserId
-    if (vm.currentUserId.isEmpty) {
+    // Check for currentUserId safely
+    if ((vm.currentUserId ?? "").isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('User not logged in.')),
       );
@@ -58,7 +58,6 @@ class _CreatePostPageState extends State<CreatePostPage> {
       );
     }
   }
-
 
   Widget _buildMediaPreview(XFile file) {
     final progress = _uploadProgress[file.path] ?? 0.0;

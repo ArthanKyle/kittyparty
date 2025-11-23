@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../../core/global_widgets/buttons/create_post_button.dart';
 import '../../../core/global_widgets/gradient_background/gradient_background.dart';
 import '../../../core/utils/user_provider.dart';
@@ -14,13 +15,22 @@ class PostPage extends StatefulWidget {
   State<PostPage> createState() => _PostPageState();
 }
 
-class _PostPageState extends State<PostPage> with SingleTickerProviderStateMixin {
+class _PostPageState extends State<PostPage>
+    with SingleTickerProviderStateMixin {
   late final TabController _tab;
 
   @override
   void initState() {
     super.initState();
     _tab = TabController(length: 2, vsync: this);
+
+    // Trigger an initial fetch for posts once the widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final vm = context.read<PostViewModel>();
+      if (!vm.loading && vm.posts.isEmpty) {
+        vm.fetchPosts();
+      }
+    });
   }
 
   @override
@@ -31,10 +41,28 @@ class _PostPageState extends State<PostPage> with SingleTickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = context.read<UserProvider>().currentUser;
+    final userProvider = context.watch<UserProvider>();
+    final currentUser = userProvider.currentUser;
 
+    final postVM = context.watch<PostViewModel>();
+
+    // Placeholder while user or posts are loading
+    final isStillLoadingUser = userProvider.isLoading && currentUser == null;
+    final isLoadingPosts =
+        postVM.loading && postVM.posts.isEmpty && currentUser != null;
+
+    if (isStillLoadingUser || isLoadingPosts) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    // If there's no logged-in user at all (depending on your auth flow,
+    // you may want to redirect instead)
     if (currentUser == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: Text("No user loaded."),
+      );
     }
 
     return GradientBackground(
@@ -73,7 +101,7 @@ class _PostPageState extends State<PostPage> with SingleTickerProviderStateMixin
                 Expanded(
                   child: TabBarView(
                     controller: _tab,
-                    children: const [
+                    children:[
                       RecommendPost(),
                       FollowingPostTab(),
                     ],
