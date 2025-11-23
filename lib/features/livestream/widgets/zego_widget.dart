@@ -5,6 +5,7 @@ import 'package:zego_uikit_prebuilt_live_audio_room/zego_uikit_prebuilt_live_aud
 import '../../../core/config/zego_config.dart';
 import '../../../core/constants/colors.dart';
 import '../viewmodel/live_audio_room_viewmodel.dart';
+import 'gift_modal.dart';
 import 'user_avatar.dart';
 import 'package:zego_uikit/zego_uikit.dart';
 
@@ -130,6 +131,35 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
       }
       ..topMenuBar = ZegoLiveAudioRoomTopMenuBarConfig(buttons: []);
 
+    // 🎁 Gift Button
+    final giftButton = ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        shape: const CircleBorder(),
+        backgroundColor: Colors.pinkAccent,
+        padding: const EdgeInsets.all(12),
+      ),
+      onPressed: () {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => GiftModal(
+            viewModel: widget.viewModel,
+            roomId: widget.roomId,
+            receiverId: widget.hostId,       // dynamic target
+            senderId: widget.userIdentification, // now valid
+          ),
+        );
+      },
+      child: const Icon(Icons.card_giftcard, color: Colors.white),
+    );
+
+    // Add gift button to correct menu
+    if (isHost) {
+      config.bottomMenuBar.hostExtendButtons = [giftButton];
+    } else {
+      config.bottomMenuBar.audienceExtendButtons = [giftButton];
+    }
 
     return Stack(
       children: [

@@ -13,6 +13,7 @@ class RoomService {
   Future<Room?> createRoomForUser({
     required String userId,
     required String roomName,
+    String topic = "",
   }) async {
     print(
         "[RoomService] Creating room for userId: $userId with name: $roomName");
@@ -24,6 +25,7 @@ class RoomService {
         body: jsonEncode({
           "HostID": userId,
           "RoomName": roomName,
+          "Topic": topic,
         }),
       );
 
