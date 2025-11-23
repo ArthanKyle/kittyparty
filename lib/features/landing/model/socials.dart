@@ -1,5 +1,5 @@
 class Social {
-  final int user;
+  final String user;
   final int following;
   final int fans;
   final int friends;
@@ -15,7 +15,7 @@ class Social {
 
   factory Social.fromJson(Map<String, dynamic> json) {
     return Social(
-      user: json['user'] ?? 0,
+      user: json['user'].toString(),
       following: json['following'] ?? 0,
       fans: json['fans'] ?? 0,
       friends: json['friends'] ?? 0,

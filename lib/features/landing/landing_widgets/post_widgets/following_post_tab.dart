@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:kittyparty/features/landing/landing_widgets/post_widgets/recommend_post_item.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/utils/user_provider.dart';
 import '../../viewmodel/post_viewmodel.dart';
-import 'recommend_post.dart';
+import '../../landing_widgets/post_widgets/recommend_post_item.dart';
 
 class FollowingPostTab extends StatefulWidget {
   const FollowingPostTab({super.key});
@@ -12,43 +10,50 @@ class FollowingPostTab extends StatefulWidget {
   State<FollowingPostTab> createState() => _FollowingPostTabState();
 }
 
-class _FollowingPostTabState extends State<FollowingPostTab> {
+class _FollowingPostTabState extends State<FollowingPostTab>
+    with AutomaticKeepAliveClientMixin {
+
+  bool _loaded = false;
+
   @override
   void initState() {
     super.initState();
-
-    // Fetch following posts using currentUserId from PostViewModel
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<PostViewModel>().fetchFollowingPosts();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!_loaded) {
+        await context.read<PostViewModel>().fetchFollowingPosts();
+        _loaded = true;
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+
     final vm = context.watch<PostViewModel>();
 
-    if (vm.loading) {
+    if (vm.loading && !_loaded) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (vm.posts.isEmpty) {
-      return const Center(
-        child: Text(
-          "No posts from followed users",
-          style: TextStyle(fontSize: 16, color: Colors.black),
-        ),
-      );
-    }
-
     return RefreshIndicator(
-      onRefresh: () async {
-        await context.read<PostViewModel>().fetchFollowingPosts();
-      },
-      child: ListView.builder(
+      onRefresh: () => context.read<PostViewModel>().fetchFollowingPosts(),
+      child: vm.posts.isEmpty
+          ? ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          SizedBox(height: 200),
+          Center(child: Text("No posts from followed users")),
+        ],
+      )
+          : ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         itemCount: vm.posts.length,
         itemBuilder: (_, i) => RecommendPostItem(post: vm.posts[i]),
       ),
     );
   }
+
+  @override
+  bool get wantKeepAlive => true;
 }

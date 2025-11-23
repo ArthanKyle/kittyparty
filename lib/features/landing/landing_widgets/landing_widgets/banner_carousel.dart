@@ -11,16 +11,17 @@ class BannerCarousel extends StatefulWidget {
 
 class _BannerCarouselState extends State<BannerCarousel> {
   final List<String> images = [
-    'assets/image/treasure-gold-coins-banner.jpg',
-    'assets/image/win-coin-back-banner.jpg',
-    'assets/image/couple-event-banner.jpg',
-    'assets/image/invite-banner.jpg',
-    'assets/image/monthly-recharge-banner.jpg',
-    'assets/image/pretty-id-banner.jpg',
-    'assets/image/wealth-level-reward-banner.jpg',
-    'assets/image/weekly-star-banner.jpg',
-    'assets/image/win-coin-back-banner.jpg',
-    'assets/image/ad-event-banner.jpg',
+    'assets/image/banner/treasure-gold-coins-banner.jpg',
+    'assets/image/banner/win-coin-back-banner.jpg',
+    'assets/image/banner/couple-event-banner.jpg',
+    'assets/image/banner/invite-banner.jpg',
+    'assets/image/banner/monthly-recharge-banner.jpg',
+    'assets/image/banner/pretty-id-banner.jpg',
+    'assets/image/banner/wealth-level-reward-banner.jpg',
+    'assets/image/banner/weekly-star-banner.jpg',
+    'assets/image/banner/win-coin-back-banner.jpg',
+    'assets/image/banner/ad-event-banner.jpg',
+
   ];
 
   int _currentIndex = 0;

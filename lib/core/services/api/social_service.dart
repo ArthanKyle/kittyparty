@@ -10,7 +10,7 @@ class SocialService {
       : baseUrl = baseUrl ?? dotenv.env['BASE_URL']!;
 
   /// Fetch a user's social data (following, fans, friends, visitors)
-  Future<Social?> fetchSocialData(int userId) async {
+  Future<Social?> fetchSocialData(String userId) async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/socials/$userId'));
 
@@ -20,23 +20,25 @@ class SocialService {
         final Map<String, dynamic> data = jsonDecode(response.body);
         print('📌 Parsed Social Data: $data');
         return Social.fromJson(data);
-      } else if (response.statusCode == 404) {
+      }
+      else if (response.statusCode == 404) {
         print('⚠️ Social data not found, returning default zeros');
         return Social(
-          user: userId,
+          user: userId,        // <-- Now string
           following: 0,
           fans: 0,
           friends: 0,
           visitors: 0,
         );
-      } else {
+      }
+      else {
         print('⚠️ Failed to load social data. Status code: ${response.statusCode}');
         return null;
       }
     } catch (e) {
       print('❌ Social API Error: $e');
       return Social(
-        user: userId,
+        user: userId,          // <-- Now string
         following: 0,
         fans: 0,
         friends: 0,
@@ -44,6 +46,7 @@ class SocialService {
       );
     }
   }
+
 
   /// Follow another user
   Future<bool> followUser(int userId, int targetId) async {

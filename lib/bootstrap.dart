@@ -42,16 +42,17 @@ Future<void> bootstrap() async {
         ChangeNotifierProvider(create: (_) => userProvider),
         ChangeNotifierProvider(create: (_) => PageIndexProvider()),
 
-        // ✅ PostViewModel with correct user ID
-        if (userProvider.currentUser != null)
-          ChangeNotifierProvider(
-            create: (_) =>
-                PostViewModel(currentUserId: userProvider.currentUser!.id),
+        // Always create PostViewModel
+        ChangeNotifierProvider(
+          create: (_) => PostViewModel(
+            currentUserId: userProvider.currentUser!.userIdentification,
           ),
+        ),
 
         ChangeNotifierProvider(
           create: (_) => WalletViewModel(userProvider: userProvider),
         ),
+
         ChangeNotifierProvider(
           create: (_) => DiamondViewModel(
             userProvider: userProvider,

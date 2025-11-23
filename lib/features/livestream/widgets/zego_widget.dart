@@ -130,6 +130,7 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
       }
       ..topMenuBar = ZegoLiveAudioRoomTopMenuBarConfig(buttons: []);
 
+
     return Stack(
       children: [
         /// 🎤 Live Audio Room

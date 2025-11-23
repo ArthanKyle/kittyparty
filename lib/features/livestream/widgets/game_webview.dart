@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
-// Required for AndroidWebViewController debugging
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import '../viewmodel/game_config.dart';
 
@@ -32,10 +31,9 @@ class _GameWebViewState extends State<GameWebView> {
   bool hasError = false;
   String? errorMessage;
 
-  final String backendUrl = dotenv.env['BASE_URL'] ?? ""; // your app server
+  final String backendUrl = dotenv.env['BASE_URL'] ?? ""; // e.g. https://.../api
   final String baishunAppId = dotenv.env['APP_ID'] ?? ""; // app_id assigned by BAISHUN
 
-  // EventChannel for Android plugin changes
   static const EventChannel _bsEventChannel = EventChannel('baishunChannel');
 
   @override
@@ -48,68 +46,80 @@ class _GameWebViewState extends State<GameWebView> {
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..enableZoom(false)
       ..setBackgroundColor(const Color(0x00000000))
-      ..setNavigationDelegate(NavigationDelegate(
-        onPageStarted: (_) {
-          setState(() {
-            isLoading = true;
-            hasError = false;
-          });
-        },
-        onPageFinished: (_) async {
-          // inject proxy only
-          await controller.runJavaScript(_jsProxyCode(backendUrl));
-
-          // REMOVED: await controller.runJavaScript(_nativeBridgeCode());
-          // Reason: Your custom Java code now injects "NativeBridge" automatically.
-
-          setState(() => isLoading = false);
-        },
-        onWebResourceError: (error) {
-          setState(() {
-            hasError = true;
-            isLoading = false;
-            errorMessage = error.description;
-          });
-        },
-      ))
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageStarted: (_) {
+            setState(() {
+              isLoading = true;
+              hasError = false;
+            });
+          },
+          onPageFinished: (_) async {
+            // inject proxy only
+            await controller.runJavaScript(_jsProxyCode(backendUrl));
+            setState(() => isLoading = false);
+          },
+          onWebResourceError: (error) {
+            setState(() {
+              hasError = true;
+              isLoading = false;
+              errorMessage = error.description;
+            });
+          },
+        ),
+      )
       ..loadRequest(Uri.parse(widget.url));
 
-    // --- ADDED: Debugging Config (Section 7.3.5) ---
     if (controller.platform is AndroidWebViewController) {
-      // Set to 'true' if you need to inspect via Chrome DevTools
       AndroidWebViewController.enableDebugging(false);
       (controller.platform as AndroidWebViewController)
           .setMediaPlaybackRequiresUserGesture(false);
     }
-    // -----------------------------------------------
 
-    // Setup Android EventChannel listener (only on Android)
     if (Platform.isAndroid) {
-      _bsEventChannel.receiveBroadcastStream().listen(_onNativeEvent, onError: (err) {
+      _bsEventChannel
+          .receiveBroadcastStream()
+          .listen(_onNativeEvent, onError: (err) {
         debugPrint('BSEventChannel error: $err');
       });
     }
   }
 
-  // Proxy fetch/XHR for relative /v1/api/* -> backendUrl + path
   String _jsProxyCode(String base) {
-    final safeBase = base.replaceAll(r'$', r'\$'); // minimal escaping
+    final safeBase = base.replaceAll(r'$', r'\$');
+
     return """
 (function() {
   const backend = "$safeBase";
+
+  function fixUrl(u) {
+    if (typeof u !== "string") return u;
+
+    // Remove host
+    const noHost = u.replace(/^https?:\\/\\/[^/]+/, "");
+
+    // 1. BAISHUN routing server
+    if (noHost.startsWith("/game_route/get_addr") || noHost.includes("game_route/get_addr")) {
+      return backend + "/games/game_route/get_addr" + (noHost.startsWith("/") ? noHost.replace("/game_route/get_addr", "") : "");
+    }
+
+    // 2. Core BAISHUN APIs
+    if (noHost.startsWith("/v1/api/") || noHost.startsWith("v1/api/")) {
+      const path = noHost.startsWith("/") ? noHost : "/" + noHost;
+      return backend + "/games" + path;
+    }
+
+    return u;
+  }
+
   const originalFetch = window.fetch;
   window.fetch = function(resource, options) {
-    if (typeof resource === 'string' && resource.startsWith('/v1/api/')) {
-      resource = backend + resource;
-    }
-    return originalFetch(resource, options);
+    return originalFetch(fixUrl(resource), options);
   };
+
   const originalOpen = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function(method, url) {
-    if (typeof url === 'string' && url.startsWith('/v1/api/')) {
-      arguments[1] = backend + url;
-    }
-    return originalOpen.apply(this, arguments);
+    return originalOpen.call(this, method, fixUrl(url));
   };
 })();
 """;
@@ -118,33 +128,31 @@ class _GameWebViewState extends State<GameWebView> {
   // Called on Android plugin event
   void _onNativeEvent(dynamic event) async {
     try {
-      if (event == null) return; // Handle null event
+      if (event == null) return;
 
-      debugPrint("Received Native Event: $event"); // Log the raw event to see what the game sent
+      debugPrint("Received Native Event: $event");
 
       dynamic obj;
       try {
         obj = json.decode(event as String);
-      } catch(e) {
+      } catch (e) {
         return;
       }
 
-      // ⚠️ FIX: Check if obj is null before accessing []
       if (obj == null || obj is! Map) {
         debugPrint("Native event payload is empty or invalid");
         return;
       }
 
       final jsFunName = obj['jsCallback'] as String? ?? '';
-      final payload = obj['data'] ?? {}; // Default to empty map if data is null
+      final payload = obj['data'] ?? {};
 
-      // Default to 'onGetConfig' because sometimes the game just calls getConfig without specifying a callback name
       final jsCallback = (obj['jsCallback'] != null && obj['jsCallback'].isNotEmpty)
           ? obj['jsCallback']
           : 'onGetConfig';
 
       if (jsFunName.contains('getConfig')) {
-        print("BSGAME: Game requested getConfig"); // Debug log
+        print("BSGAME: Game requested getConfig");
         await _handleGetConfig(payload, jsCallback);
       } else if (jsFunName.contains('destroy')) {
         print("BSGAME: Game requested destroy");
@@ -163,10 +171,8 @@ class _GameWebViewState extends State<GameWebView> {
   }
 
   Future<void> _handleGetConfig(dynamic payload, String jsCallback) async {
-    // 1. Use the ID passed to the Widget, not the empty payload
     final userId = widget.userId;
 
-    // 2. Use your existing logic to get the code/balance
     String oneTimeCode = '';
     double userBalance = 0.0;
 
@@ -187,8 +193,6 @@ class _GameWebViewState extends State<GameWebView> {
       debugPrint('Server request failed: $e');
     }
 
-    String validIcon = "";
-
     final configData = GetConfigData(
       appChannel: "kitty",
       appId: int.tryParse(baishunAppId) ?? 0,
@@ -197,15 +201,14 @@ class _GameWebViewState extends State<GameWebView> {
       language: payload['language']?.toString() ?? "2",
       gsp: payload['gsp'] ?? 101,
       roomId: payload['roomId']?.toString() ?? "",
-      code: oneTimeCode, // Now this will be valid!
+      code: oneTimeCode,
       balance: userBalance,
       gameConfig: GameConfig(
         sceneMode: payload?['gameConfig']?['sceneMode'] ?? 0,
-        currencyIcon: validIcon, // Empty string prevents CSP error
+        currencyIcon: "",
       ),
     );
 
-    // 4. Send back to Game
     print("BSGAME: Sending Config to Game: ${jsonEncode(configData.toJson())}");
     await finalMapToJs(jsCallback, configData.toJson());
   }
@@ -219,17 +222,14 @@ class _GameWebViewState extends State<GameWebView> {
     }
   }
 
-  // Example: open your app's recharge UI
   void _openRecharge() {
-    // implement showing your purchase screen
     debugPrint('open recharge UI');
   }
 
-  // App-side call to notify game of new wallet balance
   Future<void> walletUpdate(double newBalance) async {
     final updatePayload = {
       "balance": newBalance,
-      "currency_icon": "https://example.com/icon.png"
+      "currency_icon": "assets/icons/KPcoin.png"
     };
     final js = "walletUpdate(${jsonEncode(updatePayload)});";
     await controller.runJavaScript(js);
@@ -253,27 +253,32 @@ class _GameWebViewState extends State<GameWebView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.gameName)),
-      body: Stack(children: [
-        if (!hasError) WebViewWidget(controller: controller),
-        if (isLoading) const Center(child: CircularProgressIndicator()),
-        if (hasError)
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.wifi_off, size: 48, color: Colors.redAccent),
-                const SizedBox(height: 12),
-                const Text(
-                  "Connection lost.\nPlease reopen or refresh the game.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(onPressed: _reloadGame, child: const Text("Try Again")),
-              ],
+      body: Stack(
+        children: [
+          if (!hasError) WebViewWidget(controller: controller),
+          if (isLoading) const Center(child: CircularProgressIndicator()),
+          if (hasError)
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.wifi_off, size: 48, color: Colors.redAccent),
+                  const SizedBox(height: 12),
+                  const Text(
+                    "Connection lost.\nPlease reopen or refresh the game.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _reloadGame,
+                    child: const Text("Try Again"),
+                  ),
+                ],
+              ),
             ),
-          )
-      ]),
+        ],
+      ),
     );
   }
 }

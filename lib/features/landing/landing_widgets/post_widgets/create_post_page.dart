@@ -111,6 +111,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                         controller: _controller,
                         maxLines: null,
                         maxLength: maxLen,
+                        onChanged: (_) => setState(() {}),   // ← FIX
                         decoration: const InputDecoration(
                           border: InputBorder.none,
                           hintText: 'Record your life at this moment...',

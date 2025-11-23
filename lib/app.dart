@@ -83,7 +83,7 @@ class MyApp extends StatelessWidget {
           case AppRoutes.wallet:
             return MaterialPageRoute(builder: (_) => const WalletPage());
           case AppRoutes.test:
-            return MaterialPageRoute(builder: (_) => const Next());
+            return MaterialPageRoute(builder: (_) =>  AssetTest());
           case AppRoutes.setting:
             return MaterialPageRoute(builder: (_) => const SettingPage());
 

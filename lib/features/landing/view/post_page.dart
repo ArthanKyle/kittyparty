@@ -37,67 +37,59 @@ class _PostPageState extends State<PostPage> with SingleTickerProviderStateMixin
       return const Center(child: CircularProgressIndicator());
     }
 
-    return ChangeNotifierProvider.value(
-      value: context.read<PostViewModel>(), // already initialized in bootstrap
-      child: GradientBackground(
-        child: SafeArea(
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  const SizedBox(height: 20),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 6, 8, 0),
-                    child: Transform.translate(
-                      offset: const Offset(-45, 0),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: TabBar(
-                          controller: _tab,
-                          isScrollable: true,
-                          labelPadding: const EdgeInsets.only(right: 24),
-                          indicatorSize: TabBarIndicatorSize.label,
-                          dividerColor: Colors.transparent,
-                          labelColor: Colors.white,
-                          unselectedLabelColor: Colors.black45,
-                          labelStyle: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          tabs: const [
-                            Tab(text: 'Recommend'),
-                            Tab(text: 'Following'),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: RefreshIndicator(
-                      onRefresh: () async {
-                        await context.read<PostViewModel>().fetchPosts();
-                      },
-                      child: TabBarView(
+    return GradientBackground(
+      child: SafeArea(
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 6, 8, 0),
+                  child: Transform.translate(
+                    offset: const Offset(-45, 0),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: TabBar(
                         controller: _tab,
-                        children: const [
-                          RecommendPost(),
-                          FollowingPostTab(),
+                        isScrollable: true,
+                        labelPadding: const EdgeInsets.only(right: 24),
+                        indicatorSize: TabBarIndicatorSize.label,
+                        dividerColor: Colors.transparent,
+                        labelColor: Colors.white,
+                        unselectedLabelColor: Colors.black45,
+                        labelStyle: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        tabs: const [
+                          Tab(text: 'Recommend'),
+                          Tab(text: 'Following'),
                         ],
                       ),
                     ),
-                  )
-                ],
-              ),
-              Positioned(
-                bottom: 24,
-                right: 24,
-                child: CreatePostButton(
-                  icon: Icons.send,
-                  backgroundColor: Colors.transparent,
+                  ),
                 ),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tab,
+                    children: const [
+                      RecommendPost(),
+                      FollowingPostTab(),
+                    ],
+                  ),
+                )
+              ],
+            ),
+            Positioned(
+              bottom: 24,
+              right: 24,
+              child: CreatePostButton(
+                icon: Icons.send,
+                backgroundColor: Colors.transparent,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

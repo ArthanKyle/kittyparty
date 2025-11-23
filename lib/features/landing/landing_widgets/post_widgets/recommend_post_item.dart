@@ -9,14 +9,30 @@ class RecommendPostItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final media = post.media ?? [];
+    final media = post.media;
 
-    return Card(
+    final displayName =
+    post.authorFullName.isNotEmpty
+        ? post.authorFullName
+        : post.authorUsername.isNotEmpty
+        ? post.authorUsername
+        : "User ${post.authorId}";
+
+    return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 2,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 6,
+            offset: Offset(0, 3),
+          )
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -26,20 +42,22 @@ class RecommendPostItem extends StatelessWidget {
                 CircleAvatar(
                   radius: 20,
                   backgroundColor: AppColors.primaryLight,
-                  child: Text(
-                    post.authorId.isNotEmpty
-                        ? post.authorId.substring(0, 1).toUpperCase()
-                        : '?',
+                  backgroundImage:
+                  post.authorAvatar.isNotEmpty ? NetworkImage(post.authorAvatar) : null,
+                  child: post.authorAvatar.isEmpty
+                      ? Text(
+                    displayName.substring(0, 1).toUpperCase(),
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                     ),
-                  ),
+                  )
+                      : null,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    "User ${post.authorId.substring(0, 6)}", // temporary placeholder
+                    displayName,
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
@@ -52,7 +70,7 @@ class RecommendPostItem extends StatelessWidget {
 
             const SizedBox(height: 10),
 
-            // --- Caption / Content ---
+            // --- Caption ---
             if (post.content.isNotEmpty)
               Text(
                 post.content,
@@ -61,7 +79,7 @@ class RecommendPostItem extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // --- Media Preview ---
+            // --- Media ---
             if (media.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -108,3 +126,4 @@ class RecommendPostItem extends StatelessWidget {
     );
   }
 }
+
