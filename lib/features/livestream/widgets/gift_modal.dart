@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kittyparty/features/livestream/widgets/user_selector.dart';
 import '../viewmodel/live_audio_room_viewmodel.dart';
 
 class GiftModal extends StatefulWidget {
@@ -200,16 +201,28 @@ class _GiftModalState extends State<GiftModal>
   Widget _tile(GiftItem gift) {
     return GestureDetector(
       onTap: () async {
-        Navigator.pop(context);
+        Navigator.pop(context); // close gift modal
+
+        final selectedReceiverId = await showModalBottomSheet<String>(
+          context: context,
+          backgroundColor: Colors.transparent,
+          isScrollControlled: true,
+          builder: (_) => UserSelectorModal(
+            viewModel: widget.viewModel,
+          ),
+        );
+
+        if (selectedReceiverId == null) return;
 
         await widget.viewModel.sendGift(
           roomId: widget.roomId,
-          receiverId: widget.receiverId,
           senderId: widget.senderId,
+          receiverId: selectedReceiverId,
           giftType: gift.id,
           giftCount: _selectedCombo,
         );
       },
+
       child: Column(
         children: [
           Expanded(

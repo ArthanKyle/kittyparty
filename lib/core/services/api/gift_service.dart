@@ -3,53 +3,49 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class GiftService {
-  final String baseUrl;
+  final String baseUrl = dotenv.env["BASE_URL"]!;
 
-  GiftService({String? baseUrl})
-      : baseUrl = baseUrl ?? dotenv.env["BASE_URL"]!;
-
-  /// Send Gift API
   Future<Map<String, dynamic>> sendGift({
     required String token,
     required String roomId,
     required String senderId,
     required String receiverId,
     required String giftType,
-    int giftCount = 1,
+    required int giftCount,
   }) async {
+
     final url = Uri.parse("$baseUrl/gifts/send");
 
     final response = await http.post(
       url,
       headers: {
         "Content-Type": "application/json",
-        "Authorization": "Bearer $token",
+        "Authorization": "Bearer $token"
       },
       body: jsonEncode({
         "room_id": roomId,
         "sender_id": senderId,
         "receiver_id": receiverId,
         "gift_type": giftType,
-        "gift_count": giftCount,
+        "gift_count": giftCount
       }),
     );
 
-    final data = jsonDecode(response.body);
+    final json = jsonDecode(response.body);
 
-    if (response.statusCode != 200) {
+    if (response.statusCode != 200 || json["success"] != true) {
       return {
         "success": false,
-        "message": data["error"] ?? data["message"] ?? "Unknown error"
+        "message": json["message"] ?? "Unknown error",
       };
     }
 
     return {
       "success": true,
-      "message": data["message"],
-      "senderBalance": data["data"]["senderBalance"],
-      "receiverBalance": data["data"]["receiverBalance"],
-      "giftName": data["data"]["giftName"],
-      "giftCount": data["data"]["giftCount"],
+      "giftName": json["giftName"],       // <-- SVGA file match
+      "displayName": json["displayName"], // <-- UI name
+      "price": json["price"],
+      "count": json["count"],
     };
   }
 }

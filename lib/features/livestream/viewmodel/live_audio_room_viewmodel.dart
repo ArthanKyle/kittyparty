@@ -145,11 +145,12 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
   // ================================================================
   Future<void> sendGift({
     required String roomId,
-    required String senderId,     // <-- add this
+    required String senderId,
     required String receiverId,
     required String giftType,
     int giftCount = 1,
   }) async {
+
     final token = userProvider.token;
     if (token == null) return;
 
@@ -167,16 +168,24 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
       return;
     }
 
-    // Play SVGA effect
+    if (globalContext == null) {
+      print("NO CONTEXT - skipping SVGA animation");
+      return;
+    }
+
+    final name = result["giftName"];
+    if (name == null) {
+      print("NO SVGA NAME RETURNED");
+      return;
+    }
+
     SvgaGiftQueue().add(
       globalContext!,
-      "assets/image/gift/${result["giftName"]}.svga",
+      "assets/image/gift/$name.svga",
     );
 
-    print("Gift sent: ${result["giftName"]}");
+    print("Gift sent: $name");
   }
-
-
   // ================================================================
   // GAME MODAL
   // ================================================================

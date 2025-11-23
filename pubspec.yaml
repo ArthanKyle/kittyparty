@@ -103,6 +103,9 @@ flutter:
   assets:
     - assets/
     - assets/image/gift/
+    - assets/image/avatar/
+    - assets/image/medal/
+    - assets/image/banner/
     - assets/image/
     - assets/image/banner/ad-event-banner.jpg
     - assets/image/banner/couple-event-banner.jpg
