@@ -3,96 +3,166 @@
 [![Flutter](https://img.shields.io/badge/Flutter-3.24-blue?logo=flutter)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/Dart-3.5-blue?logo=dart)](https://dart.dev)
 
-A **social live streaming platform** where users can join live rooms, interact in real time, and connect through engaging content. Inspired by platforms like **MoliParty**, KittyParty brings people together through fun, interactive, and community-driven experiences.
+A social live streaming platform where users can host, join, and interact in real-time audio rooms. Inspired by platforms like MoliParty, KittyParty focuses on community, entertainment, and interactive livestream engagement.
 
----
+Features ✨
+🎙 Live Audio Rooms
 
-## Features ✨
+Host or join real-time audio spaces powered by ZEGOCLOUD.
 
-- 🎙 **Live Audio & Video Rooms** – Host or join real-time conversations.
-- 💬 **Interactive Chat** – Connect instantly with streamers and the audience.
-- 🎁 **Virtual Gifts** – Send fun gifts to show support during streams.
-- 💎 **Coins & Diamonds** – Recharge coins, convert to diamonds, and unlock premium features.
-- 👥 **Community Building** – Follow, connect, and grow your network.
-- 🌐 **Global Reach** – Discover streams from around the world.
+Multi-user seats with profile avatars and mic control.
 
----
+💬 Real-Time Interaction
 
-## Getting Started 🚀
+Smooth user join/leave animations.
 
-This project is built with **Flutter**, enabling cross-platform support for **Android** and **iOS**.
+Room name editing for hosts.
 
-### Prerequisites
+Live event updates through sockets.
 
-- [Flutter SDK](https://docs.flutter.dev/get-started/install) (v3.24 or later)
-- [Dart](https://dart.dev/get-dart) (v3.5 or later)
-- [Android Studio](https://developer.android.com/studio) or [Xcode](https://developer.apple.com/xcode/) for emulators or physical devices
+🎁 Virtual Gifts System (New & Improved!)
 
-### Project Structure
+Choose from a wide collection of PNG & SVGA animated gifts.
 
-```plaintext
+Auto-detect asset paths using baseName → .png and .svga.
+
+Full logging for easier debugging:
+
+[GIFT PNG] and [GIFT SVGA] logs for asset resolution.
+
+Gift sending UI:
+
+Gift categories (General / Lucky)
+
+Quantity combos: x1 x5 x10 x20 x50
+
+User selector modal to choose who receives the gift.
+
+SVGA animations queue and play globally.
+
+💎 Wallet, Coins & Diamonds
+
+Recharge coins.
+
+Convert coins → diamonds.
+
+Diamond balance updates via real-time sockets.
+
+👥 Social Features
+
+Follow system.
+
+Post feed with images & media.
+
+Profile picture caching for efficiency.
+
+🌐 Cross-Platform
+
+Built fully with Flutter, supports:
+
+Android
+
+iOS
+
+Getting Started 🚀
+Prerequisites
+
+Flutter SDK ≥ 3.24
+
+Dart ≥ 3.5
+
+Android Studio or Xcode
+
+Node-based backend API (KittyParty API)
+
+Project Structure
 lib/
-├── core/       # Constants, utilities, and shared widgets
-├── features/   # Modules for live streaming, wallet, chat, etc.
-├── viewmodel/  # State management (MVVM + Provider)
-└── widgets/    # Reusable UI components
-```
+├── core/                     # Global utilities, constants, sockets
+├── features/
+│   ├── livestream/           # Audio rooms, gifts, SVGAs, seat system
+│   ├── wallet/               # Recharge & diamond handling
+│   ├── landing/              # Feed, posts, home
+│   └── auth/                 # Login, registration
+├── viewmodel/                # Provider-based MVVM
+└── widgets/                  # Reusable UI elements
 
-### Installation
+Installation
+git clone https://github.com/ArthanKyle/kittyparty.git
+cd kittyparty
+flutter pub get
+flutter run
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/ArthanKyle/kittyparty.git
-   cd kittyparty
-   ```
+Gift System Documentation 🎁
+Folder Structure
+assets/image/gift/
+Example.png
+Example.svga
 
-2. Install dependencies:
-   ```bash
-   flutter pub get
-   ```
+Naming Rules
 
-3. Run the app:
-   ```bash
-   flutter run
-   ```
+Each gift must have matching names:
 
----
+Red Rose Bookstore.png  
+Red Rose Bookstore.svga
 
-## Roadmap 🛠
+Auto Path Detection
 
-### Core Features
-- Authentication & registration flow
-- Wallet system with coin recharge
-- Coin-to-diamond conversion
-- Stripe integration for payments
-- Live streaming & real-time chat
+GiftAssets automatically resolves file paths:
 
-### Improvements in Progress
-- Multi-host live audio/video rooms
-- Auto-dismiss dialogs for seamless payments
-- Proper `.env` and secrets handling in Git/GitHub
-- Backend deployment optimizations (Railway/Cloud)
-- Error handling for R8/Gradle build issues
+String get png => "assets/image/gift/$baseName.png";
+String get svga => "assets/image/gift/$baseName.svga";
 
-### Upcoming Features
-- Leaderboards & reward system
-- Stream moderation tools (mute, ban, reporting)
-- In-app purchases for gifts & premium content
-- UI/UX polish (animations, gradient backgrounds, custom dialogs)
+Logging
 
----
+Every lookup prints:
 
-## Resources 📖
+[GIFT PNG] Request: 'Donut' → assets/image/gift/Donut.png  
+[GIFT SVGA] Request: 'Donut' → assets/image/gift/Donut.svga
 
-- [Flutter Documentation](https://docs.flutter.dev/)
-- [Dart Language](https://dart.dev/)
 
----
+These logs help verify naming mismatches instantly.
 
-## License 📄
+Roadmap 🛠
+Core System Enhancements
 
-This project is licensed under the [MIT License](LICENSE).
+Realtime diamond deduction + income routes
 
----
+Room-level ranking effects
+
+Animated gift barrage system
+
+Admin monitoring tools
+
+Performance Improvements
+
+Reduce rebuilds inside gift modal & selector
+
+Asset preloading for SVGA animations
+
+Lazy load post feeds
+
+Future Features
+
+Global leaderboards
+
+In-app rewards shop
+
+Badge and medal system
+
+Daily missions & achievements
+
+Gamification of rooms
+
+Resources 📚
+
+Flutter Documentation
+
+SVGA Animation Format
+
+ZEGOCLOUD Live Audio Room
+
+License 📄
+
+This project is licensed under the MIT License.
 
 Happy streaming with KittyParty! 🎉
