@@ -278,15 +278,6 @@ class GiftItem {
     required this.isLucky,
   });
 
-  String get png {
-    final p = GiftAssets.png(baseName);
-    print("🔍 PNG Path for '$baseName': $p");
-    return p;
-  }
-
-  String get svga {
-    final s = GiftAssets.svga(baseName);
-    print("🎬 SVGA Path for '$baseName': $s");
-    return s;
-  }
+  String get png  => GiftAssets.png(baseName);
+  String get svga => GiftAssets.svga(baseName);
 }

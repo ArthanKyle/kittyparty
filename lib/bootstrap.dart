@@ -12,7 +12,7 @@ import 'core/utils/index_provider.dart';
 import 'features/landing/viewmodel/post_viewmodel.dart';
 import 'features/wallet/viewmodel/wallet_viewmodel.dart';
 import 'features/wallet/viewmodel/diamond_viewmodel.dart';
-import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:kittyparty/features/livestream/widgets/gift_auto_loader.dart';
 
 late Box myRegBox;
 late Box sessionsBox;
@@ -22,6 +22,7 @@ Future<void> bootstrap() async {
 
   await dotenv.load(fileName: ".env");
   await Hive.initFlutter();
+  await GiftRegistry.load();
 
   myRegBox = await Hive.openBox("myRegistrationBox");
   sessionsBox = await Hive.openBox("sessions");
