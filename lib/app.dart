@@ -4,16 +4,17 @@ import 'package:kittyparty/features/livestream/view/live_audio_room.dart';
 import 'package:kittyparty/features/profile/profile_pages/daily_task_page.dart';
 import 'package:kittyparty/features/profile/profile_pages/invite_page.dart';
 import 'package:kittyparty/features/profile/profile_pages/setting_page.dart';
+import 'package:kittyparty/features/svga_tester.dart';
 import 'core/config/app_theme.dart';
-import 'bootstrap.dart';
-
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:provider/provider.dart';
+import 'core/utils/locale_provider.dart';
 // Auth
 import 'core/config/global_keys.dart';
 import 'features/auth/view/email_login.dart';
 import 'features/auth/view/id_login.dart';
 import 'features/auth/view/register.dart';
 import 'features/auth/auth_module.dart';
-
 // Navigation / Pages
 import 'features/auth/viewmodel/register_viewmodel.dart';
 import 'features/landing/view/landing_page.dart';
@@ -23,26 +24,42 @@ import 'features/test.dart';
 import 'features/wallet/view/wallet_page.dart';
 import 'features/landing/view/post_page.dart';
 import 'features/profile/profile_page.dart';
-import 'package:provider/provider.dart';
 import 'core/utils/user_provider.dart';
-
 //profile
 import 'package:kittyparty/features/profile/profile_pages/collection_page.dart';
 import 'package:kittyparty/features/profile/profile_pages/item_page.dart';
 import 'package:kittyparty/features/profile/profile_pages/level_page.dart';
 import 'package:kittyparty/features/profile/profile_pages/mall_page.dart';
-import 'package:kittyparty/features/profile/profile_pages/setting_page.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final localeProvider = Provider.of<LocaleProvider>(context);
+
     return MaterialApp(
       title: 'Kitty Party',
       navigatorKey: globalNavigatorKey,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      locale: localeProvider.locale,
+
+      supportedLocales: const [
+        Locale('en'),
+        Locale('zh'),
+        Locale('ar'),
+        Locale('tr'),
+        Locale('pt'),
+        Locale('ru'),
+        Locale('es'),
+        Locale('uz'),
+      ],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ],
       initialRoute: AppRoutes.auth,
 
       // ✅ Use onGenerateRoute for dynamic routes
@@ -59,7 +76,7 @@ class MyApp extends StatelessWidget {
                   email: args?['email'],
                   fullName: args?['name'],
                   pictureUrl: args?['picture'],
-                  isGoogleSignIn: true, // 👈 add this
+                  isGoogleSignIn: true,
                 ),
                 child: const RegisterPage(),
               ),
@@ -84,6 +101,8 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute(builder: (_) => const WalletPage());
           case AppRoutes.test:
             return MaterialPageRoute(builder: (_) =>  AssetTest());
+          case AppRoutes.testSVGA:
+            return MaterialPageRoute(builder: (_)=> const SvgATesterPage());
           case AppRoutes.setting:
             return MaterialPageRoute(builder: (_) => const SettingPage());
 
@@ -100,8 +119,6 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute(builder: (_) => const InvitePage());
           case AppRoutes.tasks:
             return MaterialPageRoute(builder: (_) => const DailyTaskPage());
-
-
 
         // ✅ Dynamic route for LiveAudioRoom
           case AppRoutes.room:
@@ -159,5 +176,5 @@ abstract class AppRoutes {
   static const mall = "/profile/mall";
   static const invite = "/profile/invite";
   static const tasks = "/profile/tasks";
-
+  static const testSVGA = "/test/svga";
 }

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../../core/utils/locale_provider.dart';
 
 class LanguagePage extends StatefulWidget {
   const LanguagePage({Key? key}) : super(key: key);
@@ -8,25 +10,35 @@ class LanguagePage extends StatefulWidget {
 }
 
 class _LanguagePageState extends State<LanguagePage> {
-  final List<String> _languages = [
-    'English',
-    '繁體中文',
-    'بالعربية',
-    'Türkçe',
-    'Português (Brasil)',
-    'Русский',
-    'Español',
-    "O'zbek",
-  ];
+  final Map<String, String> langCodes = {
+    'English': 'en',
+    '繁體中文': 'zh',
+    'بالعربية': 'ar',
+    'Türkçe': 'tr',
+    'Português (Brasil)': 'pt',
+    'Русский': 'ru',
+    'Español': 'es',
+    "O'zbek": 'uz',
+  };
 
-  String _selectedLanguage = 'English';
+  late String _selectedLanguage;
+
+  @override
+  void initState() {
+    super.initState();
+    final current = context.read<LocaleProvider>().locale.languageCode;
+    _selectedLanguage = langCodes.entries
+        .firstWhere((e) => e.value == current, orElse: () => const MapEntry('English', 'en'))
+        .key;
+  }
 
   void _selectLanguage(String lang) {
     setState(() => _selectedLanguage = lang);
   }
 
   void _saveLanguage() {
-    // TODO: Implement save logic (e.g., save to local storage or API)
+    final code = langCodes[_selectedLanguage]!;
+    context.read<LocaleProvider>().changeLocale(code);
     Navigator.pop(context, _selectedLanguage);
   }
 
@@ -64,13 +76,13 @@ class _LanguagePageState extends State<LanguagePage> {
       ),
       body: ListView.separated(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        itemCount: _languages.length,
+        itemCount: langCodes.length,
         separatorBuilder: (_, __) => const Divider(
           color: Color(0xFFEDEDED),
           height: 1,
         ),
         itemBuilder: (context, index) {
-          final lang = _languages[index];
+          final lang = langCodes.keys.elementAt(index);
           final isSelected = lang == _selectedLanguage;
 
           return ListTile(

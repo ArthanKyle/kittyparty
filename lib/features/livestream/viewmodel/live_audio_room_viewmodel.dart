@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -8,7 +9,6 @@ import '../../../core/utils/user_provider.dart';
 import '../../../core/services/api/room_service.dart';
 import '../../landing/model/userProfile.dart';
 import '../widgets/game_modal.dart';
-import '../widgets/gift_svga_player.dart';
 
 class LiveAudioRoomViewmodel extends ChangeNotifier {
   final UserProvider userProvider;
@@ -29,6 +29,30 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
   BuildContext? globalContext;
 
   bool _disposed = false;
+  bool zegoReady = false;
+
+  final List<VoidCallback> _pendingActions = [];
+
+  void runWhenReady(VoidCallback action) {
+    if (zegoReady) {
+      action();
+    } else {
+      _pendingActions.add(action);
+    }
+  }
+
+  void markZegoReady() {
+    zegoReady = true;
+    for (final action in _pendingActions) {
+      action();
+    }
+    _pendingActions.clear();
+  }
+
+  final StreamController<String> _giftController =
+  StreamController<String>.broadcast();
+
+  Stream<String> get giftStream => _giftController.stream;
 
   LiveAudioRoomViewmodel({
     required this.userProvider,
@@ -42,6 +66,7 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _giftController.close();
     _disposed = true;
     super.dispose();
   }
@@ -50,9 +75,6 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
-  // ================================================================
-  // INITIALIZATION
-  // ================================================================
   Future<void> init(String roomId) async {
     await _requestPermission();
     await _initializeCurrentUser(roomId);
@@ -90,9 +112,6 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
     safeNotify();
   }
 
-  // ================================================================
-  // PROFILE PICTURE CACHING
-  // ================================================================
   Future<ImageProvider?> fetchProfilePicture(String userId) async {
     final cachedBytes = profileCache[userId];
     if (cachedBytes != null && cachedBytes.isNotEmpty) {
@@ -139,10 +158,6 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
       }
     }
   }
-
-  // ================================================================
-  // SEND GIFT (FINAL)
-  // ================================================================
   Future<void> sendGift({
     required String roomId,
     required String senderId,
@@ -150,7 +165,6 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
     required String giftType,
     int giftCount = 1,
   }) async {
-
     final token = userProvider.token;
     if (token == null) return;
 
@@ -168,33 +182,28 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
       return;
     }
 
-    if (globalContext == null) {
-      print("NO CONTEXT - skipping SVGA animation");
-      return;
-    }
-
     final name = result["giftName"];
-    if (name == null) {
-      print("NO SVGA NAME RETURNED");
+    if (name == null || name.toString().isEmpty) {
+      print("NO SVGA NAME RETURNED FROM SERVER");
       return;
     }
 
-    SvgaGiftQueue().add(
-      globalContext!,
-      "assets/image/gift/$name.svga",
-    );
+    final svgaPath = "assets/image/gift/$name.svga";
+    print("[GIFT SVGA] $svgaPath");
+
+    if (!_giftController.isClosed) {
+      _giftController.add(svgaPath);
+    }
 
     print("Gift sent: $name");
   }
-  // ================================================================
-  // GAME MODAL
-  // ================================================================
-  Future<void> showGameListModal(BuildContext context) async {
+
+  Future<void> showGameListModal(BuildContext context, String roomId) async {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.black.withOpacity(0.9),
-      builder: (_) => const GameListModal(),
+      builder: (_) => GameListModal(roomId: roomId),
     );
   }
 }

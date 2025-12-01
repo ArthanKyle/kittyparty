@@ -7,6 +7,7 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'app.dart';
 import 'core/services/api/socket_service.dart';
 import 'core/services/api/user_service.dart';
+import 'core/utils/locale_provider.dart';
 import 'core/utils/user_provider.dart';
 import 'core/utils/index_provider.dart';
 import 'features/landing/viewmodel/post_viewmodel.dart';
@@ -23,6 +24,9 @@ Future<void> bootstrap() async {
   await dotenv.load(fileName: ".env");
   await Hive.initFlutter();
   await GiftRegistry.load();
+
+  final localeProvider = LocaleProvider();
+  await localeProvider.loadSavedLocale();
 
   myRegBox = await Hive.openBox("myRegistrationBox");
   sessionsBox = await Hive.openBox("sessions");
@@ -42,6 +46,9 @@ Future<void> bootstrap() async {
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider.value(
+        value: localeProvider,
+        ),
         // Already-created userProvider instance
         ChangeNotifierProvider<UserProvider>.value(value: userProvider),
 

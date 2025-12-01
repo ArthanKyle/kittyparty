@@ -13,13 +13,16 @@ class GameWebView extends StatefulWidget {
   final String url;
   final String gameName;
   final String userId;
+  final String roomId; // ADD THIS
 
   const GameWebView({
     super.key,
     required this.url,
     required this.gameName,
     required this.userId,
+    required this.roomId, // ADD THIS
   });
+
 
   @override
   State<GameWebView> createState() => _GameWebViewState();
@@ -200,7 +203,7 @@ class _GameWebViewState extends State<GameWebView> {
       gameMode: payload['gameMode']?.toString() ?? "3",
       language: payload['language']?.toString() ?? "2",
       gsp: payload['gsp'] ?? 101,
-      roomId: payload['roomId']?.toString() ?? "",
+      roomId: widget.roomId,
       code: oneTimeCode,
       balance: userBalance,
       gameConfig: GameConfig(

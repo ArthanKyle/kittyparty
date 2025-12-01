@@ -6,7 +6,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'game_webview.dart';
 
 class GameListModal extends StatefulWidget {
-  const GameListModal({super.key});
+  final String roomId; // ADD THIS
+
+  const GameListModal({
+    super.key,
+    required this.roomId, // ADD THIS
+  });
 
   @override
   State<GameListModal> createState() => _GameListModalState();
@@ -58,6 +63,7 @@ class _GameListModalState extends State<GameListModal> {
           url: url,
           gameName: game['name'],
           userId: userId, // <--- PASS IT HERE
+          roomId: widget.roomId,
         ),
       ),
     );

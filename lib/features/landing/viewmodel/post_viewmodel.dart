@@ -34,11 +34,13 @@ class PostViewModel with ChangeNotifier {
     });
   }
 
+  // INITIAL FETCH
   void _initialFetch() {
     fetchPosts();
     fetchFollowingPosts();
   }
 
+  // FETCH ALL POSTS
   Future<void> fetchPosts() async {
     loading = true;
     notifyListeners();
@@ -55,6 +57,7 @@ class PostViewModel with ChangeNotifier {
     notifyListeners();
   }
 
+  // FETCH FOLLOWING FEED
   Future<void> fetchFollowingPosts() async {
     if (currentUserId == null || currentUserId!.isEmpty) return;
 
@@ -73,6 +76,7 @@ class PostViewModel with ChangeNotifier {
     notifyListeners();
   }
 
+  // CREATE A POST
   Future<bool> createPost({
     required String content,
     List<File>? mediaFiles,
@@ -113,6 +117,77 @@ class PostViewModel with ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  // COMMENTS
+  Future<bool> addComment(String postId, String content) async {
+    if (currentUserId == null) return false;
+
+    final ok = await _service.addComment(
+      postId: postId,
+      userId: currentUserId!,
+      content: content,
+    );
+
+    if (ok) {
+      await fetchPosts();
+      notifyListeners();
+    }
+
+    return ok;
+  }
+
+  Future<List<dynamic>> getComments(String postId) {
+    return _service.getComments(postId);
+  }
+
+  // LIKE / UNLIKE
+  Future<bool> likePost(String postId) async {
+    if (currentUserId == null) return false;
+
+    final ok = await _service.likePost(postId, currentUserId!);
+
+    if (ok) {
+      _applyLocalLike(postId, true);
+      notifyListeners();
+    }
+
+    return ok;
+  }
+
+  Future<bool> unlikePost(String postId) async {
+    if (currentUserId == null) return false;
+
+    final ok = await _service.unlikePost(postId, currentUserId!);
+
+    if (ok) {
+      _applyLocalLike(postId, false);
+      notifyListeners();
+    }
+
+    return ok;
+  }
+
+  Future<bool> hasLiked(String postId) async {
+    if (currentUserId == null) return false;
+    return _service.hasLiked(postId, currentUserId!);
+  }
+
+  Future<List<dynamic>> getLikes(String postId) {
+    return _service.getLikes(postId);
+  }
+
+  // LOCAL LIKE UPDATE - DIRECT MUTATION
+  void _applyLocalLike(String postId, bool liked) {
+    final index = posts.indexWhere((p) => p.id == postId);
+    if (index == -1) return;
+
+    final post = posts[index];
+    final currentCount = post.likesCount ?? 0;
+
+    final newCount = liked ? currentCount + 1 : currentCount - 1;
+
+    posts[index].likesCount = newCount < 0 ? 0 : newCount;
   }
 
   @override

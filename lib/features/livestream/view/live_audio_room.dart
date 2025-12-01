@@ -24,10 +24,8 @@ class LiveAudioRoom extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // create the profile service
     final profileService = UserProfileService();
-    final roomService = RoomService(); // ✅ new instance
-
+    final roomService = RoomService();
 
     return ChangeNotifierProvider(
       create: (_) => LiveAudioRoomViewmodel(
@@ -40,9 +38,11 @@ class LiveAudioRoom extends StatelessWidget {
           if (!vm.permissionChecked) {
             return const Center(child: CircularProgressIndicator());
           }
+
           if (!vm.hasPermission) {
             return const PermissionDeniedWidget();
           }
+
           if (vm.userIdentification == null) {
             return const UserIdMissing();
           }

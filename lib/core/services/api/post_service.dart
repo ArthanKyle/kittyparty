@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
+import 'package:mime/mime.dart';
+import 'package:http_parser/http_parser.dart';
 
 class PostService {
   final String baseUrl;
@@ -10,16 +13,16 @@ class PostService {
   PostService({String? baseUrl})
       : baseUrl = baseUrl ?? dotenv.env['BASE_URL']!;
 
-  // Debug helper
   void _print(String lbl, http.Response res) {
     print("[$lbl] ${res.statusCode} → ${res.body}");
   }
 
-  // ---------------- GET ALL POSTS ----------------
+  // ===========================================================
+  // GET ALL POSTS
+  // ===========================================================
   Future<List<dynamic>> getPosts() async {
     final url = Uri.parse('$baseUrl/posts');
     final res = await http.get(url);
-    _print("GET /posts", res);
 
     if (res.statusCode == 200) {
       return jsonDecode(res.body);
@@ -27,11 +30,12 @@ class PostService {
     return [];
   }
 
-  // ---------------- GET FOLLOWING POSTS ----------------
+  // ===========================================================
+  // GET FOLLOWING POSTS
+  // ===========================================================
   Future<List<dynamic>> getFollowingPosts(String userId) async {
     final url = Uri.parse('$baseUrl/posts/following/$userId');
     final res = await http.get(url);
-    _print("GET /posts/following/$userId", res);
 
     if (res.statusCode == 200) {
       return jsonDecode(res.body);
@@ -39,14 +43,16 @@ class PostService {
     return [];
   }
 
-  // ---------------- CREATE POST ----------------
+  // ===========================================================
+  // CREATE POST (Images + Videos via GridFS)
+  // ===========================================================
   Future<Map<String, dynamic>?> createPost({
     required Map<String, dynamic> body,
     List<File>? mediaFiles,
   }) async {
     final url = Uri.parse('$baseUrl/posts');
 
-    // ----- SIMPLE POST WITHOUT MEDIA -----
+    // -------------------- NO MEDIA --------------------
     if (mediaFiles == null || mediaFiles.isEmpty) {
       final res = await http.post(
         url,
@@ -61,7 +67,7 @@ class PostService {
       return null;
     }
 
-    // ----- MULTIPART POST WITH MEDIA -----
+    // -------------------- WITH MEDIA (MULTIPART) --------------------
     final request = http.MultipartRequest('POST', url);
 
     // Add fields
@@ -69,13 +75,19 @@ class PostService {
       request.fields[key] = value.toString();
     });
 
-    // Add files
+    // Add files (image or video)
     for (var file in mediaFiles) {
-      request.files.add(await http.MultipartFile.fromPath(
-        'media',
-        file.path,
-        filename: p.basename(file.path),
-      ));
+      final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
+      final parts = mimeType.split('/');
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'media', // MUST MATCH backend field
+          file.path,
+          filename: p.basename(file.path),
+          contentType: MediaType(parts[0], parts.length > 1 ? parts[1] : ''),
+        ),
+      );
     }
 
     final streamed = await request.send();
@@ -86,5 +98,114 @@ class PostService {
       return jsonDecode(res.body);
     }
     return null;
+  }
+
+  // ===========================================================
+  // ADD COMMENT
+  // ===========================================================
+  Future<bool> addComment({
+    required String postId,
+    required String userId,
+    required String content,
+  }) async {
+    final url = Uri.parse('$baseUrl/posts/$postId/comments');
+
+    final res = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "user": userId,
+        "content": content,
+      }),
+    );
+
+    _print("POST /posts/$postId/comments", res);
+
+    return res.statusCode == 201;
+  }
+
+  // ===========================================================
+  // GET COMMENTS
+  // ===========================================================
+  Future<List<dynamic>> getComments(String postId) async {
+    final url = Uri.parse('$baseUrl/posts/$postId/comments');
+
+    final res = await http.get(url);
+    _print("GET /posts/$postId/comments", res);
+
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body);
+    }
+    return [];
+  }
+
+  // ===========================================================
+  // LIKE POST
+  // ===========================================================
+  Future<bool> likePost(String postId, String userId) async {
+    final url = Uri.parse('$baseUrl/posts/likes');
+
+    final res = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "postId": postId,
+        "userId": userId,
+      }),
+    );
+
+    _print("POST /posts/likes", res);
+
+    return res.statusCode == 201;
+  }
+
+  // ===========================================================
+  // UNLIKE POST
+  // ===========================================================
+  Future<bool> unlikePost(String postId, String userId) async {
+    final url = Uri.parse('$baseUrl/posts/likes');
+
+    final res = await http.delete(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "postId": postId,
+        "userId": userId,
+      }),
+    );
+
+    _print("DELETE /posts/likes", res);
+
+    return res.statusCode == 200;
+  }
+
+  // ===========================================================
+  // GET LIKES COUNT
+  // ===========================================================
+  Future<List<dynamic>> getLikes(String postId) async {
+    final url = Uri.parse('$baseUrl/posts/$postId/likes');
+
+    final res = await http.get(url);
+    _print("GET /posts/$postId/likes", res);
+
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body);
+    }
+    return [];
+  }
+
+  // ===========================================================
+  // CHECK IF USER LIKED
+  // ===========================================================
+  Future<bool> hasLiked(String postId, String userId) async {
+    final url = Uri.parse('$baseUrl/posts/$postId/hasLiked/$userId');
+
+    final res = await http.get(url);
+    _print("GET /posts/$postId/hasLiked/$userId", res);
+
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body)['liked'] == true;
+    }
+    return false;
   }
 }

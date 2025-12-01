@@ -70,15 +70,6 @@ class _SettingPageState extends State<SettingPage> {
     ).build(context);
   }
 
-  /// ✅ Opens the Game Modal
-  void _openGameListModal(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const GameListModal(),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -237,19 +228,6 @@ class _SettingPageState extends State<SettingPage> {
             ),
           ),
           const SizedBox(height: 10),
-
-          // 🔹 Game Testing Button
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: SizedBox(
-              width: double.infinity,
-              child: PrimaryButton(
-                text: "🎮 Game for Testing",
-                onPressed: () async => _openGameListModal(context),
-              ),
-            ),
-          ),
-          const SizedBox(height: 30),
         ],
       ),
     );

@@ -53,7 +53,7 @@ class _InvitePageState extends State<InvitePage> {
           );
         }
 
-        // We use a Builder to get a new context that is a descendant of the ChangeNotifierProvider
+
         return ChangeNotifierProvider(
           create: (_) => ProfileViewModel()..loadProfile(context),
           child: Consumer<ProfileViewModel>(

@@ -11,7 +11,7 @@ class Post {
   final String content;
   final List<dynamic> media;
 
-  final int likesCount;
+  late final int likesCount;
   final int commentsCount;
 
   final DateTime createdAt;
