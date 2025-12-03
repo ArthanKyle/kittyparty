@@ -46,6 +46,15 @@ class UserProvider extends ChangeNotifier {
       }
 
       final response = await _authService.authCheck(_token!);
+
+      // 🚫 Ban detection
+      if (response['error'] == "Account banned") {
+        await logout();
+        isLoading = false;
+        notifyListeners();
+        return;
+      }
+
       final userData = response['user'];
       if (userData == null) {
         await logout();
@@ -57,7 +66,6 @@ class UserProvider extends ChangeNotifier {
 
       _initSocketIfNeeded(currentUser!.id);
 
-      debugPrint("💰 Loaded user coins: ${currentUser!.coins}");
     } catch (e) {
       debugPrint("User load failed: $e");
     } finally {
@@ -65,6 +73,7 @@ class UserProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
 
   void _initSocketIfNeeded(String userId) {
     if (_socketInitialized) return;
