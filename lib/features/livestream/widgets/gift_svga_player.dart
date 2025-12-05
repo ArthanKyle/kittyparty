@@ -1,98 +1,66 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svga/flutter_svga.dart';
+import 'gift_assets.dart';
 
-class SvgaGiftQueue {
-  static final SvgaGiftQueue _instance = SvgaGiftQueue._internal();
-  factory SvgaGiftQueue() => _instance;
-  SvgaGiftQueue._internal();
-
-  final List<String> _queue = [];
-  bool _isPlaying = false;
-
-  void add(BuildContext context, String assetPath) {
-    _queue.add(assetPath);
-    _playNext(context);
-  }
-
-  void _playNext(BuildContext context) {
-    if (_isPlaying || _queue.isEmpty) return;
-
-    _isPlaying = true;
-    final path = _queue.removeAt(0);
-
-    late OverlayEntry entry;
-
-    entry = OverlayEntry(
-      builder: (_) => SvgaGiftAnimation(
-        assetPath: path,
-        onFinished: () {
-          entry.remove();
-          _isPlaying = false;
-          _playNext(context);
-        },
-      ),
-    );
-
-    Overlay.of(context).insert(entry);
-  }
-}
-
-class SvgaGiftAnimation extends StatefulWidget {
-  final String assetPath;
-  final VoidCallback onFinished;
-
-  const SvgaGiftAnimation({
-    super.key,
-    required this.assetPath,
-    required this.onFinished,
-  });
+class GiftSVGAPlayer extends StatefulWidget {
+  final String giftName;
+  const GiftSVGAPlayer({super.key, required this.giftName});
 
   @override
-  State<SvgaGiftAnimation> createState() => _SvgaGiftAnimationState();
+  State<GiftSVGAPlayer> createState() => _GiftSVGAPlayerState();
 }
 
-class _SvgaGiftAnimationState extends State<SvgaGiftAnimation>
+class _GiftSVGAPlayerState extends State<GiftSVGAPlayer>
     with SingleTickerProviderStateMixin {
 
-  late SVGAAnimationController controller;
+  SVGAAnimationController? controller;
+  final parser = SVGAParser();
 
   @override
   void initState() {
     super.initState();
     controller = SVGAAnimationController(vsync: this);
-    _play();
+    _load();
   }
 
-  Future<void> _play() async {
-    final video = await SVGAParser.shared.decodeFromAssets(widget.assetPath);
-    controller.videoItem = video;
+  Future<void> _load() async {
+    final path = GiftAssets.svga(widget.giftName);
 
-    controller.addListener(() {
-      if (controller.isCompleted) {
-        widget.onFinished();
-      }
-    });
+    if (path.isEmpty) {
+      debugPrint("🚫 No mapping found for ${widget.giftName}");
+      return;
+    }
 
-    controller.forward(from: 0.0);
-  }
-
-  @override
-  void dispose() {
-    controller.stop();
-    controller.dispose();
-    super.dispose();
+    try {
+      final video = await parser.decodeFromAssets(path);
+      controller!.videoItem = video;
+      controller!.forward();
+    } catch (e) {
+      debugPrint("❌ SVGA load failed => $path | $e");
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Center(
+    return Center(
+      child: Transform.scale(
+        scale: 1.8,
         child: SizedBox(
           width: 300,
           height: 300,
-          child: SVGAImage(controller),
+          child: SVGAImage(
+            controller!,
+            fit: BoxFit.contain,
+          ),
         ),
       ),
     );
+  }
+
+
+  @override
+  void dispose() {
+    controller?.dispose();
+    super.dispose();
   }
 }

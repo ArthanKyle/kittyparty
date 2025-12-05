@@ -9,12 +9,15 @@ import '../../../core/utils/user_provider.dart';
 import '../../../core/services/api/room_service.dart';
 import '../../landing/model/userProfile.dart';
 import '../widgets/game_modal.dart';
+import '../widgets/gift_assets.dart';
 
 class LiveAudioRoomViewmodel extends ChangeNotifier {
   final UserProvider userProvider;
   final UserProfileService profileService;
   final RoomService roomService;
   final GiftService giftService = GiftService();
+
+  void Function(String giftBaseName)? onGiftReceived;
 
   bool hasPermission = false;
   bool permissionChecked = false;
@@ -158,13 +161,15 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
       }
     }
   }
-  Future<void> sendGift({
+
+  void sendGift({
     required String roomId,
     required String senderId,
     required String receiverId,
     required String giftType,
-    int giftCount = 1,
+    required int giftCount,
   }) async {
+
     final token = userProvider.token;
     if (token == null) return;
 
@@ -177,25 +182,14 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
       giftCount: giftCount,
     );
 
-    if (!result["success"]) {
-      print("Gift Error: ${result["message"]}");
-      return;
-    }
+    if (result["success"] != true) return;
 
-    final name = result["giftName"];
-    if (name == null || name.toString().isEmpty) {
-      print("NO SVGA NAME RETURNED FROM SERVER");
-      return;
-    }
+    final giftBaseName = result["giftName"];
 
-    final svgaPath = "assets/image/gift/$name.svga";
-    print("[GIFT SVGA] $svgaPath");
+    _giftController.add(giftBaseName);     // UI listens here 👈
 
-    if (!_giftController.isClosed) {
-      _giftController.add(svgaPath);
-    }
+    onGiftReceived?.call(giftBaseName);    // old trigger retained
 
-    print("Gift sent: $name");
   }
 
   Future<void> showGameListModal(BuildContext context, String roomId) async {

@@ -131,7 +131,6 @@ class _SvgATesterPageState extends State<SvgATesterPage>
 
             const SizedBox(height: 20),
 
-            // THE FIX — using correct SVGAImage signature
             Expanded(
               child: Center(
                 child: SVGAImage(

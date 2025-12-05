@@ -290,7 +290,7 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
           ),
         ),
 
-        GiftAnimationOverlay(viewModel: widget.viewModel),
+        GiftAnimationOverlay(vm: widget.viewModel),
       ],
     );
   }

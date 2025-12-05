@@ -20,32 +20,36 @@ class GiftService {
       url,
       headers: {
         "Content-Type": "application/json",
-        "Authorization": "Bearer $token"
+        "Authorization": "Bearer $token",
       },
       body: jsonEncode({
         "room_id": roomId,
         "sender_id": senderId,
         "receiver_id": receiverId,
         "gift_type": giftType,
-        "gift_count": giftCount
+        "gift_count": giftCount,
       }),
     );
 
-    final json = jsonDecode(response.body);
+    final jsonRes = jsonDecode(response.body);
 
-    if (response.statusCode != 200 || json["success"] != true) {
+    // Failure case
+    if (response.statusCode != 200 || jsonRes["success"] != true) {
       return {
         "success": false,
-        "message": json["message"] ?? "Unknown error",
+        "message": jsonRes["message"] ?? "Gift failed",
       };
     }
 
+    // Success case
     return {
       "success": true,
-      "giftName": json["giftName"],       // <-- SVGA file match
-      "displayName": json["displayName"], // <-- UI name
-      "price": json["price"],
-      "count": json["count"],
+      "giftName": jsonRes["giftName"],     // used for SVGA animation
+      "giftID": jsonRes["giftID"],
+      "price": jsonRes["price"],
+      "count": jsonRes["count"],
+      "totalCost": jsonRes["totalCost"],
+      "senderBalance": jsonRes["senderBalance"],
     };
   }
 }

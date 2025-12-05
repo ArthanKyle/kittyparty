@@ -145,7 +145,7 @@ class MyApp extends StatelessWidget {
           default:
             return MaterialPageRoute(
               builder: (_) => const Scaffold(
-                body: Center(child: Text("Page not found")),
+                body: Center(child: Text("Coming soon!")),
               ),
             );
         }

@@ -13,16 +13,15 @@ class GameWebView extends StatefulWidget {
   final String url;
   final String gameName;
   final String userId;
-  final String roomId; // ADD THIS
+  final String roomId;
 
   const GameWebView({
     super.key,
     required this.url,
     required this.gameName,
     required this.userId,
-    required this.roomId, // ADD THIS
+    required this.roomId,
   });
-
 
   @override
   State<GameWebView> createState() => _GameWebViewState();
@@ -34,8 +33,8 @@ class _GameWebViewState extends State<GameWebView> {
   bool hasError = false;
   String? errorMessage;
 
-  final String backendUrl = dotenv.env['BASE_URL'] ?? ""; // e.g. https://.../api
-  final String baishunAppId = dotenv.env['APP_ID'] ?? ""; // app_id assigned by BAISHUN
+  final String backendUrl = dotenv.env['BASE_URL'] ?? "";
+  final String baishunAppId = dotenv.env['APP_ID'] ?? "";
 
   static const EventChannel _bsEventChannel = EventChannel('baishunChannel');
 
@@ -48,6 +47,10 @@ class _GameWebViewState extends State<GameWebView> {
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..enableZoom(false)
+      ..addJavaScriptChannel(
+        "REQ",
+        onMessageReceived: (msg) => debugPrint("➡ ${msg.message}"),
+      )
       ..setBackgroundColor(const Color(0x00000000))
       ..setNavigationDelegate(
         NavigationDelegate(
@@ -58,7 +61,6 @@ class _GameWebViewState extends State<GameWebView> {
             });
           },
           onPageFinished: (_) async {
-            // inject proxy only
             await controller.runJavaScript(_jsProxyCode(backendUrl));
             setState(() => isLoading = false);
           },
@@ -92,43 +94,45 @@ class _GameWebViewState extends State<GameWebView> {
     final safeBase = base.replaceAll(r'$', r'\$');
 
     return """
-(function() {
-  const backend = "$safeBase";
-
-  function fixUrl(u) {
-    if (typeof u !== "string") return u;
-
-    // Remove host
-    const noHost = u.replace(/^https?:\\/\\/[^/]+/, "");
-
-    // 1. BAISHUN routing server
-    if (noHost.startsWith("/game_route/get_addr") || noHost.includes("game_route/get_addr")) {
-      return backend + "/games/game_route/get_addr" + (noHost.startsWith("/") ? noHost.replace("/game_route/get_addr", "") : "");
-    }
-
-    // 2. Core BAISHUN APIs
-    if (noHost.startsWith("/v1/api/") || noHost.startsWith("v1/api/")) {
-      const path = noHost.startsWith("/") ? noHost : "/" + noHost;
-      return backend + "/games" + path;
-    }
-
-    return u;
+    (function () {
+      const backend = "$safeBase";
+    
+      function fixUrl(u) {
+        if (typeof u !== "string") return u;
+    
+        REQ.postMessage("REQUEST → " + u);
+    
+        const full = new URL(u, window.location.origin);
+        const p = full.pathname;
+        let fixed = u;
+    
+        // Game Route
+        if (p === "/game_route/get_addr") {
+          fixed = backend + "/games/game_route/get_addr" + full.search;
+        }
+    
+        // v1 API
+        else if (p.startsWith("/v1/api/")) {
+          fixed = backend + "/games" + p + full.search;
+        }
+    
+        REQ.postMessage("REWRITE → " + fixed);
+        return fixed;
+      }
+    
+      const oldFetch = window.fetch;
+      window.fetch = function (resource, options) {
+        return oldFetch(fixUrl(resource), options);
+      };
+    
+      const oldOpen = XMLHttpRequest.prototype.open;
+      XMLHttpRequest.prototype.open = function (method, url) {
+        return oldOpen.call(this, method, fixUrl(url));
+      };
+    })();
+    """;
   }
 
-  const originalFetch = window.fetch;
-  window.fetch = function(resource, options) {
-    return originalFetch(fixUrl(resource), options);
-  };
-
-  const originalOpen = XMLHttpRequest.prototype.open;
-  XMLHttpRequest.prototype.open = function(method, url) {
-    return originalOpen.call(this, method, fixUrl(url));
-  };
-})();
-""";
-  }
-
-  // Called on Android plugin event
   void _onNativeEvent(dynamic event) async {
     try {
       if (event == null) return;
@@ -143,7 +147,6 @@ class _GameWebViewState extends State<GameWebView> {
       }
 
       if (obj == null || obj is! Map) {
-        debugPrint("Native event payload is empty or invalid");
         return;
       }
 
@@ -155,17 +158,19 @@ class _GameWebViewState extends State<GameWebView> {
           : 'onGetConfig';
 
       if (jsFunName.contains('getConfig')) {
-        print("BSGAME: Game requested getConfig");
         await _handleGetConfig(payload, jsCallback);
-      } else if (jsFunName.contains('destroy')) {
-        print("BSGAME: Game requested destroy");
+      }
+      else if (jsFunName.contains('verifySSToken')) {
+        await _handleVerifySSToken(payload, jsCallback);
+      }
+      else if (jsFunName.contains('destroy')) {
         await controller.loadRequest(Uri.parse('about:blank'));
         if (mounted) Navigator.of(context).maybePop();
-      } else if (jsFunName.contains('gameRecharge')) {
-        print("BSGAME: Game requested recharge");
+      }
+      else if (jsFunName.contains('gameRecharge')) {
         _openRecharge();
-      } else if (jsFunName.contains('gameLoaded')) {
-        print("BSGAME: Game Loaded");
+      }
+      else if (jsFunName.contains('gameLoaded')) {
         setState(() => isLoading = false);
       }
     } catch (e) {
@@ -173,9 +178,38 @@ class _GameWebViewState extends State<GameWebView> {
     }
   }
 
+  // -------------------------------
+  // VERIFY SS TOKEN HANDLER
+  // -------------------------------
+  Future<void> _handleVerifySSToken(dynamic payload, String jsCallback) async {
+    Map<String, dynamic> result = {
+      "success": false,
+      "message": "Verification failed"
+    };
+
+    try {
+      final resp = await http.post(
+        Uri.parse('$backendUrl/games/v1/api/verifysstoken'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      );
+
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        result = data is Map<String, dynamic> ? data : result;
+      }
+    } catch (e) {
+      debugPrint('verifySSToken error: $e');
+    }
+
+    await finalMapToJs(jsCallback, result);
+  }
+
+  // -------------------------------
+  // GET CONFIG HANDLER
+  // -------------------------------
   Future<void> _handleGetConfig(dynamic payload, String jsCallback) async {
     final userId = widget.userId;
-
     String oneTimeCode = '';
     double userBalance = 0.0;
 
@@ -185,12 +219,11 @@ class _GameWebViewState extends State<GameWebView> {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'user_id': userId, 'gameName': widget.gameName}),
       );
+
       if (resp.statusCode == 200) {
         final body = jsonDecode(resp.body);
         oneTimeCode = body['code'] ?? '';
         userBalance = (body['balance'] as num?)?.toDouble() ?? 0.0;
-      } else {
-        debugPrint("Backend Error: ${resp.body}");
       }
     } catch (e) {
       debugPrint('Server request failed: $e');
@@ -212,7 +245,6 @@ class _GameWebViewState extends State<GameWebView> {
       ),
     );
 
-    print("BSGAME: Sending Config to Game: ${jsonEncode(configData.toJson())}");
     await finalMapToJs(jsCallback, configData.toJson());
   }
 

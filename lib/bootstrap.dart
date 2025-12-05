@@ -11,9 +11,10 @@ import 'core/utils/locale_provider.dart';
 import 'core/utils/user_provider.dart';
 import 'core/utils/index_provider.dart';
 import 'features/landing/viewmodel/post_viewmodel.dart';
+import 'features/livestream/widgets/gift_assets.dart';
 import 'features/wallet/viewmodel/wallet_viewmodel.dart';
 import 'features/wallet/viewmodel/diamond_viewmodel.dart';
-import 'package:kittyparty/features/livestream/widgets/gift_auto_loader.dart';
+
 
 late Box myRegBox;
 late Box sessionsBox;
@@ -23,7 +24,7 @@ Future<void> bootstrap() async {
 
   await dotenv.load(fileName: ".env");
   await Hive.initFlutter();
-  await GiftRegistry.load();
+  await GiftAssets.load();
 
   final localeProvider = LocaleProvider();
   await localeProvider.loadSavedLocale();
