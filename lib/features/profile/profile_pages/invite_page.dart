@@ -14,6 +14,7 @@ class InvitePage extends StatefulWidget {
 }
 
 class _InvitePageState extends State<InvitePage> {
+
   void _copyCodeToClipboard(BuildContext context, String code) {
     if (code == 'N/A' || code.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -155,7 +156,7 @@ class _InvitePageState extends State<InvitePage> {
                         ),
                       ),
 
-                      // ===================== SECOND SECTION =====================
+
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         child: Row(
