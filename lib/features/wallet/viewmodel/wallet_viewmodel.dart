@@ -23,7 +23,6 @@ class WalletViewModel extends ChangeNotifier {
       notifyListeners();
     });
 
-    // If currentUser is loaded later, listen once
     if (userProvider.currentUser == null) {
       _userListener = () {
         if (userProvider.currentUser != null) {
@@ -41,7 +40,6 @@ class WalletViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
-    // Cancel subscriptions/listeners to avoid notify after dispose
     _userStreamSub?.cancel();
     if (_userListener != null) {
       userProvider.removeListener(_userListener!);

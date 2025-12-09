@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../../core/global_widgets/dialogs/dialog_info.dart';
@@ -13,6 +14,7 @@ class RegisterViewModel extends ChangeNotifier {
   final myRegBox = Hive.box('myRegistrationBox');
   bool isGoogleSignIn = false;
   String? pictureUrl;
+  String? googleIdToken;
 
   final formKey = GlobalKey<FormState>();
 
@@ -69,14 +71,19 @@ class RegisterViewModel extends ChangeNotifier {
     String? email,
     String? fullName,
     String? pictureUrl,
+    String? idToken,
     bool isGoogleSignIn = false,
   }) {
     if (email != null) emailController.text = email;
     if (fullName != null) nameController.text = fullName;
     if (pictureUrl != null) this.pictureUrl = pictureUrl;
+
+    googleIdToken = idToken;
     this.isGoogleSignIn = isGoogleSignIn;
+
     notifyListeners();
   }
+
 
   void setCountry(String? country) {
     selectedCountry = country;
@@ -183,54 +190,37 @@ class RegisterViewModel extends ChangeNotifier {
       return;
     }
 
-    // ✅ Handle Google registration (login immediately)
+
     if (isGoogleSignIn) {
       try {
         DialogLoading(subtext: "Finishing Google Sign-In...").build(context);
 
-        // 👇 Call backend Google login again to fetch token + user info
+        final googleUser = await GoogleSignIn().signInSilently();
+        final freshAuth = await googleUser?.authentication;
+        final freshIdToken = freshAuth?.idToken;
+
         final googleLoginResponse = await _authService.googleLogin(
-          idToken: response['idToken'] ?? '', // Pass the same idToken if stored
+          idToken: freshIdToken!,
         );
 
-        Navigator.of(context, rootNavigator: true).pop(); // close loading
+        Navigator.of(context, rootNavigator: true).pop();
 
         if (googleLoginResponse['status'] == 'success') {
           final authResponse = AuthResponse.fromJson(googleLoginResponse);
           final userProvider = Provider.of<UserProvider>(context, listen: false);
           await userProvider.setUser(authResponse);
 
-          DialogInfo(
-            headerText: "Welcome!",
-            subText: "Your Google account has been linked successfully.",
-            confirmText: "Continue",
-            onConfirm: () {
-              Navigator.of(context, rootNavigator: true).pop();
-              Navigator.pushNamedAndRemoveUntil(context, "/", (_) => false);
-            },
-            onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
-          ).build(context);
+          Navigator.pushNamedAndRemoveUntil(context, "/", (_) => false);
         } else {
           throw Exception("Google login failed after registration.");
         }
       } catch (e) {
         Navigator.of(context, rootNavigator: true).pop();
-        DialogInfo(
-          headerText: "Linked, but not logged in",
-          subText:
-          "Your Google account has been registered, but auto-login failed. Please log in manually.",
-          confirmText: "OK",
-          onConfirm: () {
-            Navigator.of(context, rootNavigator: true).pop();
-            Navigator.pushNamedAndRemoveUntil(context, "/login", (_) => false);
-          },
-          onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
-        ).build(context);
+        Navigator.pushNamedAndRemoveUntil(context, "/login", (_) => false);
       }
       return;
     }
 
-    // ✅ Auto-login for normal registration
     try {
       DialogLoading(subtext: "Logging in...").build(context);
 

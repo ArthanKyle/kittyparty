@@ -23,7 +23,6 @@ class LoginViewModel extends ChangeNotifier {
   String? errorMessage;
   bool loginSuccess = false;
 
-  /// ------------------ GOOGLE SIGN-IN ------------------
   Future<void> handleGoogleLogin(BuildContext context) async {
     isLoading = true;
     notifyListeners();
@@ -55,6 +54,8 @@ class LoginViewModel extends ChangeNotifier {
             'email': response['email'],
             'name': response['name'],
             'picture': response['picture'],
+            'idToken': idToken,
+            'isGoogleSignIn': true,
           },
         );
       } else if (response['status'] == 'success') {
@@ -85,7 +86,7 @@ class LoginViewModel extends ChangeNotifier {
     }
   }
 
-  /// ------------------ ID LOGIN ------------------
+
   Future<void> loginWithID(BuildContext context) async {
     if (!_validateIDLogin()) return;
 
@@ -131,7 +132,6 @@ class LoginViewModel extends ChangeNotifier {
     }
   }
 
-  /// ------------------ EMAIL LOGIN ------------------
   Future<void> login(BuildContext context) async {
     if (!_validateEmailLogin()) return;
 
@@ -177,7 +177,6 @@ class LoginViewModel extends ChangeNotifier {
     }
   }
 
-  /// ------------------ VALIDATION ------------------
   bool _validateEmailLogin() {
     if (!Validators.isValidEmail(emailController.text.trim())) {
       errorMessage = "Invalid email format";

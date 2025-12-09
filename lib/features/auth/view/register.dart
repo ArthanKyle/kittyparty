@@ -26,28 +26,26 @@ class _RegisterPageState extends State<RegisterPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    if (!_prefilled) {
-      final args = ModalRoute
-          .of(context)!
-          .settings
-          .arguments as Map<String, dynamic>?;
+    if (_prefilled) return;
+    _prefilled = true;
 
-      if (args != null) {
-        final email = args['email'] as String?;
-        final name = args['name'] as String?;
+    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
 
-        final registerVM = Provider.of<RegisterViewModel>(
-            context, listen: false);
-        registerVM.setInitialValues(email: email, fullName: name);
-      }
-
-      _prefilled = true; // ensure we only prefill once
+    if (args != null) {
+      context.read<RegisterViewModel>().setInitialValues(
+        email: args['email'],
+        fullName: args['name'],
+        pictureUrl: args['picture'],
+        idToken: args['idToken'],
+        isGoogleSignIn: args['isGoogleSignIn'] ?? false,
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final vm = Provider.of<RegisterViewModel>(context);
+
     return GradientBackground(
       child: Scaffold(
         resizeToAvoidBottomInset: true,
@@ -65,20 +63,29 @@ class _RegisterPageState extends State<RegisterPage> {
                     children: [
                       ArrowBack(onTap: () => Navigator.pop(context)),
                       const SizedBox(height: 8),
-                      const Text("Complete information",
-                          style: TextStyle(fontSize: 22, fontWeight: FontWeight
-                              .w700, color: AppColors.accentWhite)),
+                      const Text(
+                        "Complete information",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.accentWhite,
+                        ),
+                      ),
+
                       const SizedBox(height: 20),
 
-                      // Gender
-                      const Text("Please select your gender",
-                          style: TextStyle(fontSize: 14, color: AppColors
-                              .accentWhite)),
+                      const Text(
+                        "Please select your gender",
+                        style: TextStyle(fontSize: 14, color: AppColors.accentWhite),
+                      ),
                       const SizedBox(height: 4),
-                      const Text("(Gender cannot be modified later~)",
-                          style: TextStyle(fontSize: 10, color: AppColors
-                              .accentWhite)),
+                      const Text(
+                        "(Gender cannot be modified later~)",
+                        style: TextStyle(fontSize: 10, color: AppColors.accentWhite),
+                      ),
+
                       const SizedBox(height: 20),
+
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -101,44 +108,39 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
 
                       const SizedBox(height: 28),
+
                       BasicTextField(
                         labelText: 'Name',
                         controller: vm.nameController,
                         hintText: 'Please enter your Full Name.',
                         validator: (value) =>
-                        value == null || value
-                            .trim()
-                            .isEmpty ? "Name is required" : null,
+                        value == null || value.trim().isEmpty ? "Name is required" : null,
                         inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(
-                              r"[a-zA-ZÀ-ÿ\s\-]"))
+                          FilteringTextInputFormatter.allow(RegExp(r"[a-zA-ZÀ-ÿ\s\-]"))
                         ],
                       ),
+
                       BasicTextField(
                         labelText: 'UserName',
                         controller: vm.usernameController,
                         hintText: 'Please enter your User Name.',
                         validator: (value) =>
-                        value == null || value
-                            .trim()
-                            .isEmpty ? "UserName is required" : null,
+                        value == null || value.trim().isEmpty ? "UserName is required" : null,
                       ),
+
                       BasicTextField(
                         labelText: 'Email',
                         hintText: 'Please enter your email.',
                         controller: vm.emailController,
                         validator: (value) {
-                          if (value == null || value
-                              .trim()
-                              .isEmpty) return 'Enter your email.';
-                          if (!Validators.isValidEmail(value))
-                            return 'Enter a valid email address.';
-                          if (!Validators.isAllowedEmailDomain(
-                              value, companyDomains: ['mycompany.com']))
+                          if (value == null || value.trim().isEmpty) return 'Enter your email.';
+                          if (!Validators.isValidEmail(value)) return 'Enter a valid email address.';
+                          if (!Validators.isAllowedEmailDomain(value, companyDomains: ['mycompany.com']))
                             return 'Email domain is not allowed.';
                           return null;
                         },
                       ),
+
                       BasicTextField(
                         labelText: 'Phone Number',
                         hintText: 'Please enter your phone number.',
@@ -146,17 +148,17 @@ class _RegisterPageState extends State<RegisterPage> {
                         validator: Validators.phoneValidator,
                         inputType: TextInputType.phone,
                       ),
+
                       BasicTextField(
                         labelText: 'Invitational Code',
                         controller: vm.inviteController,
                         validator: (value) {
-                          if (value == null || value
-                              .trim()
-                              .isEmpty) return null;
+                          if (value == null || value.trim().isEmpty) return null;
                           return Validators.inviteCodeValidator(value);
                         },
                         hintText: "Please enter invitation code (Optional)",
                       ),
+
                       CountryDropdown(
                         selectedCountry: vm.selectedCountry,
                         onChanged: vm.setCountry,

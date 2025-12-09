@@ -30,9 +30,6 @@ class ProfileViewModel extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
-  // -------------------------
-  // LOAD PROFILE + SOCIAL
-  // -------------------------
   Future<void> loadProfile(BuildContext context) async {
     if (_disposed) return;
 
@@ -81,9 +78,6 @@ class ProfileViewModel extends ChangeNotifier {
     }
   }
 
-  // -------------------------
-  // FETCH SOCIAL
-  // -------------------------
   Future<void> fetchSocialData(String userId) async {
     try {
       final social = await _socialService.fetchSocialData(userId); // FIXED
@@ -98,9 +92,6 @@ class ProfileViewModel extends ChangeNotifier {
     }
   }
 
-  // -------------------------
-  // CHANGE PROFILE PICTURE
-  // -------------------------
   Future<void> changeProfilePicture(
       BuildContext context, File imageFile) async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
