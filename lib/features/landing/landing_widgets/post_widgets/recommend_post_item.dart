@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/constants/colors.dart';
 import '../../../../core/utils/profile_picture_helper.dart';
 import '../../../../core/utils/user_provider.dart';
 import '../../model/post.dart';
 import '../../viewmodel/post_viewmodel.dart';
+import 'auto_media_widget.dart';
 import 'comment_sheet.dart';
 
 class RecommendPostItem extends StatelessWidget {
@@ -25,10 +25,10 @@ class RecommendPostItem extends StatelessWidget {
         : "User ${post.authorId}";
 
     final userProvider = Provider.of<UserProvider>(context);
-    final isMyPost = post.authorId == userProvider.currentUser?.userIdentification;
+    final isMyPost =
+        post.authorId == userProvider.currentUser?.userIdentification;
 
     ImageProvider? avatarImage;
-
     if (isMyPost) {
       final myBytes = userProvider.profilePictureBytes;
       final myUrl = userProvider.profilePictureUrl;
@@ -38,10 +38,8 @@ class RecommendPostItem extends StatelessWidget {
       } else if (myUrl != null && myUrl.isNotEmpty) {
         avatarImage = NetworkImage(myUrl);
       }
-    } else {
-      if (post.authorAvatarUrl != null) {
-        avatarImage = NetworkImage("$base${post.authorAvatarUrl}");
-      }
+    } else if (post.authorAvatarUrl != null) {
+      avatarImage = NetworkImage("$base${post.authorAvatarUrl}");
     }
 
     return Container(
@@ -63,9 +61,7 @@ class RecommendPostItem extends StatelessWidget {
                 UserAvatarHelper.circleAvatar(
                   userIdentification: post.authorId,
                   displayName: displayName,
-                  localBytes: isMyPost
-                      ? userProvider.profilePictureBytes
-                      : null,
+                  localBytes: isMyPost ? userProvider.profilePictureBytes : null,
                   radius: 20,
                 ),
                 const SizedBox(width: 10),
@@ -90,27 +86,15 @@ class RecommendPostItem extends StatelessWidget {
                 style: const TextStyle(fontSize: 15, color: Colors.black87),
               ),
 
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
 
             if (media.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  "$base${media.first['url']}",
-                  height: 220,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    height: 220,
-                    color: Colors.grey.shade200,
-                    alignment: Alignment.center,
-                    child: const Icon(Icons.broken_image, color: Colors.grey),
-                  ),
-                ),
+              AutoMediaWidget(
+                media: media.first, // { id, mime }
+                height: 220,
               ),
 
             const SizedBox(height: 10),
-
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -125,14 +109,15 @@ class RecommendPostItem extends StatelessWidget {
                       Icon(
                         Icons.favorite,
                         size: 20,
-                        color: post.likesCount > 0 ? Colors.pinkAccent : Colors.grey,
+                        color: post.likesCount > 0
+                            ? Colors.pinkAccent
+                            : Colors.grey,
                       ),
                       const SizedBox(width: 4),
                       Text("${post.likesCount}"),
                     ],
                   ),
                 ),
-
                 GestureDetector(
                   onTap: () {
                     showModalBottomSheet(
@@ -144,7 +129,8 @@ class RecommendPostItem extends StatelessWidget {
                   },
                   child: Row(
                     children: [
-                      const Icon(Icons.comment, size: 20, color: Colors.blueAccent),
+                      const Icon(Icons.comment,
+                          size: 20, color: Colors.blueAccent),
                       const SizedBox(width: 4),
                       Text("${post.commentsCount}"),
                     ],
