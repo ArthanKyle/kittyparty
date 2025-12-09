@@ -12,7 +12,6 @@ class RecommendPost extends StatefulWidget {
 
 class _RecommendPostState extends State<RecommendPost>
     with AutomaticKeepAliveClientMixin {
-
   bool _loaded = false;
 
   @override
@@ -21,7 +20,7 @@ class _RecommendPostState extends State<RecommendPost>
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!_loaded) {
-        await context.read<PostViewModel>().fetchPosts();
+        await context.read<PostViewModel>().fetchRecommendedPosts();
         _loaded = true;
       }
     });
@@ -33,19 +32,15 @@ class _RecommendPostState extends State<RecommendPost>
 
     final vm = context.watch<PostViewModel>();
 
-    // Show loading only on first load
-    if (vm.loading && !_loaded) {
+    if (vm.loadingRecommended && !_loaded) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    // Remove user's own posts
-    final filtered = vm.posts.where((p) {
-      return p.authorId != vm.currentUserId;
-    }).toList();
+    final list = vm.recommendedPosts;
 
     return RefreshIndicator(
-      onRefresh: () => context.read<PostViewModel>().fetchPosts(),
-      child: filtered.isEmpty
+      onRefresh: () => vm.fetchRecommendedPosts(),
+      child: list.isEmpty
           ? ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: const [
@@ -56,8 +51,8 @@ class _RecommendPostState extends State<RecommendPost>
           : ListView.builder(
         padding: const EdgeInsets.only(top: 8, bottom: 80),
         physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: filtered.length,
-        itemBuilder: (_, i) => RecommendPostItem(post: filtered[i]),
+        itemCount: list.length,
+        itemBuilder: (_, i) => RecommendPostItem(post: list[i]),
       ),
     );
   }

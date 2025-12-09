@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:image/image.dart' as img;
 import '../../../../core/constants/colors.dart';
 import '../../../../core/global_widgets/gradient_background/gradient_background.dart';
 import '../../viewmodel/post_viewmodel.dart';
@@ -26,18 +28,46 @@ class _CreatePostPageState extends State<CreatePostPage> {
     super.dispose();
   }
 
+  // --------------------------------------------------------------------
+  // PICK & COMPRESS IMAGES
+  // --------------------------------------------------------------------
+
   Future<void> _pickMedia() async {
-    final files = await _picker.pickMultiImage();
-    if (files != null && files.isNotEmpty) {
-      setState(() => _picked.addAll(files));
+    final rawFiles = await _picker.pickMultiImage();
+    if (rawFiles == null || rawFiles.isEmpty) return;
+
+    for (final xfile in rawFiles) {
+      final original = File(xfile.path);
+
+      // Load image bytes
+      final bytes = await original.readAsBytes();
+      final decoded = img.decodeImage(bytes);
+      if (decoded == null) continue;
+
+      // Resize to max width 1080 (keeps quality high)
+      final resized = img.copyResize(decoded, width: 1080);
+
+      // Encode to JPEG at ~50% quality
+      final compressedBytes = img.encodeJpg(resized, quality: 50);
+
+      // Create compressed file
+      final compressedFile = File("${original.path}_small.jpg")
+        ..writeAsBytesSync(compressedBytes);
+
+      print("COMPRESSED SIZE = ${compressedFile.lengthSync()} bytes");
+
+      setState(() {
+        _picked.add(XFile(compressedFile.path));
+      });
     }
   }
-
+  // --------------------------------------------------------------------
+  // SUBMIT POST
+  // --------------------------------------------------------------------
   Future<void> _submitPost(PostViewModel vm) async {
     final content = _controller.text.trim();
     if (content.isEmpty && _picked.isEmpty) return;
 
-    // Check for currentUserId safely
     if ((vm.currentUserId ?? "").isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('User not logged in.')),
@@ -59,6 +89,9 @@ class _CreatePostPageState extends State<CreatePostPage> {
     }
   }
 
+  // --------------------------------------------------------------------
+  // PREVIEW UI
+  // --------------------------------------------------------------------
   Widget _buildMediaPreview(XFile file) {
     final progress = _uploadProgress[file.path] ?? 0.0;
     return Stack(
@@ -87,6 +120,9 @@ class _CreatePostPageState extends State<CreatePostPage> {
     );
   }
 
+  // --------------------------------------------------------------------
+  // BUILD UI
+  // --------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return Consumer<PostViewModel>(
@@ -110,7 +146,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                         controller: _controller,
                         maxLines: null,
                         maxLength: maxLen,
-                        onChanged: (_) => setState(() {}),   // ← FIX
+                        onChanged: (_) => setState(() {}),
                         decoration: const InputDecoration(
                           border: InputBorder.none,
                           hintText: 'Record your life at this moment...',

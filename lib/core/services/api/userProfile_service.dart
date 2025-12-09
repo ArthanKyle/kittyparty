@@ -11,40 +11,64 @@ class UserProfileService {
   UserProfileService({String? baseUrl})
       : baseUrl = baseUrl ?? dotenv.env['BASE_URL']!;
 
-  Future<UserProfile?> getProfileByUserId(String userId) async {
-    final response = await http.get(Uri.parse('$baseUrl/userProfiles/$userId'));
+  // =======================================
+  // GET PROFILE (Metadata Only)
+  // =======================================
+  Future<UserProfile?> getProfileByUserIdentification(String userIdentification) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/userprofiles/$userIdentification'),
+    );
+
     if (response.statusCode == 200) {
       return UserProfile.fromJson(jsonDecode(response.body));
     }
     return null;
   }
 
-  Future<UserProfile?> uploadProfilePicture(String userId, File imageFile) async {
-    final uri = Uri.parse('$baseUrl/userProfiles/$userId/profile-picture');
+  // =======================================
+  // UPLOAD / UPDATE PROFILE PICTURE
+  // =======================================
+  Future<UserProfile?> uploadProfilePicture(
+      String userIdentification,
+      File imageFile) async {
+
+    final uri = Uri.parse(
+      '$baseUrl/userprofiles/$userIdentification/profile-picture',
+    );
+
     final request = http.MultipartRequest('PUT', uri);
 
-    request.files.add(await http.MultipartFile.fromPath(
-      'ProfilePicture', // must match multer field
-      imageFile.path,
-    ));
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'ProfilePicture', // must match multer field name
+        imageFile.path,
+      ),
+    );
 
     final response = await request.send();
+
     if (response.statusCode == 200) {
-      final respStr = await response.stream.bytesToString();
-      final data = jsonDecode(respStr);
-      return UserProfile.fromJson(data['profile']);
+      final responseString = await response.stream.bytesToString();
+      final jsonData = jsonDecode(responseString);
+
+      return UserProfile.fromJson(jsonData['profile']);
     } else {
-      throw Exception("Upload failed: ${response.statusCode}");
+      throw Exception("Upload failed with status: ${response.statusCode}");
     }
   }
 
-  Future<Uint8List?> fetchProfilePicture(String userId) async {
-    final uri = Uri.parse('$baseUrl/userProfiles/$userId/profile-picture');
-    final response = await http.get(uri);
+  // =======================================
+  // FETCH RAW PROFILE PICTURE FROM GRIDFS
+  // =======================================
+  Future<Uint8List?> fetchProfilePicture(String userIdentification) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/userprofiles/$userIdentification/profile-picture'),
+    );
 
     if (response.statusCode == 200) {
       return response.bodyBytes;
     }
+
     return null;
   }
 }

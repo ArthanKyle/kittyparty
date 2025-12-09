@@ -24,11 +24,14 @@ class _PostPageState extends State<PostPage>
     super.initState();
     _tab = TabController(length: 2, vsync: this);
 
-    // Trigger an initial fetch for posts once the widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final vm = context.read<PostViewModel>();
-      if (!vm.loading && vm.posts.isEmpty) {
-        vm.fetchPosts();
+
+      if (vm.recommendedPosts.isEmpty && !vm.loadingRecommended) {
+        vm.fetchRecommendedPosts();
+      }
+      if (vm.followingPosts.isEmpty && !vm.loadingFollowing) {
+        vm.fetchFollowingPosts();
       }
     });
   }
@@ -44,25 +47,8 @@ class _PostPageState extends State<PostPage>
     final userProvider = context.watch<UserProvider>();
     final currentUser = userProvider.currentUser;
 
-    final postVM = context.watch<PostViewModel>();
-
-    // Placeholder while user or posts are loading
-    final isStillLoadingUser = userProvider.isLoading && currentUser == null;
-    final isLoadingPosts =
-        postVM.loading && postVM.posts.isEmpty && currentUser != null;
-
-    if (isStillLoadingUser || isLoadingPosts) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-
-    // If there's no logged-in user at all (depending on your auth flow,
-    // you may want to redirect instead)
     if (currentUser == null) {
-      return const Center(
-        child: Text("No user loaded."),
-      );
+      return const Center(child: Text("No user loaded."));
     }
 
     return GradientBackground(
@@ -74,34 +60,31 @@ class _PostPageState extends State<PostPage>
                 const SizedBox(height: 20),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 6, 8, 0),
-                  child: Transform.translate(
-                    offset: const Offset(-45, 0),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: TabBar(
-                        controller: _tab,
-                        isScrollable: true,
-                        labelPadding: const EdgeInsets.only(right: 24),
-                        indicatorSize: TabBarIndicatorSize.label,
-                        dividerColor: Colors.transparent,
-                        labelColor: Colors.white,
-                        unselectedLabelColor: Colors.black45,
-                        labelStyle: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        tabs: const [
-                          Tab(text: 'Recommend'),
-                          Tab(text: 'Following'),
-                        ],
+                  child: Material(
+                    color: Colors.transparent,
+                    child: TabBar(
+                      controller: _tab,
+                      isScrollable: true,
+                      labelPadding: const EdgeInsets.only(right: 24),
+                      indicatorSize: TabBarIndicatorSize.label,
+                      dividerColor: Colors.transparent,
+                      labelColor: Colors.white,
+                      unselectedLabelColor: Colors.black45,
+                      labelStyle: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
                       ),
+                      tabs: const [
+                        Tab(text: 'Recommend'),
+                        Tab(text: 'Following'),
+                      ],
                     ),
                   ),
                 ),
                 Expanded(
                   child: TabBarView(
                     controller: _tab,
-                    children:[
+                    children: const [
                       RecommendPost(),
                       FollowingPostTab(),
                     ],
@@ -109,6 +92,7 @@ class _PostPageState extends State<PostPage>
                 )
               ],
             ),
+
             Positioned(
               bottom: 24,
               right: 24,

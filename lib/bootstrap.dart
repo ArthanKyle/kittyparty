@@ -15,7 +15,6 @@ import 'features/livestream/widgets/gift_assets.dart';
 import 'features/wallet/viewmodel/wallet_viewmodel.dart';
 import 'features/wallet/viewmodel/diamond_viewmodel.dart';
 
-
 late Box myRegBox;
 late Box sessionsBox;
 
@@ -34,36 +33,33 @@ Future<void> bootstrap() async {
 
   Stripe.publishableKey = dotenv.env["STRIPE_PUBLISHABLE_KEY"] ?? "";
 
-  // Load user BEFORE building the widget tree
+  // Load user BEFORE building widget tree
   final userProvider = UserProvider();
   await userProvider.loadUser();
 
-  // Global socket instance used by other services/viewmodels
+  // Global socket
   final socketService = SocketService();
   if (userProvider.currentUser != null) {
-    socketService.initSocket(userProvider.currentUser!.id);
+    socketService.initSocket(userProvider.currentUser!.userIdentification);
   }
 
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider.value(
-        value: localeProvider,
-        ),
-        // Already-created userProvider instance
+        ChangeNotifierProvider.value(value: localeProvider),
+
+        // User Provider
         ChangeNotifierProvider<UserProvider>.value(value: userProvider),
 
+        // Page index
         ChangeNotifierProvider(create: (_) => PageIndexProvider()),
 
-        // ⚡ PostViewModel is ALWAYS created, even if user is null at startup
+        // NEW PostViewModel (no currentUserId parameter)
         ChangeNotifierProvider(
-          create: (_) => PostViewModel(
-            currentUserId: userProvider.currentUser?.userIdentification ?? "",
-            userProvider: userProvider,
-          ),
+          create: (_) => PostViewModel(userProvider: userProvider),
         ),
 
-        // Wallet & diamonds
+        // Wallet & Diamonds
         ChangeNotifierProvider(
           create: (_) => WalletViewModel(userProvider: userProvider),
         ),
@@ -74,7 +70,7 @@ Future<void> bootstrap() async {
           ),
         ),
 
-        // Plain services
+        // Services
         Provider(
           create: (_) => UserService(
             baseUrl: dotenv.env["BASE_URL"] ?? "",

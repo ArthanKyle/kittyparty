@@ -53,8 +53,8 @@ class ProfileViewModel extends ChangeNotifier {
       final id = currentUser.userIdentification;
 
       // Fetch profile
-      final profile = await _profileService.getProfileByUserId(id);
-      if (_disposed) return;
+      final profile = await _profileService
+          .getProfileByUserIdentification(id);
 
       userProfile = profile ??
           UserProfile(
@@ -68,6 +68,7 @@ class ProfileViewModel extends ChangeNotifier {
         profilePictureBytes =
         await _profileService.fetchProfilePicture(id);
       }
+
 
       // Fetch social (STRING, not int)
       await fetchSocialData(id);

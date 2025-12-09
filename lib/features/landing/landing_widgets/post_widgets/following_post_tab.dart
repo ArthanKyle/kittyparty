@@ -12,12 +12,12 @@ class FollowingPostTab extends StatefulWidget {
 
 class _FollowingPostTabState extends State<FollowingPostTab>
     with AutomaticKeepAliveClientMixin {
-
   bool _loaded = false;
 
   @override
   void initState() {
     super.initState();
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!_loaded) {
         await context.read<PostViewModel>().fetchFollowingPosts();
@@ -32,13 +32,15 @@ class _FollowingPostTabState extends State<FollowingPostTab>
 
     final vm = context.watch<PostViewModel>();
 
-    if (vm.loading && !_loaded) {
+    if (vm.loadingFollowing && !_loaded) {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final list = vm.followingPosts;
+
     return RefreshIndicator(
-      onRefresh: () => context.read<PostViewModel>().fetchFollowingPosts(),
-      child: vm.posts.isEmpty
+      onRefresh: () => vm.fetchFollowingPosts(),
+      child: list.isEmpty
           ? ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: const [
@@ -47,9 +49,11 @@ class _FollowingPostTabState extends State<FollowingPostTab>
         ],
       )
           : ListView.builder(
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: vm.posts.length,
-        itemBuilder: (_, i) => RecommendPostItem(post: vm.posts[i]),
+        itemCount: list.length,
+        itemBuilder: (_, index) {
+          final post = list[index];
+          return RecommendPostItem(post: post);
+        },
       ),
     );
   }

@@ -1,54 +1,47 @@
 class Post {
   final String id;
+  final String content;
+  final DateTime createdAt;
 
   final String authorId;
   final String authorUsername;
   final String authorFullName;
-  final String authorAvatar;
+  final String? authorAvatarUrl;
 
-  final String? profilePictureId;   // <-- NULLABLE
-
-  final String content;
   final List<dynamic> media;
-
-  late final int likesCount;
-  final int commentsCount;
-
-  final DateTime createdAt;
+  int likesCount;
+  int commentsCount;
 
   Post({
     required this.id,
+    required this.content,
+    required this.createdAt,
     required this.authorId,
     required this.authorUsername,
     required this.authorFullName,
-    required this.authorAvatar,
-    required this.profilePictureId,   // <-- NULLABLE HERE TOO
-    required this.content,
+    required this.authorAvatarUrl,
     required this.media,
     required this.likesCount,
     required this.commentsCount,
-    required this.createdAt,
   });
 
   factory Post.fromJson(Map<String, dynamic> json) {
     final author = json['author'] ?? {};
 
     return Post(
-      id: json['_id'] ?? '',
-      authorId: author['UserIdentification']?.toString() ?? '',
-      authorUsername: author['Username'] ?? '',
-      authorFullName: author['FullName'] ?? '',
-      authorAvatar: author['AvatarUrl'] ?? '',
+      id: json['_id'] ?? "",
+      content: json['content'] ?? "",
+      createdAt: DateTime.tryParse(json['createdAt'] ?? "") ?? DateTime.now(),
 
-      // --- THE REAL FIX ---
-      profilePictureId: author['ProfilePicture']?.toString(),  // <-- CAN BE NULL
+      authorId: author['UserIdentification']?.toString() ?? "",
+      authorUsername: author['Username'] ?? "",
+      authorFullName: author['FullName'] ?? "",
+      authorAvatarUrl: author['AvatarUrl'], // "/api/userprofiles/29862/profile-picture"
 
-      content: json['content'] ?? '',
       media: json['media'] ?? [],
+
       likesCount: json['likesCount'] ?? 0,
       commentsCount: json['commentsCount'] ?? 0,
-      createdAt:
-      DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
     );
   }
 }

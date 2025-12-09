@@ -38,10 +38,18 @@ class _RoomCardState extends State<RoomCard> {
 
     try {
       final service = UserProfileService();
-      final profile = await service.getProfileByUserId(widget.room.hostId);
 
-      if (mounted && profile?.profilePicture != null) {
-        setState(() => profilePicUrl = profile!.profilePicture);
+      final profile = await service.getProfileByUserIdentification(
+        widget.room.hostId,
+      );
+
+      if (!mounted) return;
+
+      if (profile != null && profile.profilePicture != null) {
+        setState(() {
+          profilePicUrl =
+          "${service.baseUrl}/userprofiles/${widget.room.hostId}/profile-picture";
+        });
       }
     } catch (e) {
       debugPrint("⚠️ Failed to fetch host profile picture: $e");
@@ -49,6 +57,7 @@ class _RoomCardState extends State<RoomCard> {
       if (mounted) setState(() => isLoading = false);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

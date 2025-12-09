@@ -98,7 +98,8 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
     userIdentification = currentUser.userIdentification;
     userName = currentUser.username;
 
-    final result = await profileService.getProfileByUserId(currentUser.id);
+    final result = await profileService
+        .getProfileByUserIdentification(currentUser.userIdentification);
     if (result != null) {
       userProfile = result;
 

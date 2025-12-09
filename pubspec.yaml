@@ -73,6 +73,8 @@ dependencies:
   flutter_assets: ^0.0.6
   video_player: ^2.5.1
   chewie: ^1.13.0
+  flutter_image_compress: ^2.4.0
+  image: ^4.1.0
 
 
 

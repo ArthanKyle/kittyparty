@@ -20,8 +20,8 @@ class PostService {
   // ===========================================================
   // GET ALL POSTS
   // ===========================================================
-  Future<List<dynamic>> getPosts() async {
-    final url = Uri.parse('$baseUrl/posts');
+  Future<List<dynamic>> getPosts(String userId) async {
+    final url = Uri.parse('$baseUrl/posts?userId=$userId');
     final res = await http.get(url);
 
     if (res.statusCode == 200) {
@@ -50,53 +50,41 @@ class PostService {
     required Map<String, dynamic> body,
     List<File>? mediaFiles,
   }) async {
-    final url = Uri.parse('$baseUrl/posts');
+    final uri = Uri.parse("$baseUrl/posts");
 
-    // -------------------- NO MEDIA --------------------
-    if (mediaFiles == null || mediaFiles.isEmpty) {
-      final res = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      );
-      _print("POST /posts", res);
+    final request = http.MultipartRequest("POST", uri);
 
-      if (res.statusCode == 201) {
-        return jsonDecode(res.body);
-      }
-      return null;
-    }
-
-    // -------------------- WITH MEDIA (MULTIPART) --------------------
-    final request = http.MultipartRequest('POST', url);
-
-    // Add fields
+    // FIELDS
     body.forEach((key, value) {
       request.fields[key] = value.toString();
     });
 
-    // Add files (image or video)
-    for (var file in mediaFiles) {
-      final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
-      final parts = mimeType.split('/');
+    // FILES (THIS IS WHERE YOU ADD IT)
+    if (mediaFiles != null) {
+      for (final file in mediaFiles) {
 
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          'media', // MUST MATCH backend field
-          file.path,
-          filename: p.basename(file.path),
-          contentType: MediaType(parts[0], parts.length > 1 ? parts[1] : ''),
-        ),
-      );
+        print("UPLOAD SIZE = ${file.lengthSync()} bytes");
+
+        final mimeType = lookupMimeType(file.path) ?? "image/jpeg";
+        final parts = mimeType.split('/');
+
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            "media", // MUST match upload.array("media")
+            file.path,
+            contentType: MediaType(parts[0], parts[1]),
+          ),
+        );
+      }
     }
 
     final streamed = await request.send();
-    final res = await http.Response.fromStream(streamed);
-    _print("POST /posts (multipart)", res);
+    final response = await http.Response.fromStream(streamed);
 
-    if (res.statusCode == 201) {
-      return jsonDecode(res.body);
+    if (response.statusCode == 201) {
+      return jsonDecode(response.body);
     }
+
     return null;
   }
 

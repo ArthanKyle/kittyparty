@@ -1,62 +1,45 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../core/utils/user_provider.dart';
 import '../../model/post.dart';
+import '../../viewmodel/post_viewmodel.dart';
+import 'comment_sheet.dart';
 
 class RecommendPostItem extends StatelessWidget {
   final Post post;
 
   const RecommendPostItem({super.key, required this.post});
 
-  // Safe URL fixer
-  String fixUrl(String? url) {
-    if (url == null || url.isEmpty) return "";
-    if (url.startsWith("http")) return url;
-
-    const base = "https://kittypartybackend-production.up.railway.app";
-    return "$base$url";
-  }
-
-  // Safe profile picture builder from ObjectId (ProfilePicture)
-  String profilePictureUrl(String? id) {
-    if (id == null || id.isEmpty) return "";
-    return "https://kittypartybackend-production.up.railway.app/profile/picture/$id";
-  }
-
   @override
   Widget build(BuildContext context) {
+    final base = dotenv.env['BASE_URL'] ?? "";
     final media = post.media;
 
-    final displayName = post.authorFullName.isNotEmpty
-        ? post.authorFullName
-        : post.authorUsername.isNotEmpty
+    final displayName = post.authorUsername.isNotEmpty
         ? post.authorUsername
+        : post.authorFullName.isNotEmpty
+        ? post.authorFullName
         : "User ${post.authorId}";
 
     final userProvider = Provider.of<UserProvider>(context);
-    final isMyPost = post.authorId == userProvider.currentUser?.id;
+    final isMyPost = post.authorId == userProvider.currentUser?.userIdentification;
 
     ImageProvider? avatarImage;
 
-    // Pull sources
-    final myBytes = userProvider.profilePictureBytes;
-    final myUrl = userProvider.profilePictureUrl;
-    final otherPicId = post.profilePictureId ?? "";
-
-    // ----------------------------------------------------------------
-    // COMPREHENSIVE SAFE AVATAR SELECTION (NO NULL CRASHING ANYWHERE)
-    // ----------------------------------------------------------------
     if (isMyPost) {
+      final myBytes = userProvider.profilePictureBytes;
+      final myUrl = userProvider.profilePictureUrl;
+
       if (myBytes != null) {
         avatarImage = MemoryImage(myBytes);
       } else if (myUrl != null && myUrl.isNotEmpty) {
-        avatarImage = NetworkImage(fixUrl(myUrl));
+        avatarImage = NetworkImage(myUrl);
       }
     } else {
-      if (otherPicId.isNotEmpty) {
-        avatarImage = NetworkImage(profilePictureUrl(otherPicId));
+      if (post.authorAvatarUrl != null) {
+        avatarImage = NetworkImage("$base${post.authorAvatarUrl}");
       }
     }
 
@@ -66,11 +49,7 @@ class RecommendPostItem extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 6,
-            offset: Offset(0, 3),
-          )
+          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3)),
         ],
       ),
       child: Padding(
@@ -78,9 +57,6 @@ class RecommendPostItem extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // -----------------------------
-            // HEADER
-            // -----------------------------
             Row(
               children: [
                 CircleAvatar(
@@ -113,28 +89,19 @@ class RecommendPostItem extends StatelessWidget {
 
             const SizedBox(height: 10),
 
-            // -----------------------------
-            // CAPTION
-            // -----------------------------
             if (post.content.isNotEmpty)
               Text(
                 post.content,
-                style: const TextStyle(
-                  fontSize: 15,
-                  color: Colors.black87,
-                ),
+                style: const TextStyle(fontSize: 15, color: Colors.black87),
               ),
 
             const SizedBox(height: 8),
 
-            // -----------------------------
-            // MEDIA IMAGE
-            // -----------------------------
             if (media.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: Image.network(
-                  fixUrl(media.first['url'] ?? ''),
+                  "$base${media.first['url']}",
                   height: 220,
                   width: double.infinity,
                   fit: BoxFit.cover,
@@ -149,27 +116,44 @@ class RecommendPostItem extends StatelessWidget {
 
             const SizedBox(height: 10),
 
-            // -----------------------------
-            // ACTIONS
-            // -----------------------------
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.favorite,
-                        size: 20, color: Colors.pinkAccent),
-                    const SizedBox(width: 4),
-                    Text("${post.likesCount}"),
-                  ],
+                GestureDetector(
+                  onTap: () async {
+                    final vm = context.read<PostViewModel>();
+                    final liked = await vm.hasLiked(post.id);
+                    liked ? vm.unlikePost(post.id) : vm.likePost(post.id);
+                  },
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.favorite,
+                        size: 20,
+                        color: post.likesCount > 0 ? Colors.pinkAccent : Colors.grey,
+                      ),
+                      const SizedBox(width: 4),
+                      Text("${post.likesCount}"),
+                    ],
+                  ),
                 ),
-                Row(
-                  children: [
-                    const Icon(Icons.comment,
-                        size: 20, color: Colors.blueAccent),
-                    const SizedBox(width: 4),
-                    Text("${post.commentsCount}"),
-                  ],
+
+                GestureDetector(
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      backgroundColor: Colors.transparent,
+                      isScrollControlled: true,
+                      builder: (_) => CommentSheet(post: post),
+                    );
+                  },
+                  child: Row(
+                    children: [
+                      const Icon(Icons.comment, size: 20, color: Colors.blueAccent),
+                      const SizedBox(width: 4),
+                      Text("${post.commentsCount}"),
+                    ],
+                  ),
                 ),
               ],
             ),
