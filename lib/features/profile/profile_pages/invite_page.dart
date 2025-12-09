@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Needed for Clipboard
-import 'package:provider/provider.dart'; // Needed for UserProvider/ProfileViewModel
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+
+import '../../../core/utils/profile_picture_helper.dart'; // Must contain UserAvatarHelper
 import '../../../core/utils/user_provider.dart';
 import '../../landing/viewmodel/profile_viewmodel.dart';
 
@@ -12,11 +14,7 @@ class InvitePage extends StatefulWidget {
 }
 
 class _InvitePageState extends State<InvitePage> {
-  // Removed static _invitationCode. It will be fetched dynamically in build().
-
-  // Updated function to accept the code string dynamically
   void _copyCodeToClipboard(BuildContext context, String code) {
-    // Check if the code is available before copying
     if (code == 'N/A' || code.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -30,7 +28,7 @@ class _InvitePageState extends State<InvitePage> {
     Clipboard.setData(ClipboardData(text: code)).then((_) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Invitation code copied to clipboard!'),
+          content: Text('Invitation code copied!'),
           duration: Duration(seconds: 1),
         ),
       );
@@ -43,30 +41,26 @@ class _InvitePageState extends State<InvitePage> {
       builder: (context, userProvider, _) {
         final user = userProvider.currentUser;
 
-        // Dynamically fetch the invitation code from the current user
-        final String invitationCode = user?.myInvitationCode ?? 'N/A'; // <-- Fetch is here
+        final String invitationCode = user?.myInvitationCode ?? 'N/A';
 
         if (userProvider.isLoading || user == null) {
           return const Scaffold(
             backgroundColor: Colors.black,
-            body: Center(child: CircularProgressIndicator(color: Colors.yellow)),
+            body: Center(
+              child: CircularProgressIndicator(color: Colors.yellow),
+            ),
           );
         }
-
 
         return ChangeNotifierProvider(
           create: (_) => ProfileViewModel()..loadProfile(context),
           child: Consumer<ProfileViewModel>(
             builder: (context, vm, _) {
-              // 3. Get the profile picture bytes
-              final profilePictureWidget = vm.profilePictureBytes != null
-                  ? CircleAvatar(
+              final profilePictureWidget = UserAvatarHelper.circleAvatar(
+                userIdentification: user.userIdentification,
+                displayName: user.fullName ?? user.username ?? "U",
                 radius: 28,
-                backgroundImage: MemoryImage(vm.profilePictureBytes!),
-              )
-                  : const CircleAvatar(
-                radius: 28,
-                backgroundImage: AssetImage('assets/image/Profile.png'),
+                localBytes: vm.profilePictureBytes,
               );
 
               return Scaffold(
@@ -74,7 +68,6 @@ class _InvitePageState extends State<InvitePage> {
                 body: SingleChildScrollView(
                   child: Column(
                     children: [
-                      // 🔹 HEADER IMAGE
                       Image.asset(
                         'assets/image/GetCoins.png',
                         width: double.infinity,
@@ -83,7 +76,6 @@ class _InvitePageState extends State<InvitePage> {
 
                       const SizedBox(height: 10),
 
-                      // 🔹 1ST SECTION: PROFILE + CODE
                       Container(
                         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         padding: const EdgeInsets.all(12),
@@ -94,16 +86,12 @@ class _InvitePageState extends State<InvitePage> {
                             end: Alignment.bottomCenter,
                           ),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(0xFFFFD700),
-                            width: 3,
-                          ),
+                          border: Border.all(color: Color(0xFFFFD700), width: 3),
                         ),
                         child: Column(
                           children: [
                             Row(
                               children: [
-                                // 3. Dynamically loaded Profile Picture
                                 profilePictureWidget,
                                 const SizedBox(width: 12),
                                 const Text(
@@ -115,9 +103,8 @@ class _InvitePageState extends State<InvitePage> {
                                   ),
                                 ),
                                 const Spacer(),
-                                // 1. Use the DYNAMIC Invitation Code
                                 Text(
-                                  invitationCode, // <-- Now dynamic
+                                  invitationCode,
                                   style: const TextStyle(
                                     color: Colors.yellow,
                                     fontSize: 20,
@@ -126,10 +113,11 @@ class _InvitePageState extends State<InvitePage> {
                                 ),
                               ],
                             ),
+
                             const SizedBox(height: 10),
-                            // 2. Copy Button with dynamic function call
+
                             GestureDetector(
-                              onTap: () => _copyCodeToClipboard(context, invitationCode), // <-- Dynamic code passed
+                              onTap: () => _copyCodeToClipboard(context, invitationCode),
                               child: Container(
                                 width: double.infinity,
                                 height: 40,
@@ -141,17 +129,17 @@ class _InvitePageState extends State<InvitePage> {
                                     end: Alignment.topCenter,
                                   ),
                                   borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Color(0xFFFFD700),
+                                    width: 2,
+                                  ),
                                   boxShadow: [
                                     BoxShadow(
                                       color: Colors.white.withOpacity(0.4),
                                       blurRadius: 10,
                                       spreadRadius: 2,
-                                    ),
+                                    )
                                   ],
-                                  border: Border.all(
-                                    color: const Color(0xFFFFD700),
-                                    width: 2,
-                                  ),
                                 ),
                                 child: const Text(
                                   'Copy',
@@ -167,16 +155,15 @@ class _InvitePageState extends State<InvitePage> {
                         ),
                       ),
 
-                      // 🔹 2ND SECTION: EARNINGS, OBTAIN, COINS
+                      // ===================== SECOND SECTION =====================
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            // Earnings Button
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 10, horizontal: 20),
+                              padding:
+                              const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
                                   colors: [Color(0xFFBA68C8), Color(0xFF7B1FA2)],
@@ -184,10 +171,7 @@ class _InvitePageState extends State<InvitePage> {
                                   end: Alignment.topCenter,
                                 ),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: const Color(0xFFFFD700),
-                                  width: 2,
-                                ),
+                                border: Border.all(color: Color(0xFFFFD700), width: 2),
                               ),
                               child: const Text(
                                 'Earnings',
@@ -198,12 +182,11 @@ class _InvitePageState extends State<InvitePage> {
                               ),
                             ),
 
-                            // Obtain + Coin Section
                             Expanded(
                               child: Container(
                                 margin: const EdgeInsets.only(left: 8),
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 10, horizontal: 20),
+                                padding:
+                                const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
                                 decoration: BoxDecoration(
                                   gradient: const LinearGradient(
                                     colors: [Colors.orange, Colors.white],
@@ -212,7 +195,7 @@ class _InvitePageState extends State<InvitePage> {
                                   ),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: const Color(0xFFFFD700),
+                                    color: Color(0xFFFFD700),
                                     width: 3,
                                   ),
                                 ),
@@ -236,10 +219,7 @@ class _InvitePageState extends State<InvitePage> {
                                           ),
                                         ),
                                         const SizedBox(width: 4),
-                                        Image.asset(
-                                          'assets/icons/KPcoin.png',
-                                          height: 24,
-                                        ),
+                                        Image.asset('assets/icons/KPcoin.png', height: 24),
                                       ],
                                     ),
                                   ],
@@ -250,7 +230,6 @@ class _InvitePageState extends State<InvitePage> {
                         ),
                       ),
 
-                      // 🔹 3RD SECTION: RULES + ACCOUNT
                       Container(
                         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         padding: const EdgeInsets.all(12),
@@ -261,10 +240,7 @@ class _InvitePageState extends State<InvitePage> {
                             end: Alignment.bottomCenter,
                           ),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(0xFFFFD700),
-                            width: 3,
-                          ),
+                          border: Border.all(color: Color(0xFFFFD700), width: 3),
                         ),
                         child: Row(
                           children: [
@@ -279,10 +255,7 @@ class _InvitePageState extends State<InvitePage> {
                                     end: Alignment.topCenter,
                                   ),
                                   borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: const Color(0xFFFFD700),
-                                    width: 2,
-                                  ),
+                                  border: Border.all(color: Color(0xFFFFD700), width: 2),
                                 ),
                                 child: const Text(
                                   'Rules',
@@ -304,10 +277,7 @@ class _InvitePageState extends State<InvitePage> {
                                   end: Alignment.bottomCenter,
                                 ),
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: const Color(0xFFFFD700),
-                                  width: 2,
-                                ),
+                                border: Border.all(color: Color(0xFFFFD700), width: 2),
                               ),
                               child: const Text(
                                 'Account',
@@ -321,19 +291,17 @@ class _InvitePageState extends State<InvitePage> {
                         ),
                       ),
 
-                      // 🔹 DUMMY TEXT
                       Container(
                         margin: const EdgeInsets.all(16),
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: const Color(0xFF3E2C13),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFFFD700), width: 2),
+                          border: Border.all(color: Color(0xFFFFD700), width: 2),
                         ),
                         child: const Text(
                           'Lorem ipsum dolor sit amet, consectetur adipiscing elit. '
-                              'Mauris vel mauris nec turpis porttitor feugiat. '
-                              'Suspendisse potenti. Aenean facilisis lorem ut lorem 50.',
+                              'Mauris vel mauris nec turpis porttitor feugiat.',
                           style: TextStyle(
                             color: Color(0xFFFFF8DC),
                             fontSize: 14,
