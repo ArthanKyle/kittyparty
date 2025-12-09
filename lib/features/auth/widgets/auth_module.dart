@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:kittyparty/features/auth/view/login_selection.dart';
 import 'package:provider/provider.dart';
-import '../../core/utils/index_provider.dart';
-import '../../core/utils/user_provider.dart';
-import '../navigation/page_handler.dart';
+import '../../../core/utils/index_provider.dart';
+import '../../../core/utils/user_provider.dart';
+import '../../navigation/page_handler.dart';
 
 
 class AuthCheck extends StatefulWidget {

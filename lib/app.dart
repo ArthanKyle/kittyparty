@@ -14,7 +14,7 @@ import 'core/config/global_keys.dart';
 import 'features/auth/view/email_login.dart';
 import 'features/auth/view/id_login.dart';
 import 'features/auth/view/register.dart';
-import 'features/auth/auth_module.dart';
+import 'features/auth/widgets/auth_module.dart';
 // Navigation / Pages
 import 'features/auth/viewmodel/register_viewmodel.dart';
 import 'features/landing/view/landing_page.dart';
