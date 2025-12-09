@@ -12,6 +12,12 @@ class SocketService {
   Stream<int> get coinsStream => _coinsController.stream;
   Stream<int> get diamondsStream => _diamondsController.stream;
 
+  final _likeStreamController = StreamController<Map<String, dynamic>>.broadcast();
+  final _commentStreamController = StreamController<Map<String, dynamic>>.broadcast();
+
+  Stream<Map<String, dynamic>> get likeStream => _likeStreamController.stream;
+  Stream<Map<String, dynamic>> get commentStream => _commentStreamController.stream;
+
   void initSocket(String userId) {
     final baseUrl = dotenv.env['BASE_URL']!.replaceAll('/api', '');
 
@@ -50,6 +56,25 @@ class SocketService {
       if (coins != null) _coinsController.add(coins);
       if (diamonds != null) _diamondsController.add(diamonds);
     });
+
+    socket.on('post_like_update', (data) {
+      if (data is Map) {
+        _likeStreamController.add({
+          'postId': data['postId'],
+          'likesCount': data['likesCount'],
+        });
+      }
+    });
+
+    socket.on('post_comment_update', (data) {
+      if (data is Map) {
+        _commentStreamController.add({
+          'postId': data['postId'],
+          'commentsCount': data['commentsCount'],
+        });
+      }
+    });
+
 
     socket.on('bonus_hidden', (_) {
       print('🎁 Bonus hidden event received');

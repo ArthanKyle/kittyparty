@@ -11,14 +11,14 @@ class WalletViewModel extends ChangeNotifier {
 
   WalletViewModel({required this.userProvider})
       : wallet = Wallet(coins: 0) {
-    // Set initial coins if user is already loaded
+
     if (userProvider.currentUser != null) {
       wallet.coins = userProvider.currentUser!.coins;
     }
 
-    // Listen to user stream for real-time updates
+
     _userStreamSub = userProvider.userStream.listen((user) {
-      if (!hasListeners) return; // prevent notify after dispose
+      if (!hasListeners) return;
       wallet.coins = user.coins;
       notifyListeners();
     });

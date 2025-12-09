@@ -39,10 +39,10 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
             const ConvertDiamondsAppBar(),
             const SizedBox(height: 10),
 
-            // 💎 Diamond balance card display
+
             DiamondCard(
               balance: diamondVM.diamond.diamonds,
-              onConvert: () {}, // Disabled — just for display
+              onConvert: () {},
             ),
 
             const SizedBox(height: 20),
@@ -56,7 +56,6 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
             ),
             const SizedBox(height: 10),
 
-            // 🔢 Input field for coins
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
@@ -90,7 +89,7 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
 
             const SizedBox(height: 20),
 
-            // 💠 Diamonds preview (conversion result)
+
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
               width: double.infinity,
@@ -122,7 +121,7 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
 
             const SizedBox(height: 20),
 
-            // 📘 Conversion rule box
+
             Container(
               padding: const EdgeInsets.all(14),
               width: double.infinity,
@@ -139,7 +138,7 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
 
             const SizedBox(height: 20),
 
-            // ✅ Confirm button
+
             ElevatedButton(
               onPressed: (coinsToConvert > 0 &&
                   coinsToConvert <= currentCoins &&

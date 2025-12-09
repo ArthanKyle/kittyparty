@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'full_screen_media_viewer.dart';
 
 class AutoMediaWidget extends StatefulWidget {
   final Map<String, dynamic> media; // { id, mime }
@@ -48,23 +49,35 @@ class _AutoMediaWidgetState extends State<AutoMediaWidget> {
     super.dispose();
   }
 
+  void _openFullScreen() {
+    final base = dotenv.env['BASE_URL']!;
+    final url = "$base/media/${widget.media['id']}";
+
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        opaque: false,
+        pageBuilder: (_, __, ___) => FullScreenMediaViewer(
+          url: url,
+          mime: widget.media["mime"],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final base = dotenv.env['BASE_URL']!;
     final url = "$base/media/${widget.media['id']}";
 
+    // VIDEO PREVIEW
     if (isVideo) {
       if (isLoading || !_controller!.value.isInitialized) {
         return _loadingBox();
       }
 
       return GestureDetector(
-        onTap: () {
-          _controller!.value.isPlaying
-              ? _controller!.pause()
-              : _controller!.play();
-          setState(() {});
-        },
+        onTap: _openFullScreen,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: Stack(
@@ -74,24 +87,26 @@ class _AutoMediaWidgetState extends State<AutoMediaWidget> {
                 aspectRatio: _controller!.value.aspectRatio,
                 child: VideoPlayer(_controller!),
               ),
-              if (!_controller!.value.isPlaying)
-                const Icon(Icons.play_circle_fill,
-                    color: Colors.white, size: 60),
+              const Icon(Icons.play_circle_fill,
+                  color: Colors.white, size: 60),
             ],
           ),
         ),
       );
     }
 
-    // IMAGE
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Image.network(
-        url,
-        height: widget.height,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _errorBox(),
+    // IMAGE PREVIEW
+    return GestureDetector(
+      onTap: _openFullScreen,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          url,
+          height: widget.height,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _errorBox(),
+        ),
       ),
     );
   }
@@ -99,20 +114,13 @@ class _AutoMediaWidgetState extends State<AutoMediaWidget> {
   Widget _loadingBox() => Container(
     height: widget.height,
     alignment: Alignment.center,
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(12),
-      color: Colors.grey.shade300,
-    ),
     child: const CircularProgressIndicator(),
   );
 
   Widget _errorBox() => Container(
     height: widget.height,
     alignment: Alignment.center,
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(12),
-      color: Colors.grey.shade200,
-    ),
-    child: const Icon(Icons.broken_image, size: 40, color: Colors.grey),
+    color: Colors.grey.shade300,
+    child: const Icon(Icons.broken_image, size: 40),
   );
 }

@@ -90,7 +90,7 @@ class RecommendPostItem extends StatelessWidget {
 
             if (media.isNotEmpty)
               AutoMediaWidget(
-                media: media.first, // { id, mime }
+                media: media.first,
                 height: 220,
               ),
 

@@ -22,20 +22,42 @@ class PostViewModel with ChangeNotifier {
   String? error;
 
   late final StreamSubscription<User> _userSub;
+  StreamSubscription? _likeSub;
+  StreamSubscription? _commentSub;
 
   PostViewModel({required UserProvider userProvider})
       : _service = PostService() {
     _userSub = userProvider.userStream.listen((user) {
       currentUserId = user.userIdentification;
+
       fetchRecommendedPosts();
       fetchFollowingPosts();
+
+      _attachSocketStreams(userProvider);
     });
   }
 
-  // -----------------------------------------------------------
-  // RECOMMENDED POSTS
-  // -----------------------------------------------------------
+  void _attachSocketStreams(UserProvider provider) {
+    _likeSub?.cancel();
+    _commentSub?.cancel();
+
+    final socket = provider.socketService;
+    _likeSub = socket.likeStream.listen((data) {
+      final postId = data['postId'];
+      final count = data['likesCount'];
+      _applyLikeUpdate(postId, count);
+    });
+
+    _commentSub = socket.commentStream.listen((data) {
+      final postId = data['postId'];
+      final count = data['commentsCount'];
+      _applyCommentUpdate(postId, count);
+    });
+  }
+
   Future<void> fetchRecommendedPosts() async {
+    if (currentUserId == null) return;
+
     loadingRecommended = true;
     notifyListeners();
 
@@ -43,11 +65,8 @@ class PostViewModel with ChangeNotifier {
       final raw = await _service.getPosts(currentUserId!);
       recommendedPosts = raw.map((e) => Post.fromJson(e)).toList();
 
-      // Remove own posts
-      if (currentUserId != null) {
-        recommendedPosts =
-            recommendedPosts.where((p) => p.authorId != currentUserId).toList();
-      }
+
+      recommendedPosts = recommendedPosts.where((p) => p.authorId != currentUserId).toList();
 
       error = null;
     } catch (e) {
@@ -58,9 +77,6 @@ class PostViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  // -----------------------------------------------------------
-  // FOLLOWING POSTS
-  // -----------------------------------------------------------
   Future<void> fetchFollowingPosts() async {
     if (currentUserId == null) return;
 
@@ -70,7 +86,6 @@ class PostViewModel with ChangeNotifier {
     try {
       final raw = await _service.getFollowingPosts(currentUserId!);
       followingPosts = raw.map((e) => Post.fromJson(e)).toList();
-
       error = null;
     } catch (e) {
       error = e.toString();
@@ -80,9 +95,6 @@ class PostViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  // -----------------------------------------------------------
-  // CREATE POST
-  // -----------------------------------------------------------
   Future<bool> createPost({
     required String content,
     List<File>? mediaFiles,
@@ -105,7 +117,7 @@ class PostViewModel with ChangeNotifier {
         mediaFiles: mediaFiles,
       );
 
-      if (resp != null && resp['postId'] != null) {
+      if (resp != null) {
         await fetchRecommendedPosts();
         await fetchFollowingPosts();
         posting = false;
@@ -116,7 +128,6 @@ class PostViewModel with ChangeNotifier {
       posting = false;
       notifyListeners();
       return false;
-
     } catch (e) {
       error = e.toString();
       posting = false;
@@ -125,9 +136,6 @@ class PostViewModel with ChangeNotifier {
     }
   }
 
-  // -----------------------------------------------------------
-  // COMMENTS
-  // -----------------------------------------------------------
   Future<bool> addComment(String postId, String content) async {
     if (currentUserId == null) return false;
 
@@ -140,9 +148,9 @@ class PostViewModel with ChangeNotifier {
     if (ok) {
       await fetchRecommendedPosts();
       await fetchFollowingPosts();
-      notifyListeners();
     }
 
+    notifyListeners();
     return ok;
   }
 
@@ -150,17 +158,13 @@ class PostViewModel with ChangeNotifier {
     return _service.getComments(postId);
   }
 
-  // -----------------------------------------------------------
-  // LIKES
-  // -----------------------------------------------------------
   Future<bool> likePost(String postId) async {
     if (currentUserId == null) return false;
 
     final ok = await _service.likePost(postId, currentUserId!);
-    if (ok) {
-      _updateLocalLike(postId, true);
-      notifyListeners();
-    }
+    if (ok) _updateLocalLike(postId, true);
+
+    notifyListeners();
     return ok;
   }
 
@@ -168,10 +172,9 @@ class PostViewModel with ChangeNotifier {
     if (currentUserId == null) return false;
 
     final ok = await _service.unlikePost(postId, currentUserId!);
-    if (ok) {
-      _updateLocalLike(postId, false);
-      notifyListeners();
-    }
+    if (ok) _updateLocalLike(postId, false);
+
+    notifyListeners();
     return ok;
   }
 
@@ -184,31 +187,47 @@ class PostViewModel with ChangeNotifier {
     return _service.getLikes(postId);
   }
 
-  // -----------------------------------------------------------
-  // LOCAL LIKE UPDATE
-  // -----------------------------------------------------------
   void _updateLocalLike(String postId, bool liked) {
-    final updateList = [
-      recommendedPosts,
-      followingPosts,
-    ];
+    final lists = [recommendedPosts, followingPosts];
 
-    for (final list in updateList) {
-      final idx = list.indexWhere((p) => p.id == postId);
-      if (idx != -1) {
-        final post = list[idx];
-        final newCount =
-        liked ? post.likesCount + 1 : (post.likesCount - 1).clamp(0, 1 << 30);
-
-        list[idx].likesCount = newCount;
+    for (final list in lists) {
+      final index = list.indexWhere((p) => p.id == postId);
+      if (index != -1) {
+        final post = list[index];
+        post.likesCount = liked
+            ? post.likesCount + 1
+            : (post.likesCount - 1).clamp(0, 999999);
       }
     }
   }
 
-  // -----------------------------------------------------------
+  void _applyLikeUpdate(String postId, int count) {
+    final lists = [recommendedPosts, followingPosts];
+
+    for (final list in lists) {
+      final index = list.indexWhere((p) => p.id == postId);
+      if (index != -1) list[index].likesCount = count;
+    }
+
+    notifyListeners();
+  }
+
+  void _applyCommentUpdate(String postId, int count) {
+    final lists = [recommendedPosts, followingPosts];
+
+    for (final list in lists) {
+      final index = list.indexWhere((p) => p.id == postId);
+      if (index != -1) list[index].commentsCount = count;
+    }
+
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _userSub.cancel();
+    _likeSub?.cancel();
+    _commentSub?.cancel();
     super.dispose();
   }
 }

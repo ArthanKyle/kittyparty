@@ -21,6 +21,8 @@ class UserProvider extends ChangeNotifier {
   late SocketService _socketService;
   bool _socketInitialized = false;
 
+  SocketService get socketService => _socketService;
+
   String? get token => _token;
   bool get isLoggedIn => currentUser != null && _token != null;
   Uint8List? profilePictureBytes;

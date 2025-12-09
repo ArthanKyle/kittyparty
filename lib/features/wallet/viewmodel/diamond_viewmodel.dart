@@ -38,10 +38,7 @@ class DiamondViewModel extends ChangeNotifier {
       print("💎 Socket update received: $newDiamonds");
       diamond.diamonds = newDiamonds;
 
-      // ⭐️ FIX: Call the update method on UserProvider
-      // This ensures the central state is updated correctly.
-      // userProvider.currentUser?.diamonds = newDiamonds; // <-- OLD (BUG)
-      userProvider.updateDiamonds(newDiamonds); // <-- NEW (FIX)
+      userProvider.updateDiamonds(newDiamonds);
 
       notifyListeners();
     });
