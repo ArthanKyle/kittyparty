@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/constants/colors.dart';
+import '../../../../core/utils/profile_picture_helper.dart';
 import '../../../../core/utils/user_provider.dart';
 import '../../model/post.dart';
 import '../../viewmodel/post_viewmodel.dart';
@@ -59,19 +60,13 @@ class RecommendPostItem extends StatelessWidget {
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: AppColors.primaryLight,
-                  backgroundImage: avatarImage,
-                  child: avatarImage == null
-                      ? Text(
-                    displayName.substring(0, 1).toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )
+                UserAvatarHelper.circleAvatar(
+                  userIdentification: post.authorId,
+                  displayName: displayName,
+                  localBytes: isMyPost
+                      ? userProvider.profilePictureBytes
                       : null,
+                  radius: 20,
                 ),
                 const SizedBox(width: 10),
                 Expanded(

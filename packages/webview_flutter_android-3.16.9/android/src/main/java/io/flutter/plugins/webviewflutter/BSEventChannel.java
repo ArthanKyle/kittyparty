@@ -4,7 +4,7 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.plugin.common.PluginRegistry;
 public class BSEventChannel implements EventChannel.StreamHandler {
-    public static final String CHANNEL = "baishunChannel";
+    public static final String CHANNEL = "kitty";
     public static EventChannel.EventSink bsSink;
     // private Activity activity;
     public static EventChannel channel;
