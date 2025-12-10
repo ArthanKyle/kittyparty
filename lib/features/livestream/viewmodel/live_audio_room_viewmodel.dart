@@ -9,7 +9,6 @@ import '../../../core/utils/user_provider.dart';
 import '../../../core/services/api/room_service.dart';
 import '../../landing/model/userProfile.dart';
 import '../widgets/game_modal.dart';
-import '../widgets/gift_assets.dart';
 
 class LiveAudioRoomViewmodel extends ChangeNotifier {
   final UserProvider userProvider;
@@ -17,7 +16,11 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
   final RoomService roomService;
   final GiftService giftService = GiftService();
 
-  void Function(String giftBaseName)? onGiftReceived;
+  LiveAudioRoomViewmodel({
+    required this.userProvider,
+    required this.profileService,
+    required this.roomService,
+  });
 
   bool hasPermission = false;
   bool permissionChecked = false;
@@ -30,38 +33,13 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
   final Map<String, Uint8List?> profileCache = {};
 
   BuildContext? globalContext;
-
   bool _disposed = false;
-  bool zegoReady = false;
 
-  final List<VoidCallback> _pendingActions = [];
-
-  void runWhenReady(VoidCallback action) {
-    if (zegoReady) {
-      action();
-    } else {
-      _pendingActions.add(action);
-    }
-  }
-
-  void markZegoReady() {
-    zegoReady = true;
-    for (final action in _pendingActions) {
-      action();
-    }
-    _pendingActions.clear();
-  }
+  StreamSubscription<List<ZegoUIKitUser>>? _zegoJoinSubscription;
 
   final StreamController<String> _giftController =
   StreamController<String>.broadcast();
-
   Stream<String> get giftStream => _giftController.stream;
-
-  LiveAudioRoomViewmodel({
-    required this.userProvider,
-    required this.profileService,
-    required this.roomService,
-  });
 
   void initContext(BuildContext context) {
     globalContext = context;
@@ -70,6 +48,7 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
   @override
   void dispose() {
     _giftController.close();
+    _zegoJoinSubscription?.cancel();
     _disposed = true;
     super.dispose();
   }
@@ -80,87 +59,88 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
 
   Future<void> init(String roomId) async {
     await _requestPermission();
-    await _initializeCurrentUser(roomId);
-    _subscribeToUserEvents();
+
+    if (!hasPermission) {
+      safeNotify();
+      return;
+    }
+
+    await _loadCurrentUser();
+    await _joinBackendRoom(roomId);
+    _subscribeToZegoUserEvents();
+    safeNotify();
   }
 
   Future<void> _requestPermission() async {
     final status = await Permission.microphone.request();
     hasPermission = status.isGranted;
     permissionChecked = true;
-    safeNotify();
   }
 
-  Future<void> _initializeCurrentUser(String roomId) async {
+  Future<void> _loadCurrentUser() async {
     final currentUser = userProvider.currentUser;
     if (currentUser == null) return;
 
     userIdentification = currentUser.userIdentification;
     userName = currentUser.username;
 
-    final result = await profileService
-        .getProfileByUserIdentification(currentUser.userIdentification);
-    if (result != null) {
-      userProfile = result;
+    final profile = await profileService.getProfileByUserIdentification(
+      currentUser.userIdentification,
+    );
 
-      if (userProfile!.profilePicture != null &&
-          userProfile!.profilePicture!.isNotEmpty) {
+    if (profile != null) {
+      userProfile = profile;
+
+      if (profile.profilePicture != null &&
+          profile.profilePicture!.isNotEmpty) {
         currentUserAvatar =
         await profileService.fetchProfilePicture(currentUser.id);
 
-        profileCache[userIdentification!] = currentUserAvatar;
-      }
-    }
-
-    await roomService.joinRoom(roomId, userIdentification!);
-    safeNotify();
-  }
-
-  Future<ImageProvider?> fetchProfilePicture(String userId) async {
-    final cachedBytes = profileCache[userId];
-    if (cachedBytes != null && cachedBytes.isNotEmpty) {
-      return MemoryImage(cachedBytes);
-    }
-
-    final fetchedBytes = await profileService.fetchProfilePicture(userId);
-    if (fetchedBytes != null && fetchedBytes.isNotEmpty) {
-      profileCache[userId] = fetchedBytes;
-      safeNotify();
-      return MemoryImage(fetchedBytes);
-    }
-
-    return null;
-  }
-
-  Future<void> preloadAvatars(List<String> userIds) async {
-    for (final userId in userIds) {
-      if (!profileCache.containsKey(userId)) {
-        final image = await fetchProfilePicture(userId);
-        if (image is MemoryImage) {
-          profileCache[userId] = (image as MemoryImage).bytes;
+        if (currentUserAvatar != null) {
+          profileCache[userIdentification!] = currentUserAvatar;
         }
       }
     }
   }
 
-  void _subscribeToUserEvents() {
-    ZegoUIKit().getUserJoinStream().listen((users) {
-      for (final user in users) {
-        _preloadUserAvatar(user.id);
-      }
-    });
+  Future<void> _joinBackendRoom(String roomId) async {
+    if (userIdentification == null) return;
+    await roomService.joinRoom(roomId, userIdentification!);
   }
 
-  Future<void> _preloadUserAvatar(String userId) async {
-    await Future.delayed(const Duration(milliseconds: 200));
+  void _subscribeToZegoUserEvents() {
+    _zegoJoinSubscription =
+        ZegoUIKit().getUserJoinStream().listen((users) async {
+          for (final user in users) {
+            await _preloadAvatar(user.id);
+          }
+        });
+  }
 
-    if (!profileCache.containsKey(userId)) {
-      final bytes = await profileService.fetchProfilePicture(userId);
-      if (bytes != null && bytes.isNotEmpty) {
-        profileCache[userId] = bytes;
-        safeNotify();
-      }
+  Future<void> _preloadAvatar(String userId) async {
+    if (profileCache.containsKey(userId)) return;
+
+    final bytes = await profileService.fetchProfilePicture(userId);
+    if (bytes != null && bytes.isNotEmpty) {
+      profileCache[userId] = bytes;
+      safeNotify();
     }
+  }
+
+  Future<ImageProvider?> fetchProfilePicture(String userId) async {
+    final cached = profileCache[userId];
+    if (cached != null && cached.isNotEmpty) {
+      return MemoryImage(cached);
+    }
+
+    final bytes = await profileService.fetchProfilePicture(userId);
+    if (bytes != null && bytes.isNotEmpty) {
+      profileCache[userId] = bytes;
+      safeNotify();
+      return MemoryImage(bytes);
+    }
+
+    return null;
   }
 
   void sendGift({
@@ -170,7 +150,6 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
     required String giftType,
     required int giftCount,
   }) async {
-
     final token = userProvider.token;
     if (token == null) return;
 
@@ -185,12 +164,9 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
 
     if (result["success"] != true) return;
 
-    final giftBaseName = result["giftName"];
+    final giftName = result["giftName"];
 
-    _giftController.add(giftBaseName);     // UI listens here 👈
-
-    onGiftReceived?.call(giftBaseName);    // old trigger retained
-
+    _giftController.add(giftName);
   }
 
   Future<void> showGameListModal(BuildContext context, String roomId) async {

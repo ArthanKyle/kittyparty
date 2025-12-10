@@ -20,9 +20,9 @@ class GetConfigData {
   final String language;
   final int gsp;
   final String roomId;
-  final String code; // The secure one-time code from your server
+  final String code;
   final GameConfig gameConfig;
-  final double balance; // Add the current user balance
+  final double balance;
 
   GetConfigData({
     required this.appChannel,
@@ -34,7 +34,7 @@ class GetConfigData {
     required this.roomId,
     required this.code,
     required this.gameConfig,
-    this.balance = 0.0, // Default to 0, should be fetched from server
+    this.balance = 0.0,
   });
 
   Map<String, dynamic> toJson() => {

@@ -1,9 +1,12 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:kittyparty/core/global_widgets/dialogs/dialog_info.dart';
+import 'package:provider/provider.dart';
 import 'package:zego_uikit_prebuilt_live_audio_room/zego_uikit_prebuilt_live_audio_room.dart';
 import '../../../core/config/zego_config.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/utils/user_provider.dart';
+import '../../landing/viewmodel/landing_viewmodel.dart';
 import '../viewmodel/live_audio_room_viewmodel.dart';
 import 'gift_modal.dart';
 import 'user_avatar.dart';
@@ -43,6 +46,9 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
   void initState() {
     super.initState();
     _roomName = widget.roomName;
+
+    /// Prevent Zego from reinitializing on every build
+    widget.viewModel.initContext(context);
   }
 
   Future<void> _editRoomName(BuildContext context) async {
@@ -107,12 +113,9 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
 
   @override
   Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      widget.viewModel.initContext(context);
-    });
-
     final isHost = widget.userIdentification == widget.hostId;
 
+    /// Build config WITHOUT PIP (your SDK does NOT support it)
     final config = (isHost
         ? ZegoUIKitPrebuiltLiveAudioRoomConfig.host()
         : ZegoUIKitPrebuiltLiveAudioRoomConfig.audience())
@@ -128,9 +131,9 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
             alignment: ZegoLiveAudioRoomLayoutAlignment.center,
           ),
       ]
-      ..seat.avatarBuilder = (context, size, zegoUser, extraInfo) {
+      ..seat.avatarBuilder = (context, size, user, extra) {
         return UserAvatar(
-          userId: zegoUser?.id ?? "",
+          userId: user?.id ?? "",
           size: size.width,
           profileCache: widget.viewModel.profileCache,
           fetchProfilePicture: widget.viewModel.fetchProfilePicture,
@@ -138,6 +141,7 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
       }
       ..topMenuBar = ZegoLiveAudioRoomTopMenuBarConfig(buttons: []);
 
+    /// Gift button
     final giftButton = ElevatedButton(
       style: ElevatedButton.styleFrom(
         shape: const CircleBorder(),
@@ -168,6 +172,7 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
 
     return Stack(
       children: [
+        /// Zego audio room
         ZegoUIKitPrebuiltLiveAudioRoom(
           appID: ZegoConfig.appID,
           appSign: ZegoConfig.appSign,
@@ -177,6 +182,7 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
           config: config,
         ),
 
+        /// Room name
         Positioned(
           top: 70,
           left: 20,
@@ -191,7 +197,11 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                     shadows: [
-                      Shadow(blurRadius: 4, color: Colors.black54, offset: Offset(1, 1)),
+                      Shadow(
+                        blurRadius: 4,
+                        color: Colors.black54,
+                        offset: Offset(1, 1),
+                      ),
                     ],
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -201,7 +211,6 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
                 GestureDetector(
                   onTap: () => _editRoomName(context),
                   child: Container(
-                    margin: const EdgeInsets.only(left: 8),
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.6),
@@ -214,19 +223,20 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
           ),
         ),
 
+        /// Games
         Positioned(
           right: 20,
           bottom: 200,
           child: FloatingActionButton.extended(
-            onPressed: () {
-              widget.viewModel.showGameListModal(context, widget.roomId);
-            },
+            onPressed: () =>
+                widget.viewModel.showGameListModal(context, widget.roomId),
             label: const Text('Games'),
             icon: const Icon(Icons.videogame_asset),
             backgroundColor: Colors.deepPurpleAccent,
           ),
         ),
 
+        /// Exit
         Positioned(
           top: 60,
           right: 20,
@@ -244,52 +254,51 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel', style: TextStyle(color: AppColors.accentBlack)),
+                      child: const Text('Cancel'),
                     ),
                     ElevatedButton(
                       onPressed: () => Navigator.pop(context, true),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-                      child: Text(
-                        isHost ? 'End' : 'Leave',
-                        style: const TextStyle(color: Colors.white),
-                      ),
+                      style:
+                      ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      child: Text(isHost ? 'End' : 'Leave',
+                          style: const TextStyle(color: Colors.white)),
                     ),
                   ],
                 ),
               );
 
               if (shouldExit == true) {
-                final service = widget.viewModel.roomService;
+                final ok = isHost
+                    ? await widget.viewModel.roomService.endRoom(widget.roomId, widget.hostId)
+                    : await widget.viewModel.roomService.leaveRoom(widget.roomId, widget.userIdentification);
 
-                final success = isHost
-                    ? await service.endRoom(widget.roomId, widget.hostId)
-                    : await service.leaveRoom(widget.roomId, widget.userIdentification);
-
-                if (success) {
-                  Navigator.of(context).pop();
+                if (ok) {
+                  Navigator.of(context, rootNavigator: true).pop();
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        isHost ? 'Failed to end the room.' : 'Failed to leave the room.',
+                        isHost ? 'Failed to end room.' : 'Failed to leave room.',
                       ),
-                      backgroundColor: Colors.redAccent,
+                      backgroundColor: Colors.red,
                     ),
                   );
                 }
               }
             },
             child: Container(
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.grey.shade800.withOpacity(0.9),
+                color: Colors.black.withOpacity(0.8),
               ),
-              padding: const EdgeInsets.all(10),
-              child: const Icon(Icons.power_settings_new, color: Colors.white, size: 28),
+              child:
+              const Icon(Icons.power_settings_new, color: Colors.white, size: 28),
             ),
           ),
         ),
 
+        /// Gift animations overlay
         GiftAnimationOverlay(vm: widget.viewModel),
       ],
     );

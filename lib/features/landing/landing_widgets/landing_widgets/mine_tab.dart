@@ -67,10 +67,12 @@ class _MineTabState extends State<MineTab> {
                       roomId: room.id!,
                       hostId: room.hostId,
                       roomName: room.roomName,
-                      userProvider: userProvider, // only this is needed
+                      userProvider: userProvider,
                     ),
                   ),
-                );
+                ).then((_) {
+                  context.read<LandingViewModel>().refreshMyRooms(userProvider);
+                });
               },
             )
           else

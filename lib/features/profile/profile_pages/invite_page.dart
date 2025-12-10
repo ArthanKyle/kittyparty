@@ -78,7 +78,7 @@ class _InvitePageState extends State<InvitePage> {
                         ),
 
                         const SizedBox(height: 10),
-                        
+
                         Container(
                           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           padding: const EdgeInsets.all(12),

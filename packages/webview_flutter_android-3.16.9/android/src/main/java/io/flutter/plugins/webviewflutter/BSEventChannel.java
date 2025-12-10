@@ -10,7 +10,7 @@ public class BSEventChannel implements EventChannel.StreamHandler {
     public static EventChannel channel;
     public static BSEventChannel registerWith(FlutterPlugin.FlutterPluginBinding binding) {
         channel = new EventChannel(binding.getBinaryMessenger(), CHANNEL);
-// channel = new EventChannel(registrar.messenger(), CHANNEL);
+    // channel = new EventChannel(registrar.messenger(), CHANNEL);
         BSEventChannel instance = new BSEventChannel();
         channel.setStreamHandler(instance);
         return instance;

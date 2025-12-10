@@ -46,4 +46,7 @@ class LandingViewModel extends ChangeNotifier {
       print("[LandingViewModel] Exception fetching my rooms: $e");
     }
   }
+  Future<void> refreshMyRooms(UserProvider userProvider) async {
+    await fetchMyRooms(userProvider);
+  }
 }

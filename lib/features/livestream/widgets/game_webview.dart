@@ -36,11 +36,14 @@ class _GameWebViewState extends State<GameWebView> {
   final String backendUrl = dotenv.env['BASE_URL'] ?? "";
   final String baishunAppId = dotenv.env['APP_ID'] ?? "";
 
-  static const EventChannel _bsEventChannel = EventChannel('baishunChannel');
+  static const EventChannel _bsEventChannel = EventChannel('kitty');
 
   @override
   void initState() {
     super.initState();
+
+    debugPrint("🔵 GameWebView init for game: ${widget.gameName}");
+    debugPrint("🔵 Loading URL: ${widget.url}");
 
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
@@ -49,22 +52,26 @@ class _GameWebViewState extends State<GameWebView> {
       ..enableZoom(false)
       ..addJavaScriptChannel(
         "REQ",
-        onMessageReceived: (msg) => debugPrint("➡ ${msg.message}"),
+        onMessageReceived: (msg) =>
+            debugPrint("🟣 JS-REQ → ${msg.message}"),
       )
       ..setBackgroundColor(const Color(0x00000000))
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (_) {
+            debugPrint("🔵 WebView page started");
             setState(() {
               isLoading = true;
               hasError = false;
             });
           },
           onPageFinished: (_) async {
+            debugPrint("🟣 Injecting JS Proxy...");
             await controller.runJavaScript(_jsProxyCode(backendUrl));
             setState(() => isLoading = false);
           },
           onWebResourceError: (error) {
+            debugPrint("🔴 WebView error: ${error.description}");
             setState(() {
               hasError = true;
               isLoading = false;
@@ -82,51 +89,50 @@ class _GameWebViewState extends State<GameWebView> {
     }
 
     if (Platform.isAndroid) {
-      _bsEventChannel
-          .receiveBroadcastStream()
-          .listen(_onNativeEvent, onError: (err) {
-        debugPrint('BSEventChannel error: $err');
-      });
+      _bsEventChannel.receiveBroadcastStream().listen(
+        _onNativeEvent,
+        onError: (err) {
+          debugPrint('🔴 BSEventChannel error: $err');
+        },
+      );
     }
   }
 
   String _jsProxyCode(String base) {
     final safeBase = base.replaceAll(r'$', r'\$');
 
+    debugPrint("🟣 Injecting backend BASE URL into JS: $safeBase");
+
     return """
     (function () {
       const backend = "$safeBase";
     
       function fixUrl(u) {
-        if (typeof u !== "string") return u;
-    
         REQ.postMessage("REQUEST → " + u);
-    
         const full = new URL(u, window.location.origin);
         const p = full.pathname;
         let fixed = u;
-    
-        // Game Route
+
         if (p === "/game_route/get_addr") {
           fixed = backend + "/games/game_route/get_addr" + full.search;
         }
-    
-        // v1 API
         else if (p.startsWith("/v1/api/")) {
           fixed = backend + "/games" + p + full.search;
         }
-    
+
         REQ.postMessage("REWRITE → " + fixed);
         return fixed;
       }
     
       const oldFetch = window.fetch;
       window.fetch = function (resource, options) {
+        REQ.postMessage("FETCH CALL → " + resource);
         return oldFetch(fixUrl(resource), options);
       };
     
       const oldOpen = XMLHttpRequest.prototype.open;
       XMLHttpRequest.prototype.open = function (method, url) {
+        REQ.postMessage("XHR CALL → " + url);
         return oldOpen.call(this, method, fixUrl(url));
       };
     })();
@@ -134,91 +140,105 @@ class _GameWebViewState extends State<GameWebView> {
   }
 
   void _onNativeEvent(dynamic event) async {
+    debugPrint("🔵 Native Event Received: $event");
+
     try {
-      if (event == null) return;
+      dynamic obj = json.decode(event as String);
 
-      debugPrint("Received Native Event: $event");
-
-      dynamic obj;
-      try {
-        obj = json.decode(event as String);
-      } catch (e) {
-        return;
-      }
-
-      if (obj == null || obj is! Map) {
+      if (obj is! Map) {
+        debugPrint("🔴 Native event not a Map: $obj");
         return;
       }
 
       final jsFunName = obj['jsCallback'] as String? ?? '';
       final payload = obj['data'] ?? {};
 
-      final jsCallback = (obj['jsCallback'] != null && obj['jsCallback'].isNotEmpty)
-          ? obj['jsCallback']
-          : 'onGetConfig';
+      debugPrint("🔵 JS Callback: $jsFunName");
+      debugPrint("🔵 Payload: $payload");
+
+      final jsCallback = jsFunName.isNotEmpty ? jsFunName : 'onGetConfig';
 
       if (jsFunName.contains('getConfig')) {
         await _handleGetConfig(payload, jsCallback);
-      }
-      else if (jsFunName.contains('verifySSToken')) {
+      } else if (jsFunName.contains('verifySSToken')) {
         await _handleVerifySSToken(payload, jsCallback);
-      }
-      else if (jsFunName.contains('destroy')) {
+      } else if (jsFunName.contains('destroy')) {
+        debugPrint("🔵 Game requested destroy()");
         await controller.loadRequest(Uri.parse('about:blank'));
         if (mounted) Navigator.of(context).maybePop();
-      }
-      else if (jsFunName.contains('gameRecharge')) {
+      } else if (jsFunName.contains('gameRecharge')) {
+        debugPrint("🔵 Game requested recharge UI");
         _openRecharge();
-      }
-      else if (jsFunName.contains('gameLoaded')) {
+      } else if (jsFunName.contains('gameLoaded')) {
+        debugPrint("🟢 Game fully loaded");
         setState(() => isLoading = false);
       }
     } catch (e) {
-      debugPrint('Error handling native event: $e');
+      debugPrint('🔴 Error handling native event: $e');
     }
   }
 
-  // -------------------------------
-  // VERIFY SS TOKEN HANDLER
-  // -------------------------------
+  // ---------------------------------------------------
+  // VERIFY SSTOKEN HANDLER
+  // ---------------------------------------------------
   Future<void> _handleVerifySSToken(dynamic payload, String jsCallback) async {
+    debugPrint("🟡 verifySSToken → payload: $payload");
+
     Map<String, dynamic> result = {
       "success": false,
       "message": "Verification failed"
     };
 
     try {
+      final url = '$backendUrl/games/v1/api/verifysstoken';
+      debugPrint("🟡 verifySSToken POST → $url");
+      debugPrint("🟡 Body → ${jsonEncode(payload)}");
+
       final resp = await http.post(
-        Uri.parse('$backendUrl/games/v1/api/verifysstoken'),
+        Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(payload),
       );
+
+      debugPrint("🟢 Server Response Status: ${resp.statusCode}");
+      debugPrint("🟢 Server Response Body: ${resp.body}");
 
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body);
         result = data is Map<String, dynamic> ? data : result;
       }
     } catch (e) {
-      debugPrint('verifySSToken error: $e');
+      debugPrint('🔴 verifySSToken error: $e');
     }
 
     await finalMapToJs(jsCallback, result);
   }
 
-  // -------------------------------
+  // ---------------------------------------------------
   // GET CONFIG HANDLER
-  // -------------------------------
+  // ---------------------------------------------------
   Future<void> _handleGetConfig(dynamic payload, String jsCallback) async {
+    debugPrint("🟡 getConfig called with payload: $payload");
+
     final userId = widget.userId;
     String oneTimeCode = '';
     double userBalance = 0.0;
 
     try {
+      final url = '$backendUrl/games/generate_code_and_get_balance';
+      final requestBody = {'user_id': userId, 'gameName': widget.gameName};
+
+      debugPrint("🟡 POST → $url");
+      debugPrint("🟡 Body → $requestBody");
+
       final resp = await http.post(
-        Uri.parse('$backendUrl/games/generate_code_and_get_balance'),
+        Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'user_id': userId, 'gameName': widget.gameName}),
+        body: jsonEncode(requestBody),
       );
+
+      debugPrint("🟢 Server Response Status: ${resp.statusCode}");
+      debugPrint("🟢 Server Response Body: ${resp.body}");
 
       if (resp.statusCode == 200) {
         final body = jsonDecode(resp.body);
@@ -226,7 +246,7 @@ class _GameWebViewState extends State<GameWebView> {
         userBalance = (body['balance'] as num?)?.toDouble() ?? 0.0;
       }
     } catch (e) {
-      debugPrint('Server request failed: $e');
+      debugPrint('🔴 getConfig request failed: $e');
     }
 
     final configData = GetConfigData(
@@ -245,20 +265,25 @@ class _GameWebViewState extends State<GameWebView> {
       ),
     );
 
+    debugPrint("🟢 getConfig final data → ${configData.toJson()}");
+
     await finalMapToJs(jsCallback, configData.toJson());
   }
 
   Future<void> finalMapToJs(String jsFuncName, Map<String, dynamic> map) async {
     final js = "$jsFuncName(${jsonEncode(map)});";
+
+    debugPrint("🟣 Executing JS → $js");
+
     try {
       await controller.runJavaScript(js);
     } catch (e) {
-      debugPrint('Error runJavaScript: $e');
+      debugPrint('🔴 Error runJavaScript: $e');
     }
   }
 
   void _openRecharge() {
-    debugPrint('open recharge UI');
+    debugPrint('🟡 openRecharge() triggered');
   }
 
   Future<void> walletUpdate(double newBalance) async {
@@ -266,11 +291,16 @@ class _GameWebViewState extends State<GameWebView> {
       "balance": newBalance,
       "currency_icon": "assets/icons/KPcoin.png"
     };
+
     final js = "walletUpdate(${jsonEncode(updatePayload)});";
+
+    debugPrint("🟣 walletUpdate → $js");
+
     await controller.runJavaScript(js);
   }
 
   void _reloadGame() {
+    debugPrint("🔵 Reloading WebView...");
     setState(() {
       hasError = false;
       isLoading = true;
@@ -280,6 +310,7 @@ class _GameWebViewState extends State<GameWebView> {
 
   @override
   void dispose() {
+    debugPrint("🔵 GameWebView disposed");
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }

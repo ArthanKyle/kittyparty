@@ -19,7 +19,7 @@ class _GiftAnimationOverlayState extends State<GiftAnimationOverlay> {
     super.initState();
     widget.vm.giftStream.listen((gift) {
       setState(() => playing = gift);
-      Future.delayed(Duration(seconds: 3), () => setState(() => playing = null));
+      Future.delayed(Duration(seconds: 5), () => setState(() => playing = null));
     });
   }
 
