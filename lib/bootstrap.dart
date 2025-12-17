@@ -5,19 +5,27 @@ import 'package:provider/provider.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 
 import 'app.dart';
+
+// Services
+import 'core/services/api/conversion_recharge.dart';
 import 'core/services/api/dailyTask_service.dart';
-import 'core/services/api/socket_service.dart';
 import 'core/services/api/user_service.dart';
+import 'core/services/api/wallet_service.dart';
+
+
+// Providers
 import 'core/utils/locale_provider.dart';
 import 'core/utils/user_provider.dart';
 import 'core/utils/index_provider.dart';
+
+// ViewModels
 import 'features/landing/viewmodel/dailyTask_viewmodel.dart';
 import 'features/landing/viewmodel/landing_viewmodel.dart';
 import 'features/landing/viewmodel/post_viewmodel.dart';
-import 'features/livestream/widgets/gift_assets.dart';
-import 'features/profile/profile_pages/daily_task_page.dart';
 import 'features/wallet/viewmodel/wallet_viewmodel.dart';
-import 'features/wallet/viewmodel/diamond_viewmodel.dart';
+
+// Assets
+import 'features/livestream/widgets/gift_assets.dart';
 
 late Box myRegBox;
 late Box sessionsBox;
@@ -37,15 +45,9 @@ Future<void> bootstrap() async {
 
   Stripe.publishableKey = dotenv.env["STRIPE_PUBLISHABLE_KEY"] ?? "";
 
-  // Load user BEFORE building widget tree
+  // 🔑 Load user BEFORE widget tree
   final userProvider = UserProvider();
   await userProvider.loadUser();
-
-  // Global socket
-  final socketService = SocketService();
-  if (userProvider.currentUser != null) {
-    socketService.initSocket(userProvider.currentUser!.userIdentification);
-  }
 
   runApp(
     MultiProvider(
@@ -53,42 +55,42 @@ Future<void> bootstrap() async {
         // Locale
         ChangeNotifierProvider.value(value: localeProvider),
 
+        // Auth / User
         ChangeNotifierProvider<UserProvider>.value(value: userProvider),
 
+        // Navigation
         ChangeNotifierProvider(create: (_) => PageIndexProvider()),
 
-        ChangeNotifierProvider(
-          create: (_) => LandingViewModel(),
-        ),
+        // Landing
+        ChangeNotifierProvider(create: (_) => LandingViewModel()),
 
+        // Posts
         ChangeNotifierProvider(
           create: (_) => PostViewModel(userProvider: userProvider),
         ),
 
+        // ✅ WALLET (single source of truth)
         ChangeNotifierProvider(
-          create: (_) => WalletViewModel(userProvider: userProvider),
-        ),
-
-        ChangeNotifierProvider(
-          create: (_) => DiamondViewModel(
+          create: (_) => WalletViewModel(
             userProvider: userProvider,
-            socketService: socketService,
+            walletService: WalletService(),
+            conversionService: ConversionService(),
           ),
         ),
 
+        // Daily Tasks
         ChangeNotifierProvider(
           create: (_) => DailyTaskViewModel(
             DailyTaskService(),
           ),
         ),
 
-        // Services
+        // API Services
         Provider(
           create: (_) => UserService(
             baseUrl: dotenv.env["BASE_URL"] ?? "",
           ),
         ),
-        Provider<SocketService>.value(value: socketService),
       ],
       child: const MyApp(),
     ),

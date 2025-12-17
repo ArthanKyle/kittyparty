@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../../core/constants/colors.dart';
+import 'convert_button.dart';
 
 class DiamondCard extends StatefulWidget {
   final int balance;
@@ -143,13 +144,7 @@ class _DiamondCardState extends State<DiamondCard>
                       },
                     ),
                     const SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: widget.onConvert,
-                      child: const Text(
-                        "Convert >",
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ),
+
                   ],
                 ),
                 SizedBox(width: imageSize - overlapAmount),

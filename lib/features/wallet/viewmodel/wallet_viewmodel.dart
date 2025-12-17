@@ -1,49 +1,89 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+
+import '../../../core/services/api/conversion_recharge.dart';
+import '../../../core/services/api/wallet_service.dart';
 import '../../../core/utils/user_provider.dart';
 import '../model/wallet.dart';
 
 class WalletViewModel extends ChangeNotifier {
   final UserProvider userProvider;
-  Wallet wallet;
+  final WalletService walletService;
+  final ConversionService conversionService;
+
+  /// 🔐 Always non-null
+  Wallet _wallet = const Wallet(coins: 0, diamonds: 0);
+  Wallet get wallet => _wallet;
+
   StreamSubscription? _userStreamSub;
-  VoidCallback? _userListener;
+  bool _disposed = false;
 
-  WalletViewModel({required this.userProvider})
-      : wallet = Wallet(coins: 0) {
+  WalletViewModel({
+    required this.userProvider,
+    required this.walletService,
+    required this.conversionService,
+  }) {
+    _init();
+  }
 
-    if (userProvider.currentUser != null) {
-      wallet.coins = userProvider.currentUser!.coins;
-    }
-
+  /* =============================
+     INIT
+  ============================== */
+  void _init() {
+    _fetchWallet();
 
     _userStreamSub = userProvider.userStream.listen((user) {
-      if (!hasListeners) return;
-      wallet.coins = user.coins;
+      if (_disposed) return;
+
+      _wallet = _wallet.copyWith(
+        coins: user.coins,
+        diamonds: user.diamonds,
+      );
+
       notifyListeners();
     });
-
-    if (userProvider.currentUser == null) {
-      _userListener = () {
-        if (userProvider.currentUser != null) {
-          wallet.coins = userProvider.currentUser!.coins;
-          notifyListeners();
-        }
-      };
-      userProvider.addListener(_userListener!);
-    }
   }
 
-  void updateCoins(int newCoins) {
-    userProvider.updateCoins(newCoins);
+  /* =============================
+     REST FETCH
+  ============================== */
+  Future<void> _fetchWallet() async {
+    final user = userProvider.currentUser;
+    if (user == null) return;
+
+    final fetched = await walletService.fetchWallet(
+      user.userIdentification,
+    );
+
+    _wallet = fetched;
+    notifyListeners();
   }
+
+  /* =============================
+     CONVERSION (coins → diamonds)
+  ============================== */
+  Future<void> convertCoinsToDiamonds(int coins) async {
+    final user = userProvider.currentUser;
+    if (user == null) return;
+
+    await conversionService.convertCoinsToDiamonds(
+      userId: user.id,
+      coins: coins,
+    );
+
+    // 🔁 Wallet will update via userStream / socket
+  }
+
+  /* =============================
+     SAFE GETTERS (UI)
+  ============================== */
+  int get coins => _wallet.coins;
+  int get diamonds => _wallet.diamonds;
 
   @override
   void dispose() {
+    _disposed = true;
     _userStreamSub?.cancel();
-    if (_userListener != null) {
-      userProvider.removeListener(_userListener!);
-    }
     super.dispose();
   }
 }

@@ -65,8 +65,9 @@ class _GameWebViewState extends State<GameWebView> {
               hasError = false;
             });
           },
-          onPageFinished: (_) {
-            debugPrint("🟢 Page finished loading (no JS proxy)");
+          onPageFinished: (_) async {
+            debugPrint("🟣 Injecting JS Proxy...");
+            await controller.runJavaScript(_jsProxyCode(backendUrl));
             setState(() => isLoading = false);
           },
           onWebResourceError: (error) {
@@ -97,6 +98,46 @@ class _GameWebViewState extends State<GameWebView> {
     }
   }
 
+  String _jsProxyCode(String base) {
+    final safeBase = base.replaceAll(r'$', r'\$');
+
+    debugPrint("🟣 Injecting backend BASE URL into JS: $safeBase");
+
+    return """
+    (function () {
+      const backend = "$safeBase";
+    
+      function fixUrl(u) {
+        REQ.postMessage("REQUEST → " + u);
+        const full = new URL(u, window.location.origin);
+        const p = full.pathname;
+        let fixed = u;
+
+        if (p === "/game_route/get_addr") {
+          fixed = backend + "/games/game_route/get_addr" + full.search;
+        }
+        else if (p.startsWith("/v1/api/")) {
+          fixed = backend + "/games" + p + full.search;
+        }
+
+        REQ.postMessage("REWRITE → " + fixed);
+        return fixed;
+      }
+    
+      const oldFetch = window.fetch;
+      window.fetch = function (resource, options) {
+        REQ.postMessage("FETCH CALL → " + resource);
+        return oldFetch(fixUrl(resource), options);
+      };
+    
+      const oldOpen = XMLHttpRequest.prototype.open;
+      XMLHttpRequest.prototype.open = function (method, url) {
+        REQ.postMessage("XHR CALL → " + url);
+        return oldOpen.call(this, method, fixUrl(url));
+      };
+    })();
+    """;
+  }
 
   void _onNativeEvent(dynamic event) async {
     debugPrint("🔵 Native Event Received: $event");

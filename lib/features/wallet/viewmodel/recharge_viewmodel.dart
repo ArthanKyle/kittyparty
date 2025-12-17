@@ -1,26 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
+
 import '../../../core/services/api/recharge_service.dart';
-import '../../../core/services/api/socket_service.dart';
 import '../../../core/utils/user_provider.dart';
 import '../model/recharge.dart';
 import '../model/transaction.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
-import 'package:meta/meta.dart';
 
 class RechargeViewModel extends ChangeNotifier {
   final UserProvider userProvider;
   final RechargeService rechargeService;
-  final SocketService socketService;
+
   bool _disposed = false;
 
   RechargeViewModel({
     required this.rechargeService,
     required this.userProvider,
-    required this.socketService,
   });
 
   List<RechargePackage> packages = [];
   RechargePackage? selectedPackage;
+
   bool isLoading = false;
   bool isPaymentProcessing = false;
 
@@ -28,6 +27,9 @@ class RechargeViewModel extends ChangeNotifier {
   String displayCurrency = "USD";
   String displaySymbol = "\$";
 
+  /* =============================
+     FETCH PACKAGES
+  ============================== */
   Future<void> fetchPackages() async {
     final user = userProvider.currentUser;
     if (user == null) return;
@@ -37,31 +39,47 @@ class RechargeViewModel extends ChangeNotifier {
 
     try {
       packages = await rechargeService.fetchPackages(user.id);
-      if (!user.isFirstTimeRecharge) _hideBonusesIfNotFirstRecharge();
-      if (packages.isNotEmpty) selectedPackage ??= packages.first;
 
-      displayAmount = selectedPackage!.price;
+      if (!user.isFirstTimeRecharge) {
+        _hideBonusesIfNotFirstRecharge();
+      }
+
+      if (packages.isNotEmpty) {
+        selectedPackage ??= packages.first;
+        displayAmount = selectedPackage!.price;
+      }
+
       displayCurrency = user.countryCode.toUpperCase();
       displaySymbol = _getCurrencySymbol(displayCurrency);
     } catch (e) {
-      print("fetchPackages failed: $e");
+      print("❌ fetchPackages failed: $e");
     } finally {
       isLoading = false;
       if (!_disposed) notifyListeners();
     }
   }
 
+  /* =============================
+     SELECT PACKAGE
+  ============================== */
   void selectPackage(RechargePackage pkg) {
     selectedPackage = pkg;
     displayAmount = pkg.price;
-    displayCurrency = userProvider.currentUser?.countryCode.toUpperCase() ?? "USD";
+    displayCurrency =
+        userProvider.currentUser?.countryCode.toUpperCase() ?? "USD";
     displaySymbol = _getCurrencySymbol(displayCurrency);
+
     if (!_disposed) notifyListeners();
   }
 
+  /* =============================
+     CREATE PAYMENT INTENT
+  ============================== */
   Future<TransactionModel?> createPaymentIntent({String? method}) async {
     final user = userProvider.currentUser;
-    if (user == null || selectedPackage == null) throw Exception("No package or user");
+    if (user == null || selectedPackage == null) {
+      throw Exception("No user or package selected");
+    }
 
     isPaymentProcessing = true;
     if (!_disposed) notifyListeners();
@@ -70,7 +88,8 @@ class RechargeViewModel extends ChangeNotifier {
       final json = await rechargeService.createPaymentIntent(
         userId: user.id,
         amount: selectedPackage!.price,
-        countryCode: user.countryCode.isNotEmpty ? user.countryCode : 'PH',
+        countryCode:
+        user.countryCode.isNotEmpty ? user.countryCode : "PH",
         method: method,
         coins: selectedPackage!.coins,
       );
@@ -81,9 +100,12 @@ class RechargeViewModel extends ChangeNotifier {
 
       if (clientSecret == null || transactionId == null) return null;
 
-      displayAmount = display?['amount']?.toDouble() ?? selectedPackage!.price;
-      displayCurrency = (display?['currency'] ?? 'USD').toString().toUpperCase();
-      displaySymbol = display?['symbol'] ?? _getCurrencySymbol(displayCurrency);
+      displayAmount =
+          (display?['amount'] as num?)?.toDouble() ?? selectedPackage!.price;
+      displayCurrency =
+          (display?['currency'] ?? 'USD').toString().toUpperCase();
+      displaySymbol =
+          display?['symbol'] ?? _getCurrencySymbol(displayCurrency);
 
       return TransactionModel(
         id: transactionId,
@@ -103,7 +125,7 @@ class RechargeViewModel extends ChangeNotifier {
         updatedAt: DateTime.now(),
       );
     } catch (e) {
-      print("createPaymentIntent error: $e");
+      print("❌ createPaymentIntent error: $e");
       rethrow;
     } finally {
       isPaymentProcessing = false;
@@ -111,7 +133,12 @@ class RechargeViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> presentPaymentSheet({required String clientSecret}) async {
+  /* =============================
+     STRIPE PAYMENT SHEET
+  ============================== */
+  Future<void> presentPaymentSheet({
+    required String clientSecret,
+  }) async {
     await Stripe.instance.initPaymentSheet(
       paymentSheetParameters: SetupPaymentSheetParameters(
         paymentIntentClientSecret: clientSecret,
@@ -119,9 +146,13 @@ class RechargeViewModel extends ChangeNotifier {
         style: ThemeMode.light,
       ),
     );
+
     await Stripe.instance.presentPaymentSheet();
   }
 
+  /* =============================
+     CONFIRM PAYMENT
+  ============================== */
   Future<void> confirmPayment(String transactionId) async {
     final user = userProvider.currentUser;
     if (user == null) return;
@@ -130,19 +161,19 @@ class RechargeViewModel extends ChangeNotifier {
     if (!_disposed) notifyListeners();
 
     try {
-      final topUp = await rechargeService.confirmPayment(transactionId: transactionId);
-      final coinsFinal = topUp.coinsFinal;
+      final topUp =
+      await rechargeService.confirmPayment(transactionId: transactionId);
 
-      userProvider.updateCoins(coinsFinal);
+      // 🔥 This triggers WalletViewModel update
+      userProvider.updateCoins(topUp.coinsFinal);
 
       if (user.isFirstTimeRecharge) {
         user.isFirstTimeRecharge = false;
+        _hideBonusesIfNotFirstRecharge();
         print("💡 First-time recharge completed for user ${user.id}");
       }
-
-      _hideBonusesIfNotFirstRecharge();
     } catch (e) {
-      print("confirmPayment failed: $e");
+      print("❌ confirmPayment failed: $e");
       rethrow;
     } finally {
       isPaymentProcessing = false;
@@ -150,20 +181,24 @@ class RechargeViewModel extends ChangeNotifier {
     }
   }
 
+  /* =============================
+     HELPERS
+  ============================== */
   void _hideBonusesIfNotFirstRecharge() {
     final user = userProvider.currentUser;
     if (user == null || user.isFirstTimeRecharge) return;
-    if (packages.isEmpty) return;
 
-    packages = packages.map((pkg) {
-      return RechargePackage(
+    packages = packages
+        .map(
+          (pkg) => RechargePackage(
         coins: pkg.coins,
         bonus: 0,
         price: pkg.price,
         symbol: pkg.symbol,
         currency: pkg.currency,
-      );
-    }).toList();
+      ),
+    )
+        .toList();
 
     if (!_disposed) notifyListeners();
     print("📦 Bonuses hidden for user ${user.id}");

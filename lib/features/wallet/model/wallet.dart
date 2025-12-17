@@ -1,18 +1,19 @@
 class Wallet {
-  int coins;
+  final int coins;
+  final int diamonds;
 
-  Wallet({required this.coins});
+  const Wallet({
+    required this.coins,
+    required this.diamonds,
+  });
 
-  factory Wallet.fromJson(Map<String, dynamic> json) {
-    final raw = json['Coins'];
+  Wallet copyWith({
+    int? coins,
+    int? diamonds,
+  }) {
     return Wallet(
-      coins: (raw is int)
-          ? raw
-          : int.tryParse(raw?.toString() ?? "0") ?? 0,
+      coins: coins ?? this.coins,
+      diamonds: diamonds ?? this.diamonds,
     );
   }
-
-  Map<String, dynamic> toJson() => {
-    'Coins': coins,
-  };
 }
