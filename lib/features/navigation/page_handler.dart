@@ -22,7 +22,7 @@ class _PageHandlerState extends State<PageHandler> {
   @override
   void initState() {
     super.initState();
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<PageIndexProvider>(context, listen: false)
           .addListener(_onTabChanged);

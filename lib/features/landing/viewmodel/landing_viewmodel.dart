@@ -7,6 +7,7 @@ import '../model/room.dart';
 class LandingViewModel extends ChangeNotifier {
   final RoomService _roomService = RoomService();
 
+
   List<Room> _myRooms = [];
   List<Room> get myRooms => _myRooms;
 

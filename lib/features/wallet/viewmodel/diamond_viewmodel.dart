@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 import '../../../core/utils/user_provider.dart';
 import '../../../core/services/api/socket_service.dart';
 import '../../../core/services/api/conversion_recharge.dart';
@@ -10,6 +12,10 @@ class DiamondViewModel extends ChangeNotifier {
   final SocketService socketService;
   final ConversionService conversionService;
 
+  VoidCallback? _userListener;
+  StreamSubscription? _diamondSocketSub;
+  StreamSubscription? _coinSocketSub;
+
   bool _disposed = false;
   bool isConverting = false;
 
@@ -18,32 +24,45 @@ class DiamondViewModel extends ChangeNotifier {
   DiamondViewModel({
     required this.userProvider,
     required this.socketService,
-  })  : conversionService = ConversionService(baseUrl: dotenv.env['BASE_URL']!),
-        diamond = Diamond(
-          diamonds: userProvider.currentUser?.diamonds ?? 0,
-        ) {
-    _loadInitialDiamonds();
+  })  : conversionService =
+  ConversionService(baseUrl: dotenv.env['BASE_URL']!),
+        diamond = Diamond(diamonds: 0) {
+    // Initial sync (safe even if user is null)
+    _syncFromUser();
+
+    // Listen to UserProvider safely
+    _userListener = () {
+      _syncFromUser();
+    };
+    userProvider.addListener(_userListener!);
+
+    // Socket listeners
     _listenToSocket();
   }
 
-  void _loadInitialDiamonds() {
-    final diamonds = userProvider.currentUser?.diamonds ?? 0;
-    diamond.diamonds = diamonds;
-    if (!_disposed) notifyListeners();
+  void _syncFromUser() {
+    if (_disposed) return;
+
+    final user = userProvider.currentUser;
+    if (user == null) return;
+
+    if (diamond.diamonds != user.diamonds) {
+      diamond.diamonds = user.diamonds;
+      notifyListeners();
+    }
   }
 
   void _listenToSocket() {
-    socketService.diamondsStream.listen((newDiamonds) {
-      if (_disposed) return;
-      print("💎 Socket update received: $newDiamonds");
-      diamond.diamonds = newDiamonds;
+    _diamondSocketSub =
+        socketService.diamondsStream.listen((newDiamonds) {
+          if (_disposed) return;
 
-      userProvider.updateDiamonds(newDiamonds);
+          diamond.diamonds = newDiamonds;
+          userProvider.updateDiamonds(newDiamonds);
+          notifyListeners();
+        });
 
-      notifyListeners();
-    });
-
-    socketService.coinsStream.listen((newCoins) {
+    _coinSocketSub = socketService.coinsStream.listen((newCoins) {
       if (_disposed) return;
       userProvider.updateCoins(newCoins);
     });
@@ -54,37 +73,30 @@ class DiamondViewModel extends ChangeNotifier {
     if (user == null) return;
 
     isConverting = true;
-    if (!_disposed) notifyListeners();
+    notifyListeners();
 
     try {
-      print("🔹 Converting coins for user: ${user.id}");
-      print("🔹 Coins to convert: $coinsToConvert");
-
       await conversionService.convertCoinsToDiamonds(
         userId: user.id,
         coins: coinsToConvert,
       );
-
-      print("✅ Conversion API call successful. Waiting for socket update.");
-
-    } catch (e) {
-      print("❌ convertCoinsToDiamonds failed: $e");
-      rethrow;
     } finally {
       isConverting = false;
       if (!_disposed) notifyListeners();
     }
   }
 
-  void refreshDiamondsFromUser() {
-    final diamonds = userProvider.currentUser?.diamonds ?? 0;
-    diamond.diamonds = diamonds;
-    if (!_disposed) notifyListeners();
-  }
-
   @override
   void dispose() {
     _disposed = true;
+
+    if (_userListener != null) {
+      userProvider.removeListener(_userListener!);
+    }
+
+    _diamondSocketSub?.cancel();
+    _coinSocketSub?.cancel();
+
     super.dispose();
   }
 }

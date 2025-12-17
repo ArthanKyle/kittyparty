@@ -5,13 +5,17 @@ import 'package:provider/provider.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 
 import 'app.dart';
+import 'core/services/api/dailyTask_service.dart';
 import 'core/services/api/socket_service.dart';
 import 'core/services/api/user_service.dart';
 import 'core/utils/locale_provider.dart';
 import 'core/utils/user_provider.dart';
 import 'core/utils/index_provider.dart';
+import 'features/landing/viewmodel/dailyTask_viewmodel.dart';
+import 'features/landing/viewmodel/landing_viewmodel.dart';
 import 'features/landing/viewmodel/post_viewmodel.dart';
 import 'features/livestream/widgets/gift_assets.dart';
+import 'features/profile/profile_pages/daily_task_page.dart';
 import 'features/wallet/viewmodel/wallet_viewmodel.dart';
 import 'features/wallet/viewmodel/diamond_viewmodel.dart';
 
@@ -46,27 +50,35 @@ Future<void> bootstrap() async {
   runApp(
     MultiProvider(
       providers: [
+        // Locale
         ChangeNotifierProvider.value(value: localeProvider),
 
-        // User Provider
         ChangeNotifierProvider<UserProvider>.value(value: userProvider),
 
-        // Page index
         ChangeNotifierProvider(create: (_) => PageIndexProvider()),
 
-        // NEW PostViewModel (no currentUserId parameter)
+        ChangeNotifierProvider(
+          create: (_) => LandingViewModel(),
+        ),
+
         ChangeNotifierProvider(
           create: (_) => PostViewModel(userProvider: userProvider),
         ),
 
-        // Wallet & Diamonds
         ChangeNotifierProvider(
           create: (_) => WalletViewModel(userProvider: userProvider),
         ),
+
         ChangeNotifierProvider(
           create: (_) => DiamondViewModel(
             userProvider: userProvider,
             socketService: socketService,
+          ),
+        ),
+
+        ChangeNotifierProvider(
+          create: (_) => DailyTaskViewModel(
+            DailyTaskService(),
           ),
         ),
 
