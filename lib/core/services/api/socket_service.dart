@@ -72,7 +72,6 @@ class SocketService {
       }
     });
 
-
     socket.on('bonus_hidden', (_) {
       print('🎁 Bonus hidden event received');
     });

@@ -9,6 +9,7 @@ import 'app.dart';
 // Services
 import 'core/services/api/conversion_recharge.dart';
 import 'core/services/api/dailyTask_service.dart';
+import 'core/services/api/socket_service.dart';
 import 'core/services/api/user_service.dart';
 import 'core/services/api/wallet_service.dart';
 
@@ -45,9 +46,16 @@ Future<void> bootstrap() async {
 
   Stripe.publishableKey = dotenv.env["STRIPE_PUBLISHABLE_KEY"] ?? "";
 
+
+
   // 🔑 Load user BEFORE widget tree
   final userProvider = UserProvider();
   await userProvider.loadUser();
+
+  final socketService = SocketService();
+  if (userProvider.currentUser != null) {
+    socketService.initSocket(userProvider.currentUser!.id);
+  }
 
   runApp(
     MultiProvider(
@@ -75,6 +83,7 @@ Future<void> bootstrap() async {
             userProvider: userProvider,
             walletService: WalletService(),
             conversionService: ConversionService(),
+            socketService: socketService,
           ),
         ),
 
