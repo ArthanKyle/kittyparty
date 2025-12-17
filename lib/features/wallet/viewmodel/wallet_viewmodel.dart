@@ -11,24 +11,22 @@ class WalletViewModel extends ChangeNotifier {
   final WalletService walletService;
   final ConversionService conversionService;
 
-
   Wallet _wallet = const Wallet(coins: 0, diamonds: 0);
   Wallet get wallet => _wallet;
 
   StreamSubscription? _userStreamSub;
   bool _disposed = false;
+  bool _isFetching = false;
 
   WalletViewModel({
     required this.userProvider,
     required this.walletService,
     required this.conversionService,
   }) {
-    _init();
+    _listenToUser();
   }
 
-  void _init() {
-    _fetchWallet();
-
+  void _listenToUser() {
     _userStreamSub = userProvider.userStream.listen((user) {
       if (_disposed) return;
 
@@ -36,21 +34,30 @@ class WalletViewModel extends ChangeNotifier {
         coins: user.coins,
         diamonds: user.diamonds,
       );
-
       notifyListeners();
     });
   }
 
-  Future<void> _fetchWallet() async {
+  /// 🔄 Call this every time WalletPage is opened
+  Future<void> refresh() async {
+    if (_isFetching) return;
+
     final user = userProvider.currentUser;
     if (user == null) return;
 
-    final fetched = await walletService.fetchWallet(
-      user.userIdentification,
-    );
+    try {
+      _isFetching = true;
+      debugPrint("🟡 [WalletVM] Fetching wallet...");
 
-    _wallet = fetched;
-    notifyListeners();
+      final fetched =
+      await walletService.fetchWallet(user.userIdentification);
+
+      _wallet = fetched;
+      debugPrint("🟢 [WalletVM] Wallet updated: $fetched");
+      notifyListeners();
+    } finally {
+      _isFetching = false;
+    }
   }
 
   Future<void> convertCoinsToDiamonds(int coins) async {
@@ -61,7 +68,7 @@ class WalletViewModel extends ChangeNotifier {
       userId: user.id,
       coins: coins,
     );
-
+    // socket / user stream will update wallet
   }
 
   int get coins => _wallet.coins;

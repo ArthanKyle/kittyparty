@@ -42,20 +42,17 @@ class SocketService {
 
     socket.onDisconnect((_) => print('❌ Socket disconnected'));
 
-    // Coins only
-    socket.on('coin_update', (data) {
-      final coins = data['coins'] as int?;
-      if (coins != null) _coinsController.add(coins);
-    });
-
     // 🔹 Diamonds + Coins (from wallet_update)
     socket.on('wallet_update', (data) {
-      final coins = data['coins'] as int?;
-      final diamonds = data['diamonds'] as int?;
+      final coins = data['coins'] as int? ?? 0;
+      final diamonds = data['diamonds'] as int? ?? 0;
 
-      if (coins != null) _coinsController.add(coins);
-      if (diamonds != null) _diamondsController.add(diamonds);
+      _coinsController.add(coins);
+      _diamondsController.add(diamonds);
+
+      print("💼 Wallet socket update → coins=$coins diamonds=$diamonds");
     });
+
 
     socket.on('post_like_update', (data) {
       if (data is Map) {

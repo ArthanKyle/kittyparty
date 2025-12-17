@@ -10,7 +10,7 @@ import '../../../core/services/api/recharge_service.dart';
 import '../../../core/utils/user_provider.dart';
 import '../../auth/widgets/arrow_back.dart';
 import '../viewmodel/recharge_viewmodel.dart';
-import '../../wallet/viewmodel/wallet_viewmodel.dart';
+import '../viewmodel/wallet_viewmodel.dart';
 import '../wallet_widgets/coin_card.dart';
 
 class RechargeScreen extends StatelessWidget {
@@ -32,88 +32,159 @@ class RechargeScreen extends StatelessWidget {
           backgroundColor: Colors.white,
           elevation: 0,
           leading: ArrowBack(onTap: () => Navigator.pop(context)),
-          title: const Text("My Account"),
+          title: const Text(
+            "My Account",
+            style: TextStyle(color: Colors.black),
+          ),
           centerTitle: true,
         ),
         body: SingleChildScrollView(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 10),
 
-              // Coins
+              // 💰 Coins
               Consumer<WalletViewModel>(
                 builder: (_, walletVM, __) =>
                     CoinCard(balance: walletVM.coins),
               ),
 
-              // Packages
+              // 📦 Packages
               Consumer<RechargeViewModel>(
                 builder: (context, viewModel, _) {
                   if (viewModel.isLoading) {
                     return const Center(child: CircularProgressIndicator());
                   }
 
-                  return GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: viewModel.packages.length,
-                    gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisExtent: 140,
+                  return Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisExtent: 140,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                      ),
+                      itemCount: viewModel.packages.length,
+                      itemBuilder: (_, index) {
+                        final pkg = viewModel.packages[index];
+                        final isSelected =
+                            viewModel.selectedPackage == pkg;
+
+                        return GestureDetector(
+                          onTap: () => viewModel.selectPackage(pkg),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? Colors.blue.shade50
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isSelected
+                                    ? AppColors.gold
+                                    : Colors.grey.shade200,
+                                width: isSelected ? 2 : 1,
+                              ),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 4,
+                                  offset: Offset(1, 2),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Image.asset(
+                                  "assets/icons/KPcoin.png",
+                                  height: 64,
+                                  width: 64,
+                                ),
+                                const SizedBox(height: 6),
+                                Text("${pkg.coins} coins"),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "${pkg.symbol}${pkg.price.toStringAsFixed(2)} ${viewModel.displayCurrency}",
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                    itemBuilder: (_, index) {
-                      final pkg = viewModel.packages[index];
-                      return GestureDetector(
-                        onTap: () => viewModel.selectPackage(pkg),
-                        child: Text("${pkg.coins} coins"),
-                      );
-                    },
                   );
                 },
               ),
 
+              // 🔘 Recharge button
               Consumer<RechargeViewModel>(
                 builder: (context, viewModel, _) {
-                  return RechargeButton(
-                    enabled: viewModel.selectedPackage != null,
-                    onPressed: () async {
-                      DialogLoading(subtext: "Processing").build(context);
+                  return Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: RechargeButton(
+                      enabled: viewModel.selectedPackage != null &&
+                          !viewModel.isPaymentProcessing,
+                      onPressed: () async {
+                        final pkg = viewModel.selectedPackage;
+                        if (pkg == null) return;
 
-                      try {
-                        final tx =
-                        await viewModel.createPaymentIntent(method: "card");
-                        await viewModel.presentPaymentSheet(
-                          clientSecret: tx!.clientSecret!,
+                        unawaited(
+                          DialogLoading(subtext: "Processing")
+                              .build(context),
                         );
-                        await viewModel.confirmPayment(tx.id!);
 
-                        if (Navigator.of(context).canPop()) {
-                          Navigator.of(context).pop();
+                        try {
+                          final tx = await viewModel
+                              .createPaymentIntent(method: "card");
+
+                          if (tx == null ||
+                              tx.clientSecret == null ||
+                              tx.id == null) {
+                            throw Exception("Invalid transaction");
+                          }
+
+                          await viewModel.presentPaymentSheet(
+                            clientSecret: tx.clientSecret!,
+                          );
+
+                          await viewModel.confirmPayment(tx.id!);
+
+                          if (Navigator.canPop(context)) {
+                            Navigator.pop(context);
+                          }
+
+                          DialogInfo(
+                            headerText: "Top Up Successful",
+                            subText:
+                            "Your coins are now ${context.read<WalletViewModel>().coins}",
+                            confirmText: "OK",
+                            onConfirm: () => Navigator.pop(context),
+                            onCancel: () => Navigator.pop(context),
+                          ).build(context);
+                        } catch (_) {
+                          if (Navigator.canPop(context)) {
+                            Navigator.pop(context);
+                          }
+
+                          DialogInfo(
+                            headerText: "Top Up Failed",
+                            subText:
+                            "The payment flow was cancelled.",
+                            confirmText: "OK",
+                            onConfirm: () => Navigator.pop(context),
+                            onCancel: () => Navigator.pop(context),
+                          ).build(context);
                         }
-
-                        DialogInfo(
-                          headerText: "Top Up Successful",
-                          subText:
-                          "Your coins are now ${context.read<WalletViewModel>().coins}",
-                          confirmText: "OK",
-                          onConfirm: () => Navigator.pop(context),
-                          onCancel: () => Navigator.pop(context),
-                        ).build(context);
-                      } catch (_) {
-                        if (Navigator.of(context).canPop()) {
-                          Navigator.of(context).pop();
-                        }
-
-                        DialogInfo(
-                          headerText: "Top Up Failed",
-                          subText: "The payment flow was cancelled.",
-                          confirmText: "OK",
-                          onConfirm: () => Navigator.pop(context),
-                          onCancel: () => Navigator.pop(context),
-                        ).build(context);
-                      }
-                    },
+                      },
+                    ),
                   );
                 },
               ),

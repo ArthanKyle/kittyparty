@@ -21,8 +21,12 @@ class _WalletPageState extends State<WalletPage>
   @override
   void initState() {
     super.initState();
+
     _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() => setState(() {}));
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<WalletViewModel>().refresh();
+    });
   }
 
   @override
@@ -33,26 +37,33 @@ class _WalletPageState extends State<WalletPage>
 
   @override
   Widget build(BuildContext context) {
-    final type =
-    _tabController.index == 0 ? WalletType.coins : WalletType.diamonds;
-
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            WalletAppBar(type: type, controller: _tabController),
-            Expanded(
-              child: TabBarView(
+      body: Column(
+        children: [
+          AnimatedBuilder(
+            animation: _tabController,
+            builder: (_, __) {
+              final type = _tabController.index == 0
+                  ? WalletType.coins
+                  : WalletType.diamonds;
+
+              return WalletAppBar(
+                type: type,
                 controller: _tabController,
-                children: const [
-                  CoinsPage(),
-                  DiamondsPage(),
-                ],
-              ),
+              );
+            },
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: const [
+                CoinsPage(),
+                DiamondsPage(),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

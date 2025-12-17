@@ -10,19 +10,35 @@ class WalletService {
       : baseUrl = baseUrl ?? dotenv.env['BASE_URL']!;
 
   Future<Wallet> fetchWallet(String userIdentification) async {
+    final url = "$baseUrl/wallet/$userIdentification";
+
+    print("🟡 [WalletService] Fetching wallet");
+    print("🟡 [WalletService] URL: $url");
+
     final res = await http.get(
-      Uri.parse("$baseUrl/wallet/$userIdentification"),
+      Uri.parse(url),
       headers: {"Content-Type": "application/json"},
     );
 
+    print("🟡 [WalletService] Status code: ${res.statusCode}");
+    print("🟡 [WalletService] Raw response: ${res.body}");
+
     if (res.statusCode != 200) {
+      print("🔴 [WalletService] Fetch failed");
       throw Exception("Failed to fetch wallet");
     }
 
     final data = jsonDecode(res.body);
+
+    final coins = data["coins"] ?? 0;
+    final diamonds = data["diamonds"] ?? 0;
+
+    print("🟢 [WalletService] Parsed coins: $coins");
+    print("🟢 [WalletService] Parsed diamonds: $diamonds");
+
     return Wallet(
-      coins: data["coins"] ?? 0,
-      diamonds: data["diamonds"] ?? 0,
+      coins: coins,
+      diamonds: diamonds,
     );
   }
 }
