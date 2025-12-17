@@ -11,7 +11,7 @@ class WalletViewModel extends ChangeNotifier {
   final WalletService walletService;
   final ConversionService conversionService;
 
-  /// 🔐 Always non-null
+
   Wallet _wallet = const Wallet(coins: 0, diamonds: 0);
   Wallet get wallet => _wallet;
 
@@ -26,9 +26,6 @@ class WalletViewModel extends ChangeNotifier {
     _init();
   }
 
-  /* =============================
-     INIT
-  ============================== */
   void _init() {
     _fetchWallet();
 
@@ -44,9 +41,6 @@ class WalletViewModel extends ChangeNotifier {
     });
   }
 
-  /* =============================
-     REST FETCH
-  ============================== */
   Future<void> _fetchWallet() async {
     final user = userProvider.currentUser;
     if (user == null) return;
@@ -59,9 +53,6 @@ class WalletViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /* =============================
-     CONVERSION (coins → diamonds)
-  ============================== */
   Future<void> convertCoinsToDiamonds(int coins) async {
     final user = userProvider.currentUser;
     if (user == null) return;
@@ -71,12 +62,8 @@ class WalletViewModel extends ChangeNotifier {
       coins: coins,
     );
 
-    // 🔁 Wallet will update via userStream / socket
   }
 
-  /* =============================
-     SAFE GETTERS (UI)
-  ============================== */
   int get coins => _wallet.coins;
   int get diamonds => _wallet.diamonds;
 
