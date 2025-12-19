@@ -19,13 +19,30 @@ class DailyTaskList extends StatelessWidget {
       );
     }
 
+    Widget rewardIcon(String taskKey) {
+      switch (taskKey) {
+        case "sign_in":
+        case "room_income":
+        case "recharge_7000":
+          return Image.asset(
+            "assets/icons/KPcoin.png",
+            width: 16,
+            height: 16,
+          );
+
+        default:
+          return const SizedBox();
+      }
+    }
+
+
     return Column(
       children: viewModel.dailyTasks.map((task) {
         return TaskCard(
           title: task.title,
           subtitle: task.subtitle,
-          reward:
-          "+${task.reward} ${task.rewardUnit}",
+          reward: task.reward,
+          rewardIcon: rewardIcon(task.key), // 👈 HERE
           completed: task.completed,
           progress: task.target == 0
               ? 0

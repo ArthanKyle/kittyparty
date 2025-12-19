@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/services/api/dailyTask_service.dart';
 import '../../../core/utils/user_provider.dart';
 import '../../landing/landing_widgets/profile_widgets/daily_widgets/daily_task_header.dart';
 import '../../landing/landing_widgets/profile_widgets/daily_widgets/daily_task_list.dart';
@@ -26,8 +25,6 @@ class _DailyTaskPageState extends State<DailyTaskPage> {
 
     if (token != null && !_fetched) {
       _fetched = true;
-
-      // ✅ defer fetch until build is done
       Future.microtask(() {
         context.read<DailyTaskViewModel>().fetchDailyTasks(token);
       });
@@ -41,25 +38,35 @@ class _DailyTaskPageState extends State<DailyTaskPage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF7E5),
-      body: SafeArea(
-        child: Column(
-          children: [
-            DailyTaskHeader(token: token),
-            const TaskTabs(),
-            const SizedBox(height: 8),
+      body: Column(
+        children: [
+          DailyTaskHeader(token: token),
+          Expanded(
+            child: SafeArea(
+              top: false, // 👈 IMPORTANT
+              child: Column(
+                children: [
+                  const TaskTabs(),
+                  const SizedBox(height: 20),
 
-            Expanded(
-              child: vm.isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : vm.dailyTasks.isEmpty
-                  ? const Center(child: Text("No daily tasks available"))
-                  : DailyTaskList(viewModel: vm),
+                  Expanded(
+                    child: vm.isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : vm.dailyTasks.isEmpty
+                        ? const Center(
+                      child: Text("No daily tasks available"),
+                    )
+                        : DailyTaskList(viewModel: vm),
+                  ),
+
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
-
-            const SizedBox(height: 20),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
+

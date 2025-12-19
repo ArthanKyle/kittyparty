@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kittyparty/core/global_widgets/dialogs/dialog_info.dart';
 import 'package:kittyparty/features/livestream/widgets/user_selector.dart';
 import '../viewmodel/live_audio_room_viewmodel.dart';
 import 'gift_assets.dart';
@@ -199,24 +200,43 @@ class _GiftModalState extends State<GiftModal>
 
   Widget _cell(GiftItem gift){
     return GestureDetector(
-      onTap:()async{
+      onTap: () async {
+        final rootContext = Navigator.of(context, rootNavigator: true).context;
+
+        // Close GiftModal
         Navigator.pop(context);
 
-        final receiver=await showModalBottomSheet<String>(
-          context:context,
-          backgroundColor:Colors.transparent,
-          isScrollControlled:true,
-          builder:(_)=>UserSelectorModal(viewModel:widget.viewModel),
+        final receiver = await showModalBottomSheet<String>(
+          context: rootContext,
+          backgroundColor: Colors.transparent,
+          isScrollControlled: true,
+          builder: (_) => UserSelectorModal(viewModel: widget.viewModel),
         );
 
-        if(receiver==null) return;
+        if (receiver == null) return;
+
+        // ❌ Prevent self-gifting
+        if (receiver == widget.senderId) {
+          DialogInfo(
+            headerText: "Warning!",
+            subText: "You cannot send gifts to yourself!",
+            confirmText: "OK",
+            onConfirm: () {
+              Navigator.of(rootContext, rootNavigator: true).pop();
+            },
+            onCancel: (){
+          Navigator.of(rootContext, rootNavigator: true).pop();
+          },
+          ).build(rootContext);
+          return;
+        }
 
         widget.viewModel.sendGift(
-          roomId:widget.roomId,
-          senderId:widget.senderId,
-          receiverId:receiver,
-          giftType:gift.id,
-          giftCount:_selectedCombo,
+          roomId: widget.roomId,
+          senderId: widget.senderId,
+          receiverId: receiver,
+          giftType: gift.id,
+          giftCount: _selectedCombo,
         );
       },
 

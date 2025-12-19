@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 class TaskCard extends StatelessWidget {
   final String title;
   final String? subtitle;
-  final String reward;
+  final int reward;
+  final Widget rewardIcon;
   final bool completed;
   final double progress;
 
@@ -12,6 +13,7 @@ class TaskCard extends StatelessWidget {
     required this.title,
     this.subtitle,
     required this.reward,
+    required this.rewardIcon,
     required this.completed,
     required this.progress,
   });
@@ -21,8 +23,7 @@ class TaskCard extends StatelessWidget {
     final color = completed ? Colors.grey : Colors.orange;
 
     return Container(
-      margin:
-      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -46,35 +47,48 @@ class TaskCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
+
+          // TEXT + PROGRESS
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold)),
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 if (subtitle != null)
                   Text(
                     subtitle!,
-                    style: const TextStyle(
-                        color: Colors.grey),
+                    style: const TextStyle(color: Colors.grey),
                   ),
-                if (progress > 0)
-                  LinearProgressIndicator(
-                    value: progress,
-                    color: Colors.orange,
-                    backgroundColor:
-                    Colors.grey.shade200,
+                if (!completed && progress > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: LinearProgressIndicator(
+                      value: progress.clamp(0.0, 1.0),
+                      color: Colors.orange,
+                      backgroundColor: Colors.grey.shade200,
+                    ),
                   ),
               ],
             ),
           ),
-          Text(
-            reward,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.orange,
-            ),
+
+          // REWARD
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              rewardIcon,
+              const SizedBox(width: 4),
+              Text(
+                "+$reward",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: completed ? Colors.grey : Colors.orange,
+                ),
+              ),
+            ],
           ),
         ],
       ),

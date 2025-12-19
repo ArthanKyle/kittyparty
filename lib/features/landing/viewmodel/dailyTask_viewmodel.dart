@@ -24,8 +24,12 @@ class DailyTaskViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> signIn(String token) async {
-    await _service.signIn(token);
-    await fetchDailyTasks(token);
+  Future<void> signIn(String userIdentification) async {
+    try {
+      await _service.signIn(userIdentification);
+      await fetchDailyTasks(userIdentification);
+    } catch (e) {
+      throw e.toString();
+    }
   }
 }
