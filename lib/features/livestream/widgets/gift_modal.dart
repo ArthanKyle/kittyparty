@@ -45,33 +45,49 @@ class _GiftModalState extends State<GiftModal>
     return GiftItem(id: id, baseName: base, price: price, isLucky: lucky, isCouple: couple);
   }
 
-  /// ================== GIFT LIST ==================
   List<GiftItem> get _gifts => [
 
-    // GENERAL
-    _gift("2001", "Red Rose Bookstore", 200),
-    _gift("2002", "Charming female singer", 400),
-    _gift("2003", "rose string tone", 200),
-    _gift("2004", "Rolex", 200),
-    _gift("2005", "rose crystal bottle", 150),
-    _gift("2006", "love bouquet", 200),
-    _gift("2007", "wedding dress", 260),
-    _gift("2008", "Romantic love songs", 150),
-    _gift("2009", "lion beauty", 300),
-    _gift("2010", "Wealth-Bringing Demon Mask", 238),
-    _gift("2011", "Silver Crown Daughter", 300),
-    _gift("2012", "Misty Valley White Tiger", 230),
+    // ================= GENERAL =================
+    _gift("2001", "Red Rose Bookstore", 55000),
+    _gift("2002", "Charming female singer", 1000000),
+    _gift("2003", "rose string tone", 45000),
+    _gift("2004", "Rolex", 75000),
+    _gift("2005", "rose crystal bottle", 11000),
+    _gift("2006", "love bouquet", 2000),
+    _gift("2007", "wedding dress", 200000),
+    _gift("2008", "Romantic love songs", 299000),
+    _gift("2009", "lion beauty", 255000),
+    _gift("2010", "Wealth-Bringing Demon Mask", 59000),
+    _gift("2011", "Silver Crown Daughter", 35000),
+    _gift("2012", "Misty Valley White Tiger", 30000),
+    _gift("2013", "The Supreme Lion King makes his appearance", 70000),
+    _gift("2014", "Golden Elephant Brings Wealth", 52000),
 
-    // LUCKY
-    _gift("3001", "Donut", 66, lucky: true),
-    _gift("3002", "9 red roses", 200, lucky: true),
-    _gift("3003", "Bouquet of 5 white roses", 166, lucky: true),
-    _gift("3004", "Goddess Letter", 150, lucky: true),
-    _gift("3005", "love rose", 200, lucky: true),
-    _gift("3006", "Love Gramophone", 200, lucky: true),
+    // ================= LUCKY =================
+    _gift("3001", "Donut", 10, lucky: true),
+    _gift("3002", "Bouquet of 5 white roses", 100, lucky: true),
+    _gift("3003", "Goddess Letter", 30, lucky: true),
+    _gift("3004", "love rose", 50, lucky: true),
+    _gift("3005", "Love Gramophone", 20, lucky: true),
+    _gift("3006", "love chocolate", 100, lucky: true),
+    _gift("3007", "love bouquet", 150, lucky: true),
+    _gift("3008", "rose crystal bottle", 1000, lucky: true),
+    _gift("3009", "rose string tone", 1500, lucky: true),
+    _gift("3010", "Red Rose Bookstore", 1200, lucky: true),
+    _gift("3011", "Rolex", 88, lucky: true),
 
-    // COUPLE (empty now, but UI won't break)
-    // _gift("4001","Couple Swan",500,couple:true),  ← example later
+    // ================= COUPLE =================
+    _gift("4001", "Palm Island sunset", 599000, couple: true),
+    _gift("4002", "A Stunning Encounter", 300000, couple: true),
+    _gift("4003", "Heartbeat Rose Lover", 350000, couple: true),
+    _gift("4004", "Ambiguous cocktail party", 699000, couple: true),
+    _gift("4005", "red carpet couple", 399000, couple: true),
+    _gift("4006", "private island", 299000, couple: true),
+    _gift("4007", "Oath of the Stars", 400000, couple: true),
+    _gift("4008", "love chocolate", 2000, couple: true),
+    _gift("4009", "golden wedding", 2000000, couple: true),
+    _gift("4010", "Wedding Waltz", 50000, couple: true),
+    _gift("4011", "glorious century", 450000, couple: true),
   ];
 
   List<GiftItem> get _general => _gifts.where((g) => !g.isLucky && !g.isCouple).toList();
@@ -168,7 +184,7 @@ class _GiftModalState extends State<GiftModal>
     tabs: const [
       Tab(text:"General"),
       Tab(text:"Lucky"),
-      Tab(text:"Couple"),    // ← FIXED: now corresponding TabBarView exists
+      Tab(text:"Couple"),
     ],
   );
 
@@ -219,21 +235,31 @@ class _GiftModalState extends State<GiftModal>
 
           const SizedBox(height:4),
 
-          Text(gift.baseName,
-              maxLines:2,overflow:TextOverflow.ellipsis,
-              style:const TextStyle(color:Colors.white,fontSize:10)
+          Text(
+            toSentenceCase(gift.baseName),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+            ),
           ),
 
           const SizedBox(height:2),
 
           Row(
-            mainAxisAlignment:MainAxisAlignment.center,
-            children:[
-              Image.asset("assets/icons/jewel.PNG",height:12,width:12),
-              const SizedBox(width:4),
-              Text("${gift.price}",
-                  style:const TextStyle(
-                      color:Colors.blueAccent,fontWeight:FontWeight.bold,fontSize:11))
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset("assets/icons/KPcoin.png", height: 10, width: 10),
+              const SizedBox(width: 4),
+              Text(
+                gift.price.toString(),
+                style: const TextStyle(
+                  color: Colors.amber,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
+              ),
             ],
           ),
         ],
@@ -241,6 +267,11 @@ class _GiftModalState extends State<GiftModal>
     );
   }
 }
+String toSentenceCase(String text) {
+  if (text.isEmpty) return text;
+  return text[0].toUpperCase() + text.substring(1).toLowerCase();
+}
+
 
 class GiftItem{
   final String id;

@@ -44,11 +44,13 @@ class GiftService {
     // Success case
     return {
       "success": true,
-      "giftName": jsonRes["giftName"],     // used for SVGA animation
+      "giftName": jsonRes["giftName"],
       "giftID": jsonRes["giftID"],
       "price": jsonRes["price"],
       "count": jsonRes["count"],
       "totalCost": jsonRes["totalCost"],
+      "coinsWon": jsonRes["coinsWon"] ?? 0,
+      "luckyMultiplier": jsonRes["luckyMultiplier"],
       "senderBalance": jsonRes["senderBalance"],
     };
   }

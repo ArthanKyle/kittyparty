@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../core/services/api/dailyTask_service.dart';
 import '../model/dailyTask.dart';
 
-
 class DailyTaskViewModel extends ChangeNotifier {
   final DailyTaskService _service;
 
@@ -15,7 +14,11 @@ class DailyTaskViewModel extends ChangeNotifier {
     isLoading = true;
     notifyListeners();
 
-    dailyTasks = await _service.fetchDailyTasks(token);
+    try {
+      dailyTasks = await _service.fetchDailyTasks(token);
+    } catch (e) {
+      dailyTasks = [];
+    }
 
     isLoading = false;
     notifyListeners();

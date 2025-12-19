@@ -165,9 +165,22 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
     if (result["success"] != true) return;
 
     final giftName = result["giftName"];
+    final coinsWon = result["coinsWon"] ?? 0;
 
+    // animation trigger
     _giftController.add(giftName);
+
+    // OPTIONAL: lucky popup hook
+    if (coinsWon > 0 && globalContext != null) {
+      ScaffoldMessenger.of(globalContext!).showSnackBar(
+        SnackBar(
+          content: Text("🎉 Lucky Win! +$coinsWon coins"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
+
 
   Future<void> showGameListModal(BuildContext context, String roomId) async {
     showModalBottomSheet(
