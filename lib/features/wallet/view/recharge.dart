@@ -109,7 +109,7 @@ class RechargeScreen extends StatelessWidget {
                                 Text("${pkg.coins} coins"),
                                 const SizedBox(height: 4),
                                 Text(
-                                  "${pkg.symbol}${pkg.price.toStringAsFixed(2)} ${viewModel.displayCurrency}",
+                                  "${pkg.symbol}${pkg.price.toStringAsFixed(2)}",
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                   ),

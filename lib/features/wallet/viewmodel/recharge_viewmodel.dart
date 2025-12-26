@@ -24,8 +24,7 @@ class RechargeViewModel extends ChangeNotifier {
   bool isPaymentProcessing = false;
 
   double displayAmount = 0.0;
-  String displayCurrency = "USD";
-  String displaySymbol = "\$";
+  String displaySymbol = "₱";
 
   /* =============================
      FETCH PACKAGES
@@ -45,12 +44,8 @@ class RechargeViewModel extends ChangeNotifier {
       }
 
       if (packages.isNotEmpty) {
-        selectedPackage ??= packages.first;
-        displayAmount = selectedPackage!.price;
+        selectPackage(packages.first);
       }
-
-      displayCurrency = user.countryCode.toUpperCase();
-      displaySymbol = _getCurrencySymbol(displayCurrency);
     } catch (e) {
       print("❌ fetchPackages failed: $e");
     } finally {
@@ -65,9 +60,7 @@ class RechargeViewModel extends ChangeNotifier {
   void selectPackage(RechargePackage pkg) {
     selectedPackage = pkg;
     displayAmount = pkg.price;
-    displayCurrency =
-        userProvider.currentUser?.countryCode.toUpperCase() ?? "USD";
-    displaySymbol = _getCurrencySymbol(displayCurrency);
+    displaySymbol = pkg.symbol; // 🔥 ONLY SYMBOL
 
     if (!_disposed) notifyListeners();
   }
@@ -100,12 +93,10 @@ class RechargeViewModel extends ChangeNotifier {
 
       if (clientSecret == null || transactionId == null) return null;
 
+      // 🔒 Backend is authoritative
       displayAmount =
           (display?['amount'] as num?)?.toDouble() ?? selectedPackage!.price;
-      displayCurrency =
-          (display?['currency'] ?? 'USD').toString().toUpperCase();
-      displaySymbol =
-          display?['symbol'] ?? _getCurrencySymbol(displayCurrency);
+      displaySymbol = display?['symbol'] ?? selectedPackage!.symbol;
 
       return TransactionModel(
         id: transactionId,
@@ -115,7 +106,7 @@ class RechargeViewModel extends ChangeNotifier {
         paymentMethod: method ?? 'card',
         status: 'pending',
         amount: displayAmount,
-        currency: displayCurrency,
+        currency: "", // intentionally unused in UI
         coinsBase: selectedPackage!.coins,
         coinsBonus: 0,
         coinsFinal: selectedPackage!.coins,
@@ -164,13 +155,11 @@ class RechargeViewModel extends ChangeNotifier {
       final topUp =
       await rechargeService.confirmPayment(transactionId: transactionId);
 
-      // 🔥 This triggers WalletViewModel update
       userProvider.updateCoins(topUp.coinsFinal);
 
       if (user.isFirstTimeRecharge) {
         user.isFirstTimeRecharge = false;
         _hideBonusesIfNotFirstRecharge();
-        print("💡 First-time recharge completed for user ${user.id}");
       }
     } catch (e) {
       print("❌ confirmPayment failed: $e");
@@ -201,17 +190,6 @@ class RechargeViewModel extends ChangeNotifier {
         .toList();
 
     if (!_disposed) notifyListeners();
-    print("📦 Bonuses hidden for user ${user.id}");
-  }
-
-  String _getCurrencySymbol(String code) {
-    switch (code.toUpperCase()) {
-      case "PHP":
-        return "₱";
-      case "USD":
-      default:
-        return "\$";
-    }
   }
 
   @override

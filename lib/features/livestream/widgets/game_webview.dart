@@ -42,8 +42,13 @@ class _GameWebViewState extends State<GameWebView> {
   void initState() {
     super.initState();
 
-    debugPrint("🔵 GameWebView init for game: ${widget.gameName}");
-    debugPrint("🔵 Loading URL: ${widget.url}");
+    debugPrint("✅ [INIT] GameWebView started");
+    debugPrint("✅ [INIT] gameName = ${widget.gameName}");
+    debugPrint("✅ [INIT] userId   = ${widget.userId}");
+    debugPrint("✅ [INIT] roomId   = ${widget.roomId}");
+    debugPrint("✅ [INIT] url      = ${widget.url}");
+    debugPrint("✅ [INIT] backend  = $backendUrl");
+    debugPrint("✅ [INIT] appId    = $baishunAppId");
 
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
@@ -114,12 +119,12 @@ class _GameWebViewState extends State<GameWebView> {
         let fixed = u;
 
         if (p === "/game_route/get_addr") {
-          fixed = backend + "/games/game_route/get_addr" + full.search;
+          fixed = backend + "/games/game_route/get_addr";
         }
         else if (p.startsWith("/v1/api/")) {
-          fixed = backend + "/games" + p + full.search;
+          fixed = backend + "/games" + p;
         }
-
+        
         REQ.postMessage("REWRITE → " + fixed);
         return fixed;
       }
@@ -143,18 +148,18 @@ class _GameWebViewState extends State<GameWebView> {
     debugPrint("🔵 Native Event Received: $event");
 
     try {
-      dynamic obj = json.decode(event as String);
+      final obj = json.decode(event as String);
 
       if (obj is! Map) {
-        debugPrint("🔴 Native event not a Map: $obj");
+        debugPrint("🔴 Native event not a Map");
         return;
       }
 
       final jsFunName = obj['jsCallback'] as String? ?? '';
       final payload = obj['data'] ?? {};
 
-      debugPrint("🔵 JS Callback: $jsFunName");
-      debugPrint("🔵 Payload: $payload");
+      debugPrint("📦 [JS→NATIVE] jsCallback = $jsFunName");
+      debugPrint("📦 [JS→NATIVE] payload keys = ${(payload as Map).keys.toList()}");
 
       final jsCallback = jsFunName.isNotEmpty ? jsFunName : 'onGetConfig';
 
@@ -179,10 +184,10 @@ class _GameWebViewState extends State<GameWebView> {
   }
 
   // ---------------------------------------------------
-  // VERIFY SSTOKEN HANDLER
+  // VERIFY SSTOKEN
   // ---------------------------------------------------
   Future<void> _handleVerifySSToken(dynamic payload, String jsCallback) async {
-    debugPrint("🟡 verifySSToken → payload: $payload");
+    debugPrint("🟡 verifySSToken payload → $payload");
 
     Map<String, dynamic> result = {
       "success": false,
@@ -191,8 +196,7 @@ class _GameWebViewState extends State<GameWebView> {
 
     try {
       final url = '$backendUrl/games/v1/api/verifysstoken';
-      debugPrint("🟡 verifySSToken POST → $url");
-      debugPrint("🟡 Body → ${jsonEncode(payload)}");
+      debugPrint("🟡 POST → $url");
 
       final resp = await http.post(
         Uri.parse(url),
@@ -200,12 +204,11 @@ class _GameWebViewState extends State<GameWebView> {
         body: jsonEncode(payload),
       );
 
-      debugPrint("🟢 Server Response Status: ${resp.statusCode}");
-      debugPrint("🟢 Server Response Body: ${resp.body}");
+      debugPrint("🟢 Status = ${resp.statusCode}");
+      debugPrint("🟢 Body   = ${resp.body}");
 
       if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body);
-        result = data is Map<String, dynamic> ? data : result;
+        result = jsonDecode(resp.body);
       }
     } catch (e) {
       debugPrint('🔴 verifySSToken error: $e');
@@ -215,44 +218,50 @@ class _GameWebViewState extends State<GameWebView> {
   }
 
   // ---------------------------------------------------
-  // GET CONFIG HANDLER
+  // GET CONFIG
   // ---------------------------------------------------
   Future<void> _handleGetConfig(dynamic payload, String jsCallback) async {
-    debugPrint("🟡 getConfig called with payload: $payload");
+    debugPrint("📘 [DOC-CHECK] getConfig called");
+    debugPrint("📘 user_id   = ${widget.userId}");
+    debugPrint("📘 room_id   = ${widget.roomId}");
+    debugPrint("📘 app_id    = $baishunAppId");
+    debugPrint("📘 gameMode  = ${payload['gameMode']}");
+    debugPrint("📘 language  = ${payload['language']}");
+    debugPrint("📘 gsp/node  = ${payload['gsp']}");
 
-    final userId = widget.userId;
     String oneTimeCode = '';
     double userBalance = 0.0;
 
     try {
       final url = '$backendUrl/games/generate_code_and_get_balance';
-      final requestBody = {'user_id': userId, 'gameName': widget.gameName};
-
-      debugPrint("🟡 POST → $url");
-      debugPrint("🟡 Body → $requestBody");
-
       final resp = await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(requestBody),
+        body: jsonEncode({
+          'user_id': widget.userId,
+          'gameName': widget.gameName,
+        }),
       );
 
-      debugPrint("🟢 Server Response Status: ${resp.statusCode}");
-      debugPrint("🟢 Server Response Body: ${resp.body}");
+      debugPrint("🟢 getConfig status = ${resp.statusCode}");
+      debugPrint("🟢 getConfig body   = ${resp.body}");
 
       if (resp.statusCode == 200) {
         final body = jsonDecode(resp.body);
-        oneTimeCode = body['code'] ?? '';
+        oneTimeCode = body['otp'] ?? '';
         userBalance = (body['balance'] as num?)?.toDouble() ?? 0.0;
+
+        debugPrint("🔑 otp     = $oneTimeCode");
+        debugPrint("💰 balance = $userBalance");
       }
     } catch (e) {
-      debugPrint('🔴 getConfig request failed: $e');
+      debugPrint('🔴 getConfig error: $e');
     }
 
     final configData = GetConfigData(
       appChannel: "kitty",
       appId: int.tryParse(baishunAppId) ?? 0,
-      userId: userId,
+      userId: widget.userId,
       gameMode: payload['gameMode']?.toString() ?? "3",
       language: payload['language']?.toString() ?? "2",
       gsp: payload['gsp'] ?? 101,
@@ -265,47 +274,19 @@ class _GameWebViewState extends State<GameWebView> {
       ),
     );
 
-    debugPrint("🟢 getConfig final data → ${configData.toJson()}");
+    debugPrint("📤 [FINAL CONFIG] ${configData.toJson()}");
 
     await finalMapToJs(jsCallback, configData.toJson());
   }
 
   Future<void> finalMapToJs(String jsFuncName, Map<String, dynamic> map) async {
     final js = "$jsFuncName(${jsonEncode(map)});";
-
     debugPrint("🟣 Executing JS → $js");
-
-    try {
-      await controller.runJavaScript(js);
-    } catch (e) {
-      debugPrint('🔴 Error runJavaScript: $e');
-    }
-  }
-
-  void _openRecharge() {
-    debugPrint('🟡 openRecharge() triggered');
-  }
-
-  Future<void> walletUpdate(double newBalance) async {
-    final updatePayload = {
-      "balance": newBalance,
-      "currency_icon": "assets/icons/KPcoin.png"
-    };
-
-    final js = "walletUpdate(${jsonEncode(updatePayload)});";
-
-    debugPrint("🟣 walletUpdate → $js");
-
     await controller.runJavaScript(js);
   }
 
-  void _reloadGame() {
-    debugPrint("🔵 Reloading WebView...");
-    setState(() {
-      hasError = false;
-      isLoading = true;
-    });
-    controller.reload();
+  void _openRecharge() {
+    debugPrint('🟡 openRecharge()');
   }
 
   @override
@@ -323,26 +304,6 @@ class _GameWebViewState extends State<GameWebView> {
         children: [
           if (!hasError) WebViewWidget(controller: controller),
           if (isLoading) const Center(child: CircularProgressIndicator()),
-          if (hasError)
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.wifi_off, size: 48, color: Colors.redAccent),
-                  const SizedBox(height: 12),
-                  const Text(
-                    "Connection lost.\nPlease reopen or refresh the game.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: _reloadGame,
-                    child: const Text("Try Again"),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );
