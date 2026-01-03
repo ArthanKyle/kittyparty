@@ -109,6 +109,8 @@ flutter:
     - assets/image/gift/
     - assets/image/avatar/
     - assets/image/medal/
+    - assets/image/medal_cp/
+    - assets/image/avatar_card_frame/
     - assets/image/banner/
     - assets/icons/
     - assets/icons/item/

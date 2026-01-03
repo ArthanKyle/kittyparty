@@ -23,6 +23,7 @@ import 'core/utils/index_provider.dart';
 import 'features/landing/viewmodel/dailyTask_viewmodel.dart';
 import 'features/landing/viewmodel/landing_viewmodel.dart';
 import 'features/landing/viewmodel/post_viewmodel.dart';
+import 'features/landing/viewmodel/profile_viewmodel.dart';
 import 'features/wallet/viewmodel/wallet_viewmodel.dart';
 
 // Assets
@@ -62,6 +63,11 @@ Future<void> bootstrap() async {
       providers: [
         // Locale
         ChangeNotifierProvider.value(value: localeProvider),
+
+        //Profile
+        ChangeNotifierProvider(
+          create: (context) => ProfileViewModel()..loadProfile(context),
+        ),
 
         // Auth / User
         ChangeNotifierProvider<UserProvider>.value(value: userProvider),
