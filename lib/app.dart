@@ -20,6 +20,7 @@ import 'features/auth/viewmodel/register_viewmodel.dart';
 import 'features/landing/view/landing_page.dart';
 import 'features/landing/view/messages_page.dart';
 import 'features/navigation/page_handler.dart';
+import 'features/profile/profile_pages/vip_page.dart';
 import 'features/test.dart';
 import 'features/wallet/view/wallet_page.dart';
 import 'features/landing/view/post_page.dart';
@@ -107,6 +108,8 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute(builder: (_) => const SettingPage());
 
         // ✅ Profile subpages
+          case AppRoutes.vip:
+            return MaterialPageRoute(builder: (_) => const VipPage());
           case AppRoutes.collection:
             return MaterialPageRoute(builder: (_) => const CollectionPage());
           case AppRoutes.item:
@@ -177,4 +180,5 @@ abstract class AppRoutes {
   static const invite = "/profile/invite";
   static const tasks = "/profile/tasks";
   static const testSVGA = "/test/svga";
+  static const vip = "/profile/vip";
 }

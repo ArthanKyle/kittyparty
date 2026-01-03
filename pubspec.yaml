@@ -76,8 +76,6 @@ dependencies:
   flutter_image_compress: ^2.4.0
   image: ^4.1.0
 
-
-
 dependency_overrides:
   webview_flutter_android:
     path: packages/webview_flutter_android-3.16.9

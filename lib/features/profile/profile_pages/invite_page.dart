@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../../../core/utils/profile_picture_helper.dart';
 import '../../../core/utils/user_provider.dart';
 import '../../landing/viewmodel/profile_viewmodel.dart';
-import '../../../core/constants/colors.dart';
 import '../../../core/global_widgets/gradient_background/gradient_background.dart';
 
 class InvitePage extends StatefulWidget {

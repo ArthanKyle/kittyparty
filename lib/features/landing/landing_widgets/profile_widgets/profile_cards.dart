@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:kittyparty/features/wallet/view/wallet_page.dart';
 
+import '../../../../app.dart';
+
 class ProfileCards extends StatelessWidget {
   const ProfileCards({super.key});
 
@@ -74,7 +76,7 @@ class ProfileCards extends StatelessWidget {
           // VIP Card
           GestureDetector(
             onTap: () {
-              // TODO: Handle VIP tap
+              Navigator.pushNamed(context, AppRoutes.vip);
             },
             child: Container(
               width: double.infinity,
