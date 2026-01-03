@@ -29,7 +29,7 @@ class _BannerCarouselState extends State<BannerCarousel> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final bannerHeight = screenWidth / 4; // 4:1 ratio (1920x480)
+    final bannerHeight = screenWidth / 4; 
 
     return Column(
       children: [
@@ -39,7 +39,7 @@ class _BannerCarouselState extends State<BannerCarousel> {
             height: bannerHeight,
             autoPlay: true,
             enlargeCenterPage: false,
-            viewportFraction: 1.0, // full width inside parent
+            viewportFraction: 1.0,
             enableInfiniteScroll: true,
             onPageChanged: (index, reason) {
               setState(() => _currentIndex = index);
@@ -55,7 +55,7 @@ class _BannerCarouselState extends State<BannerCarousel> {
                 images[index],
                 width: double.infinity,
                 height: double.infinity,
-                fit: BoxFit.cover, // fits perfectly since ratio matches
+                fit: BoxFit.cover,
               ),
             );
           },
