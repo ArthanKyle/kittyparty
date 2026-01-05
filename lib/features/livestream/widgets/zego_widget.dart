@@ -1,17 +1,14 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:kittyparty/core/global_widgets/dialogs/dialog_info.dart';
-import 'package:provider/provider.dart';
+import 'package:kittyparty/features/livestream/widgets/user_profile_sheet.dart';
 import 'package:zego_uikit_prebuilt_live_audio_room/zego_uikit_prebuilt_live_audio_room.dart';
 import '../../../core/config/zego_config.dart';
 import '../../../core/constants/colors.dart';
-import '../../../core/utils/user_provider.dart';
-import '../../landing/viewmodel/landing_viewmodel.dart';
 import '../viewmodel/live_audio_room_viewmodel.dart';
 import 'gift_modal.dart';
 import 'user_avatar.dart';
 import 'gift_animation_overlay.dart';
-import 'package:zego_uikit/zego_uikit.dart';
 
 class ZegoRoomWidget extends StatefulWidget {
   final String roomId;
@@ -22,6 +19,7 @@ class ZegoRoomWidget extends StatefulWidget {
   final Map<String, Uint8List?> profileCache;
   final LiveAudioRoomViewmodel viewModel;
   final Future<ImageProvider?> Function(String) fetchProfilePicture;
+
 
   const ZegoRoomWidget({
     super.key,
@@ -41,13 +39,15 @@ class ZegoRoomWidget extends StatefulWidget {
 
 class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
   late String _roomName;
+  String? _selectedUserId;
+  String? _selectedUserName;
+  Uint8List? _selectedAvatarBytes;
+
 
   @override
   void initState() {
     super.initState();
     _roomName = widget.roomName;
-
-    /// Prevent Zego from reinitializing on every build
     widget.viewModel.initContext(context);
   }
 
@@ -84,6 +84,7 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
       ),
     );
 
+
     if (newName != null && newName.isNotEmpty && newName != _roomName) {
       final success = await widget.viewModel.roomService.updateRoom(
         widget.roomId,
@@ -115,7 +116,6 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
   Widget build(BuildContext context) {
     final isHost = widget.userIdentification == widget.hostId;
 
-    /// Build config WITHOUT PIP (your SDK does NOT support it)
     final config = (isHost
         ? ZegoUIKitPrebuiltLiveAudioRoomConfig.host()
         : ZegoUIKitPrebuiltLiveAudioRoomConfig.audience())
@@ -131,17 +131,39 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
             alignment: ZegoLiveAudioRoomLayoutAlignment.center,
           ),
       ]
-      ..seat.avatarBuilder = (context, size, user, extra) {
-        return UserAvatar(
-          userId: user?.id ?? "",
+      ..seat.avatarBuilder = (ctx, size, user, extra) {
+        final targetId = user?.id ?? '';
+        final targetName = user?.name ?? targetId;
+
+        final avatar = UserAvatar(
+          userId: targetId,
           size: size.width,
           profileCache: widget.viewModel.profileCache,
           fetchProfilePicture: widget.viewModel.fetchProfilePicture,
         );
-      }
-      ..topMenuBar = ZegoLiveAudioRoomTopMenuBarConfig(buttons: []);
 
-    /// Gift button
+        if (targetId.isEmpty) return avatar;
+
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onLongPress: () {
+            debugPrint('🟢 LONG PRESS → $targetId');
+
+            setState(() {
+              _selectedUserId = targetId;
+              _selectedUserName = targetName;
+              _selectedAvatarBytes =
+              widget.viewModel.profileCache[targetId];
+            });
+          },
+          child: avatar,
+        );
+      }
+      ..topMenuBar = ZegoLiveAudioRoomTopMenuBarConfig(
+        buttons: [],
+      );
+
+
     final giftButton = ElevatedButton(
       style: ElevatedButton.styleFrom(
         shape: const CircleBorder(),
@@ -151,6 +173,7 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
       onPressed: () {
         showModalBottomSheet(
           context: context,
+          useRootNavigator: true,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
           builder: (_) => GiftModal(
@@ -172,7 +195,6 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
 
     return Stack(
       children: [
-        /// Zego audio room
         ZegoUIKitPrebuiltLiveAudioRoom(
           appID: ZegoConfig.appID,
           appSign: ZegoConfig.appSign,
@@ -182,7 +204,6 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
           config: config,
         ),
 
-        /// Room name
         Positioned(
           top: 70,
           left: 20,
@@ -223,20 +244,17 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
           ),
         ),
 
-        /// Games
         Positioned(
           right: 20,
           bottom: 200,
           child: FloatingActionButton.extended(
-            onPressed: () =>
-                widget.viewModel.showGameListModal(context, widget.roomId),
+            onPressed: () => widget.viewModel.showGameListModal(context, widget.roomId),
             label: const Text('Games'),
             icon: const Icon(Icons.videogame_asset),
             backgroundColor: Colors.deepPurpleAccent,
           ),
         ),
 
-        /// Exit
         Positioned(
           top: 60,
           right: 20,
@@ -258,10 +276,11 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
                     ),
                     ElevatedButton(
                       onPressed: () => Navigator.pop(context, true),
-                      style:
-                      ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                      child: Text(isHost ? 'End' : 'Leave',
-                          style: const TextStyle(color: Colors.white)),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      child: Text(
+                        isHost ? 'End' : 'Leave',
+                        style: const TextStyle(color: Colors.white),
+                      ),
                     ),
                   ],
                 ),
@@ -277,9 +296,7 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(
-                        isHost ? 'Failed to end room.' : 'Failed to leave room.',
-                      ),
+                      content: Text(isHost ? 'Failed to end room.' : 'Failed to leave room.'),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -292,15 +309,83 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
                 shape: BoxShape.circle,
                 color: Colors.black.withOpacity(0.8),
               ),
-              child:
-              const Icon(Icons.power_settings_new, color: Colors.white, size: 28),
+              child: const Icon(Icons.power_settings_new, color: Colors.white, size: 28),
             ),
           ),
         ),
+        if (_selectedUserId != null)
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () {
+              }, // absorb taps
+              child: Builder(
+                builder: (context) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (_selectedUserId == null) return;
 
-        /// Gift animations overlay
+                    UserFrameProfileSheet.show(
+                      context,
+                      userId: _selectedUserId!,
+                      displayName: _selectedUserName ?? _selectedUserId!,
+                      avatarBytes: _selectedAvatarBytes,
+                      badges: const [
+                        _MiniBadge(icon: Icons.shield, text: '1', bg: Color(0xFF18B26B)),
+                        _MiniBadge(icon: Icons.favorite, text: '1', bg: Color(0xFF34C6C6)),
+                      ],
+                    );
+
+                    setState(() {
+                      _selectedUserId = null;
+                      _selectedUserName = null;
+                      _selectedAvatarBytes = null;
+                    });
+                  });
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+
         GiftAnimationOverlay(vm: widget.viewModel),
       ],
+    );
+  }
+}
+
+class _MiniBadge extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final Color bg;
+
+  const _MiniBadge({
+    required this.icon,
+    required this.text,
+    required this.bg,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: Colors.white),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

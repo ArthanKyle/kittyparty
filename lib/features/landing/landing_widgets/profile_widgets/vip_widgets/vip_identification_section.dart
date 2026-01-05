@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
+import 'package:flutter_svga/flutter_svga.dart';
 import '../../../../../core/utils/profile_picture_helper.dart';
 import '../../../../../core/utils/user_provider.dart';
 import '../../../viewmodel/profile_viewmodel.dart';
@@ -37,8 +37,12 @@ class VipIdentificationSection extends StatelessWidget {
         const SizedBox(width: 14),
         Expanded(
           child: _VipInfoCard(
-            title: 'Only Nameplate',
-            child: _NameplateThumb(level: vipLevel),
+            title: 'Preview',
+            // ✅ SVGA frame preview + avatar behind
+            child: _AvatarFrameSvgaPreview(
+              level: vipLevel,
+              avatar: profilePictureWidget,
+            ),
           ),
         ),
       ],
@@ -73,15 +77,17 @@ class _VipInfoCard extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           child,
-          const SizedBox(height: 10),
-          Text(
-            title,
-            style: const TextStyle(
-              color: Color(0xFFE7D6A5),
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
+          if (title.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Color(0xFFE7D6A5),
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -96,7 +102,7 @@ class _FramedAvatarThumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final frameAsset = VipAvatarFrameAssets.framePngByLevel(level);
+    final framePng = VipAvatarFrameAssets.framePngByLevel(level);
 
     return SizedBox(
       width: 72,
@@ -107,7 +113,7 @@ class _FramedAvatarThumb extends StatelessWidget {
           avatar,
           IgnorePointer(
             child: Image.asset(
-              frameAsset,
+              framePng,
               width: 72,
               height: 72,
               fit: BoxFit.contain,
@@ -120,35 +126,88 @@ class _FramedAvatarThumb extends StatelessWidget {
   }
 }
 
-class _NameplateThumb extends StatelessWidget {
+/// ✅ Missing widget in your code — added here
+class _AvatarFrameSvgaPreview extends StatefulWidget {
   final int level;
-  const _NameplateThumb({required this.level});
+  final Widget avatar;
+
+  const _AvatarFrameSvgaPreview({
+    required this.level,
+    required this.avatar,
+  });
+
+  @override
+  State<_AvatarFrameSvgaPreview> createState() => _AvatarFrameSvgaPreviewState();
+}
+
+class _AvatarFrameSvgaPreviewState extends State<_AvatarFrameSvgaPreview>
+    with SingleTickerProviderStateMixin {
+  SVGAAnimationController? controller;
+  final parser = SVGAParser();
+
+  @override
+  void initState() {
+    super.initState();
+    controller = SVGAAnimationController(vsync: this);
+    _loadAndLoop();
+  }
+
+  @override
+  void didUpdateWidget(covariant _AvatarFrameSvgaPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.level != widget.level) {
+      _loadAndLoop();
+    }
+  }
+
+  Future<void> _loadAndLoop() async {
+    final path = VipAvatarFrameAssets.frameSvgaByLevel(widget.level);
+    if (path.isEmpty) return;
+
+    try {
+      final video = await parser.decodeFromAssets(path);
+      if (!mounted) return;
+
+      controller?.stop();
+      controller!.videoItem = video;
+
+      // ✅ seamless loop
+      controller!
+        ..value = 0.0
+        ..repeat(
+          min: 0.0,
+          max: 1.0,
+          period: controller!.duration,
+        );
+    } catch (e) {
+      debugPrint("❌ Avatar frame SVGA load failed => $path | $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 38,
-      width: 110,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE7D6A5).withOpacity(0.55)),
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF3B2A17).withOpacity(0.95),
-            const Color(0xFF1D1208).withOpacity(0.95),
-          ],
-        ),
-      ),
-      child: Text(
-        'VIP$level',
-        style: const TextStyle(
-          color: Color(0xFFE7D6A5),
-          fontSize: 16,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 0.6,
-        ),
+    return SizedBox(
+      width: 72,
+      height: 72,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          widget.avatar,
+          if (controller?.videoItem != null)
+            IgnorePointer(
+              child: SVGAImage(
+                controller!,
+                fit: BoxFit.contain,
+              ),
+            ),
+        ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    controller?.dispose();
+    super.dispose();
   }
 }
