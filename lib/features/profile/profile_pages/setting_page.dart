@@ -1,3 +1,5 @@
+// setting_page.dart (only the parts that need fixing are included here as FULL FILE below)
+
 import 'package:flutter/material.dart';
 import 'package:kittyparty/features/profile/profile_pages/settings/VIPSettings_page.dart';
 import 'package:kittyparty/features/profile/profile_pages/settings/bind_number.dart';
@@ -7,16 +9,11 @@ import 'package:kittyparty/features/profile/profile_pages/settings/reset_pass_pa
 import 'package:kittyparty/features/profile/profile_pages/settings/set_password_page.dart';
 import 'package:provider/provider.dart';
 
-// 🔹 Auth + Core Imports
-import 'package:kittyparty/features/auth/view/login_selection.dart';
-import '../../../core/constants/colors.dart';
 import '../../../core/global_widgets/buttons/primary_button.dart';
 import '../../../core/global_widgets/dialogs/dialog_info.dart';
 import '../../../core/global_widgets/dialogs/dialog_loading.dart';
 import '../../../core/utils/index_provider.dart';
 import '../../../core/utils/user_provider.dart';
-// 🔹 Feature Pages
-import '../../livestream/widgets/game_modal.dart';
 
 class SettingPage extends StatefulWidget {
   const SettingPage({super.key});
@@ -28,7 +25,6 @@ class SettingPage extends StatefulWidget {
 class _SettingPageState extends State<SettingPage> {
   bool _isLoggingOut = false;
 
-  /// ✅ Handles logout with confirmation and loading dialogs
   Future<void> _handleLogout(BuildContext context) async {
     if (_isLoggingOut) return;
     setState(() => _isLoggingOut = true);
@@ -42,7 +38,7 @@ class _SettingPageState extends State<SettingPage> {
         setState(() => _isLoggingOut = false);
       },
       onConfirm: () async {
-        Navigator.of(context, rootNavigator: true).pop(); // close dialog
+        Navigator.of(context, rootNavigator: true).pop();
 
         DialogLoading(subtext: "Logging out...").build(context);
 
@@ -50,11 +46,10 @@ class _SettingPageState extends State<SettingPage> {
           final userProvider = context.read<UserProvider>();
           await userProvider.logout();
 
-          // ✅ Reset page index on logout
           context.read<PageIndexProvider>().reset();
 
           if (!context.mounted) return;
-          Navigator.of(context, rootNavigator: true).pop(); // close loading
+          Navigator.of(context, rootNavigator: true).pop();
           Navigator.pushNamedAndRemoveUntil(context, "/auth", (route) => false);
         } catch (e) {
           if (context.mounted) {
@@ -70,11 +65,12 @@ class _SettingPageState extends State<SettingPage> {
     ).build(context);
   }
 
-
   @override
   Widget build(BuildContext context) {
     final userProvider = context.watch<UserProvider>();
     final user = userProvider.currentUser;
+
+    final hasPassword = user?.passwordHash == true;
 
     return Scaffold(
       appBar: AppBar(
@@ -90,7 +86,6 @@ class _SettingPageState extends State<SettingPage> {
       backgroundColor: const Color(0xfff8f8f8),
       body: Column(
         children: [
-          // 🔹 Profile Header
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
             margin: const EdgeInsets.only(bottom: 8),
@@ -124,12 +119,10 @@ class _SettingPageState extends State<SettingPage> {
             ),
           ),
 
-          // 🔹 Settings List
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(12),
               children: [
-                // 🔹 Account Group
                 _buildGroup([
                   _buildItem(
                     'Change Email',
@@ -151,25 +144,21 @@ class _SettingPageState extends State<SettingPage> {
                       MaterialPageRoute(builder: (_) => const BindNumberPage()),
                     ),
                   ),
-                  if (user?.loginMethod?.toLowerCase() != 'google') // Disable reset for Google login
-                    _buildItem(
-                      (user?.passwordHash != null && user!.passwordHash!.isNotEmpty)
-                          ? 'Reset Password'
-                          : 'Set Password',
-                      onTap: () {
-                        final hasPassword = user?.passwordHash != null &&
-                            user!.passwordHash!.isNotEmpty;
 
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => hasPassword
-                                ? const ResetPassPage()
-                                : const SetPasswordPage(),
-                          ),
-                        );
-                      },
-                    ),
+                  _buildItem(
+                    hasPassword ? 'Reset Password' : 'Set Password',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => hasPassword
+                              ? const ResetPassPage()
+                              : const SetPasswordPage(),
+                        ),
+                      );
+                    },
+                  ),
+
                   _buildItem(
                     'Payment Password',
                     trailingText: 'Modify',
@@ -180,7 +169,6 @@ class _SettingPageState extends State<SettingPage> {
                   ),
                 ]),
 
-                // 🔹 Preferences Group
                 _buildGroup([
                   _buildItem(
                     'VIP Setting',
@@ -199,13 +187,11 @@ class _SettingPageState extends State<SettingPage> {
                   ),
                 ]),
 
-                // 🔹 Privacy / Management Group
                 _buildGroup([
                   _buildItem('Shield Manager', onTap: () {}),
                   _buildItem('Blacklist Management', onTap: () {}),
                 ]),
 
-                // 🔹 Info / Support Group
                 _buildGroup([
                   _buildItem('Personal Information and Permissions', onTap: () {}),
                   _buildItem('Help', onTap: () {}),
@@ -216,7 +202,6 @@ class _SettingPageState extends State<SettingPage> {
             ),
           ),
 
-          // 🔹 Logout Button
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: SizedBox(
@@ -233,7 +218,6 @@ class _SettingPageState extends State<SettingPage> {
     );
   }
 
-  // 🔸 Group Container
   Widget _buildGroup(List<Widget> children) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -260,7 +244,6 @@ class _SettingPageState extends State<SettingPage> {
     );
   }
 
-  // 🔸 Reusable List Item
   Widget _buildItem(String title, {String? trailingText, VoidCallback? onTap}) {
     return ListTile(
       title: Text(title, style: const TextStyle(fontSize: 16)),

@@ -6,7 +6,7 @@ class User {
   final String? email;
   final String? phoneNumber;
   final String loginMethod;
-  final String? passwordHash;
+  final bool passwordHash;
   final String countryCode;
 
   // gender: male | female
@@ -33,7 +33,7 @@ class User {
     this.email,
     this.phoneNumber,
     required this.loginMethod,
-    this.passwordHash,
+    required this.passwordHash,
     required this.countryCode,
     required this.gender,
     this.vipLevel = 0,
@@ -65,7 +65,7 @@ class User {
       email: json['Email'] ?? json['email'],
       phoneNumber: json['PhoneNumber'] ?? json['phoneNumber'],
       loginMethod: json['LoginMethod'] ?? json['loginMethod'] ?? 'Email',
-      passwordHash: json['PasswordHash'] ?? json['passwordHash'],
+      passwordHash: json['passwordHash'] == true, // ✅ read bool
       countryCode: json['CountryCode'] ?? json['countryCode'] ?? '',
       gender: _parseGender(json['Gender'] ?? json['gender']),
       vipLevel: json['vipLevel'] is int

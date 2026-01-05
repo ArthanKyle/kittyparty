@@ -9,15 +9,30 @@ class DailyTaskViewModel extends ChangeNotifier {
 
   List<DailyTask> dailyTasks = [];
   bool isLoading = false;
+  String? lastError;
 
-  Future<void> fetchDailyTasks(String token) async {
+  Future<void> fetchDailyTasks(String userIdentification) async {
     isLoading = true;
+    lastError = null;
     notifyListeners();
 
+    debugPrint('🧾 [DailyTaskVM] fetchDailyTasks userIdentification=$userIdentification');
+
     try {
-      dailyTasks = await _service.fetchDailyTasks(token);
+      final result = await _service.fetchDailyTasks(userIdentification);
+      dailyTasks = result;
+
+      debugPrint('✅ [DailyTaskVM] fetched ${dailyTasks.length} tasks');
+      for (final t in dailyTasks) {
+        debugPrint(
+          '  - key=${t.key} progress=${t.progress}/${t.target} '
+              'completed=${t.completed} rewarded=${t.rewarded}',
+        );
+      }
     } catch (e) {
+      lastError = e.toString();
       dailyTasks = [];
+      debugPrint('❌ [DailyTaskVM] fetchDailyTasks error=$lastError');
     }
 
     isLoading = false;
@@ -25,11 +40,18 @@ class DailyTaskViewModel extends ChangeNotifier {
   }
 
   Future<void> signIn(String userIdentification) async {
+    debugPrint('🟦 [DailyTaskVM] signIn userIdentification=$userIdentification');
+
     try {
       await _service.signIn(userIdentification);
+      debugPrint('✅ [DailyTaskVM] signIn success');
+
+      // refresh list after signing in
       await fetchDailyTasks(userIdentification);
     } catch (e) {
-      throw e.toString();
+      lastError = e.toString();
+      debugPrint('❌ [DailyTaskVM] signIn error=$lastError');
+      rethrow;
     }
   }
 }
