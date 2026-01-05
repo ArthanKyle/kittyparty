@@ -22,7 +22,7 @@ class _BannerCarouselState extends State<BannerCarousel> {
     'assets/image/banner/pretty-id-banner.jpg',
     'assets/image/banner/wealth-level-reward-banner.jpg',
     'assets/image/banner/weekly-star-banner.jpg',
-    'assets/image/banner/win-coin-back-banner.jpg',
+    'assets/image/banner/task-center-banner.jpg',
     'assets/image/banner/ad-event-banner.jpg',
   ];
 
@@ -37,6 +37,7 @@ class _BannerCarouselState extends State<BannerCarousel> {
     'assets/image/banner/wealth-level-reward-banner.jpg': AppRoutes.level,
     'assets/image/banner/weekly-star-banner.jpg': AppRoutes.tasks,
     'assets/image/banner/ad-event-banner.jpg': AppRoutes.landing,
+    'assets/image/banner/task-center-banner.jpg' : AppRoutes.tasks,
   };
 
   int _currentIndex = 0;
