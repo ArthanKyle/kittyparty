@@ -51,7 +51,7 @@ class _SettingPageState extends State<SettingPage> {
           await userProvider.logout();
 
           // ✅ Reset page index on logout
-          Provider.of<PageIndexProvider>(context, listen: false).pageIndex = 0;
+          context.read<PageIndexProvider>().reset();
 
           if (!context.mounted) return;
           Navigator.of(context, rootNavigator: true).pop(); // close loading

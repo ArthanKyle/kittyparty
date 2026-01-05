@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
-class PageIndexProvider with ChangeNotifier {
+class PageIndexProvider extends ChangeNotifier {
   int _pageIndex = 0;
 
   int get pageIndex => _pageIndex;
 
-  set pageIndex(int index) {
+  /// Safe setter (idempotent)
+  void setPage(int index) {
+    if (_pageIndex == index) return;
     _pageIndex = index;
     notifyListeners();
   }
-}
 
-void changePage({required int index, required BuildContext context}) {
-  Provider.of<PageIndexProvider>(context, listen: false).pageIndex = index;
+  /// Hard reset (used on logout / login)
+  void reset() {
+    _pageIndex = 0;
+    notifyListeners();
+  }
 }

@@ -15,8 +15,7 @@ class PostPage extends StatefulWidget {
   State<PostPage> createState() => _PostPageState();
 }
 
-class _PostPageState extends State<PostPage>
-    with SingleTickerProviderStateMixin {
+class _PostPageState extends State<PostPage> with SingleTickerProviderStateMixin {
   late final TabController _tab;
 
   @override
@@ -58,29 +57,43 @@ class _PostPageState extends State<PostPage>
             Column(
               children: [
                 const SizedBox(height: 20),
+
+                // ✅ Header matches LandingPage layout (TabBar left + Search icon right)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 6, 8, 0),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: TabBar(
-                      controller: _tab,
-                      isScrollable: true,
-                      labelPadding: const EdgeInsets.only(right: 24),
-                      indicatorSize: TabBarIndicatorSize.label,
-                      dividerColor: Colors.transparent,
-                      labelColor: Colors.white,
-                      unselectedLabelColor: Colors.black45,
-                      labelStyle: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Transform.translate(
+                          offset: const Offset(-45, 0),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: TabBar(
+                              controller: _tab,
+                              isScrollable: true,
+                              labelPadding: const EdgeInsets.only(right: 24),
+                              indicatorSize: TabBarIndicatorSize.label,
+                              dividerColor: Colors.transparent,
+                              labelColor: Colors.white,
+                              unselectedLabelColor: Colors.black45,
+                              labelStyle: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              tabs: const [
+                                Tab(text: 'Recommend'),
+                                Tab(text: 'Following'),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
-                      tabs: const [
-                        Tab(text: 'Recommend'),
-                        Tab(text: 'Following'),
-                      ],
-                    ),
+                      const SizedBox(height: 10),
+                    ],
                   ),
                 ),
+
+                // Pages (swipe left/right)
                 Expanded(
                   child: TabBarView(
                     controller: _tab,
@@ -89,10 +102,11 @@ class _PostPageState extends State<PostPage>
                       FollowingPostTab(),
                     ],
                   ),
-                )
+                ),
               ],
             ),
 
+            // ✅ Keep your floating create button
             Positioned(
               bottom: 24,
               right: 24,

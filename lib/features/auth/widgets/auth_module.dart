@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:kittyparty/features/auth/view/login_selection.dart';
 import 'package:provider/provider.dart';
+
 import '../../../core/utils/index_provider.dart';
 import '../../../core/utils/user_provider.dart';
 import '../../navigation/page_handler.dart';
-
+import '../view/login_selection.dart';
 
 class AuthCheck extends StatefulWidget {
   const AuthCheck({super.key});
@@ -14,11 +14,24 @@ class AuthCheck extends StatefulWidget {
 }
 
 class _AuthCheckState extends State<AuthCheck> {
+  bool _didResetIndex = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<UserProvider>(context, listen: false).loadUser();
+      if (!mounted) return;
+      context.read<UserProvider>().loadUser();
+    });
+  }
+
+  void _resetPageIndexOnce() {
+    if (_didResetIndex) return;
+    _didResetIndex = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<PageIndexProvider>().reset();
     });
   }
 
@@ -33,14 +46,13 @@ class _AuthCheckState extends State<AuthCheck> {
     }
 
     if (userProvider.isLoggedIn) {
-      // ✅ Reset page index to LandingPage
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Provider.of<PageIndexProvider>(context, listen: false).pageIndex = 0;
-      });
-
+      // ✅ schedule reset safely (NOT during build)
+      _resetPageIndexOnce();
       return const PageHandler();
-    } else {
-      return const LoginSelection();
     }
+
+    // if not logged in, allow future reset when user logs in again
+    _didResetIndex = false;
+    return const LoginSelection();
   }
 }

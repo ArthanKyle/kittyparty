@@ -4,7 +4,7 @@ import '../../../core/constants/colors.dart';
 class GenderOption extends StatelessWidget {
   final String label;
   final IconData icon;
-  final String value;
+  final String value; // "male" | "female"
   final String selectedGender;
   final VoidCallback onTap;
 
@@ -20,7 +20,7 @@ class GenderOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isSelected = selectedGender == value;
-    final Color accent = value == "boy" ? Colors.blue : AppColors.accentPink;
+    final Color accent = value == "male" ? Colors.blue : AppColors.accentPink;
 
     return GestureDetector(
       onTap: onTap,

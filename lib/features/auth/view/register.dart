@@ -9,7 +9,6 @@ import '../viewmodel/register_viewmodel.dart';
 import '../widgets/arrow_back.dart';
 import '../widgets/country_dropdown.dart';
 import '../widgets/gender_options.dart';
-import '../widgets/password_field.dart';
 import '../widgets/text_field.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -29,7 +28,8 @@ class _RegisterPageState extends State<RegisterPage> {
     if (_prefilled) return;
     _prefilled = true;
 
-    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+    final args =
+    ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
 
     if (args != null) {
       context.read<RegisterViewModel>().setInitialValues(
@@ -71,34 +71,33 @@ class _RegisterPageState extends State<RegisterPage> {
                           color: AppColors.accentWhite,
                         ),
                       ),
-
                       const SizedBox(height: 20),
-
                       const Text(
                         "Please select your gender",
-                        style: TextStyle(fontSize: 14, color: AppColors.accentWhite),
+                        style:
+                        TextStyle(fontSize: 14, color: AppColors.accentWhite),
                       ),
                       const SizedBox(height: 4),
                       const Text(
                         "(Gender cannot be modified later~)",
-                        style: TextStyle(fontSize: 10, color: AppColors.accentWhite),
+                        style:
+                        TextStyle(fontSize: 10, color: AppColors.accentWhite),
                       ),
-
                       const SizedBox(height: 20),
 
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           GenderOption(
-                            label: "Boy",
+                            label: "Male",
                             icon: Icons.male,
                             value: "male",
                             selectedGender: vm.selectedGender,
                             onTap: () => vm.setGender("male"),
                           ),
-
+                          const SizedBox(width: 18),
                           GenderOption(
-                            label: "Girl",
+                            label: "Female",
                             icon: Icons.female,
                             value: "female",
                             selectedGender: vm.selectedGender,
@@ -113,10 +112,12 @@ class _RegisterPageState extends State<RegisterPage> {
                         labelText: 'Name',
                         controller: vm.nameController,
                         hintText: 'Please enter your Full Name.',
-                        validator: (value) =>
-                        value == null || value.trim().isEmpty ? "Name is required" : null,
+                        validator: (value) => value == null || value.trim().isEmpty
+                            ? "Name is required"
+                            : null,
                         inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r"[a-zA-ZÀ-ÿ\s\-]"))
+                          FilteringTextInputFormatter.allow(
+                              RegExp(r"[a-zA-ZÀ-ÿ\s\-]"))
                         ],
                       ),
 
@@ -124,8 +125,9 @@ class _RegisterPageState extends State<RegisterPage> {
                         labelText: 'UserName',
                         controller: vm.usernameController,
                         hintText: 'Please enter your User Name.',
-                        validator: (value) =>
-                        value == null || value.trim().isEmpty ? "UserName is required" : null,
+                        validator: (value) => value == null || value.trim().isEmpty
+                            ? "UserName is required"
+                            : null,
                       ),
 
                       BasicTextField(
@@ -133,10 +135,16 @@ class _RegisterPageState extends State<RegisterPage> {
                         hintText: 'Please enter your email.',
                         controller: vm.emailController,
                         validator: (value) {
-                          if (value == null || value.trim().isEmpty) return 'Enter your email.';
-                          if (!Validators.isValidEmail(value)) return 'Enter a valid email address.';
-                          if (!Validators.isAllowedEmailDomain(value, companyDomains: ['mycompany.com']))
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Enter your email.';
+                          }
+                          if (!Validators.isValidEmail(value)) {
+                            return 'Enter a valid email address.';
+                          }
+                          if (!Validators.isAllowedEmailDomain(value,
+                              companyDomains: ['mycompany.com'])) {
                             return 'Email domain is not allowed.';
+                          }
                           return null;
                         },
                       ),

@@ -9,12 +9,15 @@ class User {
   final String? passwordHash;
   final String countryCode;
 
-  // ✅ add gender (boy/girl)
-  final String gender; // "boy" | "girl"
+  // gender: male | female
+  final String gender;
 
+  // VIP (single source of truth)
   final int vipLevel;
+
   int coins;
   int diamonds;
+
   final String status;
   final DateTime dateJoined;
   final DateTime? lastLogin;
@@ -32,10 +35,7 @@ class User {
     required this.loginMethod,
     this.passwordHash,
     required this.countryCode,
-
-    // ✅ gender
-    this.gender = "girl",
-
+    required this.gender,
     this.vipLevel = 0,
     this.coins = 0,
     this.diamonds = 0,
@@ -47,63 +47,48 @@ class User {
     this.myInvitationCode,
   }) : dateJoined = dateJoined ?? DateTime.now();
 
-  factory User.fromJson(Map<String, dynamic> json) => User(
-    id: json['_id'] ?? json['id'] ?? '',
-    userIdentification: json['UserIdentification']?.toString() ??
-        json['userIdentification']?.toString() ??
-        "",
-    username: json['Username']?.toString() ??
-        json['username']?.toString() ??
-        json['userName']?.toString() ??
-        "",
-    fullName: json['FullName']?.toString() ??
-        json['fullName']?.toString() ??
-        "",
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['_id'] ?? json['id'] ?? '',
+      userIdentification:
+      json['UserIdentification']?.toString() ??
+          json['userIdentification']?.toString() ??
+          '',
+      username:
+      json['Username']?.toString() ??
+          json['username']?.toString() ??
+          '',
+      fullName:
+      json['FullName']?.toString() ??
+          json['fullName']?.toString() ??
+          '',
+      email: json['Email'] ?? json['email'],
+      phoneNumber: json['PhoneNumber'] ?? json['phoneNumber'],
+      loginMethod: json['LoginMethod'] ?? json['loginMethod'] ?? 'Email',
+      passwordHash: json['PasswordHash'] ?? json['passwordHash'],
+      countryCode: json['CountryCode'] ?? json['countryCode'] ?? '',
+      gender: _parseGender(json['Gender'] ?? json['gender']),
+      vipLevel: json['vipLevel'] is int
+          ? json['vipLevel']
+          : int.tryParse(json['vipLevel']?.toString() ?? '0') ?? 0,
+      coins: json['Coins'] ?? json['coins'] ?? 0,
+      diamonds: json['Diamonds'] ?? json['diamonds'] ?? 0,
+      status: json['Status'] ?? json['status'] ?? 'offline',
+      dateJoined: json['DateJoined'] != null
+          ? DateTime.parse(json['DateJoined'])
+          : DateTime.now(),
+      lastLogin: json['LastLogin'] != null
+          ? DateTime.parse(json['LastLogin'])
+          : null,
+      invitationCode:
+      json['InvitationCode'] ?? json['invitationCode'],
+      isFirstTimeRecharge: json['isFirstTimeRecharge'] ?? true,
+      myInvitationCode:
+      json['MyInvitationCode'] ?? json['myInvitationCode'],
+    );
+  }
 
-    email: json['Email'] ?? json['email'],
-    phoneNumber: json['PhoneNumber'] ?? json['phoneNumber'],
-    loginMethod: json['LoginMethod'] ?? json['loginMethod'] ?? "Email",
-    passwordHash: json['PasswordHash'] ?? json['passwordHash'],
-    countryCode: json['CountryCode'] ?? json['countryCode'] ?? "",
-
-    // ✅ gender mapping (accepts boy/girl, male/female, m/f, 1/2)
-    gender: _parseGender(
-      json['Gender'] ??
-          json['gender'] ??
-          json['Sex'] ??
-          json['sex'] ??
-          json['isMale'] ??
-          json['IsMale'],
-    ),
-
-    vipLevel: (json['VIPLevel'] is int)
-        ? json['VIPLevel']
-        : int.tryParse(json['VIPLevel']?.toString() ?? "0") ?? 0,
-    coins: (json['Coins'] is int)
-        ? json['Coins']
-        : (json['coins'] is int)
-        ? json['coins']
-        : int.tryParse(
-      json['Coins']?.toString() ??
-          json['coins']?.toString() ??
-          "0",
-    ) ??
-        0,
-    diamonds: (json['Diamonds'] is int)
-        ? json['Diamonds']
-        : int.tryParse(json['Diamonds']?.toString() ?? "0") ?? 0,
-    status: json['Status'] ?? json['status'] ?? "offline",
-    dateJoined: json['DateJoined'] != null
-        ? DateTime.parse(json['DateJoined'])
-        : DateTime.now(),
-    lastLogin: json['LastLogin'] != null
-        ? DateTime.parse(json['LastLogin'])
-        : null,
-    invitationCode: json['InvitationCode'] ?? json['invitationCode'],
-    isFirstTimeRecharge: json['isFirstTimeRecharge'] ?? true,
-    myInvitationCode: json['MyInvitationCode'] ?? json['myInvitationCode'],
-  );
-
+  /// Client never sends VIP or wallet values
   Map<String, dynamic> toJson() => {
     '_id': id,
     'UserIdentification': userIdentification,
@@ -112,42 +97,30 @@ class User {
     'Email': email,
     'PhoneNumber': phoneNumber,
     'LoginMethod': loginMethod,
-    'PasswordHash': passwordHash,
     'CountryCode': countryCode,
-
-    // ✅ include gender for backend
     'Gender': gender,
-
-    'VIPLevel': vipLevel,
-    'Coins': coins,
-    'Diamonds': diamonds,
     'Status': status,
     'DateJoined': dateJoined.toIso8601String(),
     'LastLogin': lastLogin?.toIso8601String(),
     if (invitationCode != null) 'InvitationCode': invitationCode,
     'isFirstTimeRecharge': isFirstTimeRecharge,
-    if (myInvitationCode != null) 'MyInvitationCode': myInvitationCode,
+    if (myInvitationCode != null)
+      'MyInvitationCode': myInvitationCode,
   };
 
-  // --------------------
-  // helpers
-  // --------------------
   static String _parseGender(dynamic raw) {
-    if (raw == null) return "girl";
-
-    // bool style: isMale true/false
-    if (raw is bool) return raw ? "boy" : "girl";
+    if (raw == null) return 'female';
 
     final v = raw.toString().trim().toLowerCase();
 
-    // numeric style
-    if (v == '1') return "boy";
-    if (v == '2') return "girl";
+    if (v == 'male' || v == 'm' || v == '1' || v == 'boy') {
+      return 'male';
+    }
 
-    // string style
-    if (v == 'boy' || v == 'male' || v == 'm') return "boy";
-    if (v == 'girl' || v == 'female' || v == 'f') return "girl";
+    if (v == 'female' || v == 'f' || v == '2' || v == 'girl') {
+      return 'female';
+    }
 
-    return "girl";
+    return 'female';
   }
 }

@@ -63,7 +63,7 @@ class LoginViewModel extends ChangeNotifier {
         final userProvider = Provider.of<UserProvider>(context, listen: false);
         await userProvider.setUser(authResponse);
 
-        Provider.of<PageIndexProvider>(context, listen: false).pageIndex = 0;
+        context.read<PageIndexProvider>().reset();
         loginSuccess = true;
         Navigator.pushNamedAndRemoveUntil(context, "/", (route) => false);
       }
@@ -113,7 +113,7 @@ class LoginViewModel extends ChangeNotifier {
         await Provider.of<UserProvider>(context, listen: false)
             .setUser(authResponse);
 
-        Provider.of<PageIndexProvider>(context, listen: false).pageIndex = 0;
+        context.read<PageIndexProvider>().reset();
 
         loginSuccess = true;
         print("✅ ID login successful for ${authResponse.user.userIdentification}");
@@ -158,7 +158,7 @@ class LoginViewModel extends ChangeNotifier {
         await Provider.of<UserProvider>(context, listen: false)
             .setUser(authResponse);
 
-        Provider.of<PageIndexProvider>(context, listen: false).pageIndex = 0;
+        context.read<PageIndexProvider>().reset();
 
         loginSuccess = true;
         print("✅ Email login successful for ${authResponse.user.email}");

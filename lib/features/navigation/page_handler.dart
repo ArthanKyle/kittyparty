@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:kittyparty/features/landing/view/messages_page.dart';
 import 'package:provider/provider.dart';
+
 import '../../core/constants/colors.dart';
 import '../../core/global_widgets/buttons/route_button.dart';
 import '../../core/utils/index_provider.dart';
@@ -19,53 +20,56 @@ class PageHandler extends StatefulWidget {
 }
 
 class _PageHandlerState extends State<PageHandler> {
-  @override
-  void initState() {
-    super.initState();
+  int _lastIndex = -1;
+  bool _refreshScheduled = false;
+
+  void _scheduleDashboardRefresh() {
+    if (_refreshScheduled) return;
+    _refreshScheduled = true;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<PageIndexProvider>(context, listen: false)
-          .addListener(_onTabChanged);
+      _refreshScheduled = false;
+      if (!mounted) return;
+
+      final landingVM = context.read<LandingViewModel>();
+      final userProvider = context.read<UserProvider>();
+      landingVM.refreshMyRooms(userProvider);
     });
   }
 
-  void _onTabChanged() {
-    final index = Provider.of<PageIndexProvider>(context, listen: false).pageIndex;
+  void _handleIndexChanged(int newIndex) {
+    if (newIndex == _lastIndex) return;
+    _lastIndex = newIndex;
 
-    if (index == 0) {
-      final landingVM = Provider.of<LandingViewModel>(context, listen: false);
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      landingVM.refreshMyRooms(userProvider);
+    if (newIndex == 0) {
+      _scheduleDashboardRefresh();
     }
   }
 
-  @override
-  void dispose() {
-    Provider.of<PageIndexProvider>(context, listen: false)
-        .removeListener(_onTabChanged);
-    super.dispose();
+  void _goTo(int index) {
+    if (!mounted) return;
+    context.read<PageIndexProvider>().setPage(index);
   }
-
-  final pages = [
-    const LandingPage(),
-    const PostPage(),
-    const MessagePage(),
-    const ProfilePage(),
-  ];
 
   @override
   Widget build(BuildContext context) {
-    int pageIndex = Provider.of<PageIndexProvider>(context).pageIndex;
+    final pageIndex = context.watch<PageIndexProvider>().pageIndex;
+
+    // React safely to tab changes
+    _handleIndexChanged(pageIndex);
 
     return WillPopScope(
       onWillPop: () async {
-        if (pageIndex == 0) SystemNavigator.pop();
+        if (pageIndex == 0) {
+          SystemNavigator.pop();
+          return false;
+        }
 
-        changePage(index: 0, context: context);
-
+        _goTo(0);
         return false;
       },
       child: Scaffold(
+        backgroundColor: AppColors.accentWhite,
         body: IndexedStack(
           index: pageIndex,
           children: const <Widget>[
@@ -75,7 +79,6 @@ class _PageHandlerState extends State<PageHandler> {
             ProfilePage(),
           ],
         ),
-        backgroundColor: AppColors.accentWhite,
         bottomNavigationBar: SafeArea(
           child: SizedBox(
             height: 70,
@@ -91,8 +94,7 @@ class _PageHandlerState extends State<PageHandler> {
                       RouteButton(
                         routeName: "Dashboard",
                         filePath: "assets/icons/home.svg",
-                        routeCallback: () =>
-                            changePage(index: 0, context: context),
+                        routeCallback: () => _goTo(0),
                         currentIndex: pageIndex,
                         routeIndex: 0,
                       ),
@@ -100,8 +102,7 @@ class _PageHandlerState extends State<PageHandler> {
                       RouteButton(
                         routeName: "Posts",
                         filePath: "assets/icons/compass.svg",
-                        routeCallback: () =>
-                            changePage(index: 1, context: context),
+                        routeCallback: () => _goTo(1),
                         currentIndex: pageIndex,
                         routeIndex: 1,
                       ),
@@ -109,8 +110,7 @@ class _PageHandlerState extends State<PageHandler> {
                       RouteButton(
                         routeName: "Messages",
                         filePath: "assets/icons/message.svg",
-                        routeCallback: () =>
-                            changePage(index: 2, context: context),
+                        routeCallback: () => _goTo(2),
                         currentIndex: pageIndex,
                         routeIndex: 2,
                       ),
@@ -118,8 +118,7 @@ class _PageHandlerState extends State<PageHandler> {
                       RouteButton(
                         routeName: "Profile",
                         filePath: "assets/icons/profile.svg",
-                        routeCallback: () =>
-                            changePage(index: 3, context: context),
+                        routeCallback: () => _goTo(3),
                         currentIndex: pageIndex,
                         routeIndex: 3,
                       ),

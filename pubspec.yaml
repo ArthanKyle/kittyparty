@@ -115,23 +115,9 @@ flutter:
     - assets/image/banner/
     - assets/icons/
     - assets/icons/item/
-    - assets/image/banner/ad-event-banner.jpg
-    - assets/image/banner/couple-event-banner.jpg
-    - assets/image/banner/invite-banner.jpg
-    - assets/image/banner/monthly-recharge-banner.jpg
-    - assets/image/banner/pretty-id-banner.jpg
-    - assets/image/banner/task-center-banner.jpg
-    - assets/image/banner/treasure-gold-coins-banner.jpg
-    - assets/image/banner/wealth-level-reward-banner.jpg
-    - assets/image/banner/weekly-star-banner.jpg
-    - assets/image/banner/win-coin-back-banner.jpg
-    - assets/image/Mall_Image.jpg
-    - assets/image/GetCoins.png
-    - assets/icons/home.svg
-    - assets/icons/compass.svg
-    - assets/icons/message.svg
-    - assets/icons/profile.svg
-    - assets/icons/google.svg
+    - assets/image/
+    - assets/image/
+    - assets/icons/
     - .env
 
   # An image asset can refer to one or more resolution-specific "variants", see
