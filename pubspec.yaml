@@ -112,6 +112,7 @@ flutter:
     - assets/image/medal_cp/
     - assets/image/rides/
     - assets/image/avatar_card_frame/
+    - assets/image/profile_card_frame/
     - assets/image/banner/
     - assets/icons/
     - assets/icons/item/
