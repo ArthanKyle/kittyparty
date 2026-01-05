@@ -92,17 +92,17 @@ class _RegisterPageState extends State<RegisterPage> {
                           GenderOption(
                             label: "Boy",
                             icon: Icons.male,
-                            value: "boy",
+                            value: "male",
                             selectedGender: vm.selectedGender,
-                            onTap: () => vm.setGender("boy"),
+                            onTap: () => vm.setGender("male"),
                           ),
-                          const SizedBox(width: 20),
+
                           GenderOption(
                             label: "Girl",
                             icon: Icons.female,
-                            value: "girl",
+                            value: "female",
                             selectedGender: vm.selectedGender,
-                            onTap: () => vm.setGender("girl"),
+                            onTap: () => vm.setGender("female"),
                           ),
                         ],
                       ),

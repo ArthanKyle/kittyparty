@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../landing/landing_widgets/profile_widgets/mall/asset_catalog.dart';
+
+
 class MallPage extends StatefulWidget {
   const MallPage({super.key});
 
@@ -10,58 +13,43 @@ class MallPage extends StatefulWidget {
 class _MallPageState extends State<MallPage> {
   int selectedIndex = 0;
 
-  final List<Map<String, dynamic>> categories = [
+  // Mall categories (UI buttons)
+  final List<Map<String, String>> categories = const [
     {'icon': 'assets/icons/item/Mount.png', 'label': 'Mount'},
     {'icon': 'assets/icons/item/Avatar.png', 'label': 'Avatar'},
-    {'icon': 'assets/icons/item/Nameplate.png', 'label': 'Nameplate'},
-    {'icon': 'assets/icons/item/Profile_card.png', 'label': 'Profile Card'},
-    {'icon': 'assets/icons/item/Chat_bubble.png', 'label': 'Chat Bubble'},
   ];
 
-  final List<Map<String, dynamic>> products = [
-    {
-      'image': 'assets/image/Mall_Image.jpg',
-      'title': 'The Lion and War',
-      'price': '30K/3D',
-      'vip': 'VIP5-95%',
-      'limited': true,
-    },
-    {
-      'image': 'assets/image/Mall_Image.jpg',
-      'title': "Lion's Charge",
-      'price': '20K/3D',
-      'vip': 'VIP5-95%',
-      'limited': false,
-    },
-    {
-      'image': 'assets/image/Mall_Image.jpg',
-      'title': 'Lion and Princess',
-      'price': '33K/3D',
-      'vip': 'VIP5-95%',
-      'limited': true,
-    },
-    {
-      'image': 'assets/image/Mall_Image.jpg',
-      'title': 'Lion Rush',
-      'price': '21K/3D',
-      'vip': 'VIP5-95%',
-      'limited': false,
-    },
-    {
-      'image': 'assets/image/Mall_Image.jpg',
-      'title': 'Blue Wolf',
-      'price': '30K/3D',
-      'vip': 'VIP5-95%',
-      'limited': true,
-    },
-    {
-      'image': 'assets/image/Mall_Image.jpg',
-      'title': 'Space Gate',
-      'price': '28K/3D',
-      'vip': 'VIP5-95%',
-      'limited': false,
-    },
-  ];
+  // Map category -> asset folder
+  // You asked: avatar => assets/image/avatar, rides => assets/image/rides
+  static const String _ridesFolder = 'assets/image/rides/';
+  static const String _avatarFolder = 'assets/image/avatar/';
+
+  late Future<Map<String, List<String>>> _assetsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _assetsFuture = AssetCatalog.listByFolder(
+      folders: const [_ridesFolder, _avatarFolder],
+    );
+  }
+
+  String _folderForSelectedCategory() {
+    final label = categories[selectedIndex]['label'];
+    if (label == 'Mount') return _ridesFolder;
+    if (label == 'Avatar') return _avatarFolder;
+
+    // Not provided: Nameplate/Profile Card/Chat Bubble directories.
+    // Keep empty for now.
+    return '';
+  }
+
+  String _prettyName(String assetPath) {
+    // Example: assets/image/avatar/Green Rose Avatar Frame.png
+    final file = assetPath.split('/').last;
+    final noExt = file.replaceAll(RegExp(r'\.(png|jpg|jpeg|webp)$', caseSensitive: false), '');
+    return noExt.replaceAll('_', ' ');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +57,6 @@ class _MallPageState extends State<MallPage> {
       backgroundColor: const Color(0xFF0C1225),
       body: Stack(
         children: [
-          // 🌌 Gradient background
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -79,20 +66,17 @@ class _MallPageState extends State<MallPage> {
               ),
             ),
           ),
-
           SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 🔹 Top Bar
+                // Top bar
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.arrow_back_ios,
-                            color: Colors.white, size: 18),
+                        icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 18),
                         onPressed: () => Navigator.pop(context),
                       ),
                       const Expanded(
@@ -108,14 +92,13 @@ class _MallPageState extends State<MallPage> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
                           color: const Color(0xFF6526A8),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Row(
-                          children: const [
+                        child: const Row(
+                          children: [
                             Icon(Icons.person, size: 16, color: Colors.white),
                             SizedBox(width: 4),
                             Text(
@@ -135,7 +118,7 @@ class _MallPageState extends State<MallPage> {
 
                 const SizedBox(height: 10),
 
-                // 🏷️ Categories
+                // Categories
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -148,34 +131,22 @@ class _MallPageState extends State<MallPage> {
                         onTap: () => setState(() => selectedIndex = index),
                         child: Container(
                           margin: const EdgeInsets.only(right: 10),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
-                            color: isSelected
-                                ? const Color(0xFF2A144A)
-                                : const Color(0xFF1B2440),
+                            color: isSelected ? const Color(0xFF2A144A) : const Color(0xFF1B2440),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: isSelected
-                                  ? const Color(0xFFFFD700)
-                                  : Colors.transparent,
+                              color: isSelected ? const Color(0xFFFFD700) : Colors.transparent,
                               width: 1.2,
                             ),
                           ),
                           child: Column(
                             children: [
-                              Image.asset(
-                                cat['icon'],
-                                width: 35,
-                                height: 35,
-                              ),
+                              Image.asset(cat['icon']!, width: 35, height: 35),
                               const SizedBox(height: 6),
                               Text(
-                                cat['label'],
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                ),
+                                cat['label']!,
+                                style: const TextStyle(color: Colors.white, fontSize: 12),
                               ),
                             ],
                           ),
@@ -187,34 +158,56 @@ class _MallPageState extends State<MallPage> {
 
                 const SizedBox(height: 20),
 
-                // 🦁 Product Grid
+                // Grid
                 Expanded(
-                  child: GridView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 14,
-                      crossAxisSpacing: 14,
-                      childAspectRatio: 0.8,
-                    ),
-                    itemCount: products.length,
-                    itemBuilder: (context, index) {
-                      final product = products[index];
+                  child: FutureBuilder<Map<String, List<String>>>(
+                    future: _assetsFuture,
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(
+                          child: CircularProgressIndicator(color: Colors.yellow),
+                        );
+                      }
 
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF11203E),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: const Color(0xFF546AA2),
-                            width: 0.7,
+                      final folder = _folderForSelectedCategory();
+                      if (folder.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            "No assets folder mapped for this category yet.",
+                            style: TextStyle(color: Colors.white70),
                           ),
+                        );
+                      }
+
+                      final assets = snapshot.data![folder] ?? const <String>[];
+                      if (assets.isEmpty) {
+                        return Center(
+                          child: Text(
+                            "No images found in $folder",
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                        );
+                      }
+
+                      return GridView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 14,
+                          crossAxisSpacing: 14,
+                          childAspectRatio: 0.8,
                         ),
-                        child: Stack(
-                          children: [
-                            // Product Content
-                            Column(
+                        itemCount: assets.length,
+                        itemBuilder: (context, index) {
+                          final assetPath = assets[index];
+
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF11203E),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFF546AA2), width: 0.7),
+                            ),
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 ClipRRect(
@@ -223,8 +216,8 @@ class _MallPageState extends State<MallPage> {
                                     topRight: Radius.circular(10),
                                   ),
                                   child: Image.asset(
-                                    product['image'],
-                                    height: 100,
+                                    assetPath,
+                                    height: 140,
                                     width: double.infinity,
                                     fit: BoxFit.cover,
                                   ),
@@ -232,11 +225,10 @@ class _MallPageState extends State<MallPage> {
                                 Padding(
                                   padding: const EdgeInsets.all(8.0),
                                   child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        product['title'],
+                                        _prettyName(assetPath),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
@@ -245,85 +237,47 @@ class _MallPageState extends State<MallPage> {
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 6),
                                       Row(
                                         children: [
-                                          Image.asset(
-                                            'assets/icons/KPcoin.png',
-                                            width: 16,
-                                            height: 16,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            product['price'],
-                                            style: const TextStyle(
-                                              color: Color(0xFFFFD700),
-                                              fontSize: 13,
-                                            ),
+                                          Image.asset('assets/icons/KPcoin.png', width: 16, height: 16),
+                                          const SizedBox(width: 6),
+                                          const Text(
+                                            "—",
+                                            style: TextStyle(color: Color(0xFFFFD700), fontSize: 13),
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        product['vip'],
-                                        style: const TextStyle(
-                                          color: Colors.grey,
-                                          fontSize: 11,
-                                        ),
+                                      const SizedBox(height: 4),
+                                      const Text(
+                                        "VIP —",
+                                        style: TextStyle(color: Colors.grey, fontSize: 11),
                                       ),
                                     ],
                                   ),
                                 ),
                               ],
                             ),
-
-                            // 🏷️ Limited Tag
-                            if (product['limited'])
-                              Positioned(
-                                top: 6,
-                                left: 6,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFFC107),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: const Text(
-                                    "Limited",
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
+                          );
+                        },
                       );
                     },
                   ),
                 ),
 
-                // 💰 Bottom Bar
+                // Bottom bar (kept as-is)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   color: const Color(0xFF1B0C3A),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
                         children: [
-                          Image.asset(
-                            'assets/icons/KPcoin.png',
-                            width: 24,
-                            height: 24,
-                          ),
+                          Image.asset('assets/icons/KPcoin.png', width: 24, height: 24),
                           const SizedBox(width: 8),
                           const Text(
-                            "30000/3D",
+                            "0",
                             style: TextStyle(
                               color: Color(0xFFFFD700),
                               fontSize: 16,
@@ -334,11 +288,9 @@ class _MallPageState extends State<MallPage> {
                       ),
                       Row(
                         children: [
-                          _bottomButton("Buy", const Color(0xFFFFD700),
-                              const Color(0xFF4B3200)),
+                          _bottomButton("Buy", const Color(0xFFFFD700), const Color(0xFF4B3200)),
                           const SizedBox(width: 10),
-                          _bottomButton("Give", const Color(0xFFBB7AF8),
-                              const Color(0xFF3A006D)),
+                          _bottomButton("Give", const Color(0xFFBB7AF8), const Color(0xFF3A006D)),
                         ],
                       ),
                     ],
@@ -355,17 +307,10 @@ class _MallPageState extends State<MallPage> {
   Widget _bottomButton(String text, Color color, Color bgColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(30),
-      ),
+      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(30)),
       child: Text(
         text,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
-        ),
+        style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14),
       ),
     );
   }
