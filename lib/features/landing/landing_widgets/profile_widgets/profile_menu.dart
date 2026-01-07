@@ -11,7 +11,7 @@ class ProfileMenu extends StatelessWidget {
 
   final List<Map<String, dynamic>> menuItems = [
     {'label': 'My Room', 'icon': FontAwesomeIcons.house, 'route': AppRoutes.room},
-    {'label': 'Agency', 'icon': FontAwesomeIcons.shield, 'route': '/agency'},
+    {'label': 'Agency', 'icon': FontAwesomeIcons.shield, 'route': AppRoutes.agency},
     {'label': 'My Collection', 'icon': FontAwesomeIcons.star, 'route': AppRoutes.collection},
     {'label': 'Daily Tasks', 'icon': FontAwesomeIcons.calendar, 'route': AppRoutes.tasks},
     {'label': 'My Medals', 'icon': FontAwesomeIcons.medal, 'route': '/medals'},

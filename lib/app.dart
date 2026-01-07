@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kittyparty/features/auth/view/login_selection.dart';
 import 'package:kittyparty/features/livestream/view/live_audio_room.dart';
+import 'package:kittyparty/features/profile/profile_pages/agency_room.dart';
 import 'package:kittyparty/features/profile/profile_pages/daily_task_page.dart';
 import 'package:kittyparty/features/profile/profile_pages/invite_page.dart';
 import 'package:kittyparty/features/profile/profile_pages/setting_page.dart';
@@ -73,12 +74,13 @@ class MyApp extends StatelessWidget {
 
             return MaterialPageRoute(
               builder: (_) => ChangeNotifierProvider(
-                create: (_) => RegisterViewModel()..setInitialValues(
-                  email: args?['email'],
-                  fullName: args?['name'],
-                  pictureUrl: args?['picture'],
-                  isGoogleSignIn: true,
-                ),
+                create: (_) => RegisterViewModel()
+                  ..setInitialValues(
+                    email: args?['email'],
+                    fullName: args?['name'],
+                    pictureUrl: args?['picture'],
+                    isGoogleSignIn: true,
+                  ),
                 child: const RegisterPage(),
               ),
             );
@@ -98,16 +100,18 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute(builder: (_) => const PostPage());
           case AppRoutes.profile:
             return MaterialPageRoute(builder: (_) => const ProfilePage());
+          case AppRoutes.agency:
+            return MaterialPageRoute(builder: (_) => const AgencyRoom());
           case AppRoutes.wallet:
             return MaterialPageRoute(builder: (_) => const WalletPage());
           case AppRoutes.test:
-            return MaterialPageRoute(builder: (_) =>  AssetTest());
+            return MaterialPageRoute(builder: (_) => AssetTest());
           case AppRoutes.testSVGA:
-            return MaterialPageRoute(builder: (_)=> const SvgATesterPage());
+            return MaterialPageRoute(builder: (_) => const SvgATesterPage());
           case AppRoutes.setting:
             return MaterialPageRoute(builder: (_) => const SettingPage());
 
-        // ✅ Profile subpages
+          // ✅ Profile subpages
           case AppRoutes.vip:
             return MaterialPageRoute(builder: (_) => const VipPage());
           case AppRoutes.collection:
@@ -123,7 +127,7 @@ class MyApp extends StatelessWidget {
           case AppRoutes.tasks:
             return MaterialPageRoute(builder: (_) => const DailyTaskPage());
 
-        // ✅ Dynamic route for LiveAudioRoom
+          // ✅ Dynamic route for LiveAudioRoom
           case AppRoutes.room:
             final rawArgs = settings.arguments;
             final args = (rawArgs is Map)
@@ -144,12 +148,10 @@ class MyApp extends StatelessWidget {
               ),
             );
 
-
           default:
             return MaterialPageRoute(
-              builder: (_) => const Scaffold(
-                body: Center(child: Text("Coming soon!")),
-              ),
+              builder: (_) =>
+                  const Scaffold(body: Center(child: Text("Coming soon!"))),
             );
         }
       },
@@ -181,4 +183,5 @@ abstract class AppRoutes {
   static const tasks = "/profile/tasks";
   static const testSVGA = "/test/svga";
   static const vip = "/profile/vip";
+  static const agency = "/agency";
 }

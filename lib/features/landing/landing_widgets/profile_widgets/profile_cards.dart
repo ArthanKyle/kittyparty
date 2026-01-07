@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:kittyparty/features/profile/profile_pages/agency_room.dart';
 import 'package:kittyparty/features/wallet/view/wallet_page.dart';
 
 import '../../../../app.dart';
@@ -19,8 +20,9 @@ class ProfileCards extends StatelessWidget {
               Expanded(
                 child: GestureDetector(
                   onTap: () {
-                    Navigator.push(context,
-                        MaterialPageRoute(builder: (context) => WalletPage())
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => WalletPage()),
                     );
                   },
                   child: Container(
@@ -32,11 +34,18 @@ class ProfileCards extends StatelessWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: const [
-                        Icon(Icons.account_balance_wallet, size: 28, color: Colors.white),
+                        Icon(
+                          Icons.account_balance_wallet,
+                          size: 28,
+                          color: Colors.white,
+                        ),
                         SizedBox(height: 8),
                         Text(
                           "Wallet",
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
@@ -47,7 +56,10 @@ class ProfileCards extends StatelessWidget {
               Expanded(
                 child: GestureDetector(
                   onTap: () {
-
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => AgencyRoom()),
+                    );
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 30),
@@ -58,11 +70,18 @@ class ProfileCards extends StatelessWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: const [
-                        FaIcon(FontAwesomeIcons.users, size: 28, color: Colors.white),
+                        FaIcon(
+                          FontAwesomeIcons.users,
+                          size: 28,
+                          color: Colors.white,
+                        ),
                         SizedBox(height: 8),
                         Text(
                           "Agency",
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
@@ -89,7 +108,11 @@ class ProfileCards extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: const [
-                  FaIcon(FontAwesomeIcons.crown, size: 28, color: Color(0xFFb37400)),
+                  FaIcon(
+                    FontAwesomeIcons.crown,
+                    size: 28,
+                    color: Color(0xFFb37400),
+                  ),
                   SizedBox(height: 8),
                   Text(
                     "VIP",
