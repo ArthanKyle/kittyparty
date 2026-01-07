@@ -8,7 +8,7 @@ class CreatePostButton extends StatelessWidget {
 
   const CreatePostButton({
     super.key,
-    this.icon = Icons.videogame_asset,
+    this.icon = Icons.send,
     this.gradientColors = AppColors.buttonGradient, required Color backgroundColor,
   });
 
