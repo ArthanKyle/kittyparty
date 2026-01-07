@@ -2,16 +2,12 @@ class DailyTask {
   final String key;
   final String title;
   final String? subtitle;
-
   final int reward;
   final int target;
   final int progress;
-
-  // Backend returns these
-  final bool completed; // claimed/completed flag stored in UserTask
-  final bool rewarded;  // reward claimed (true when coins already granted)
-
-  final DateTime? lastClaimedAt;
+  final bool completed;
+  final bool rewarded;
+  final String? lastClaimedAt;
 
   DailyTask({
     required this.key,
@@ -27,23 +23,15 @@ class DailyTask {
 
   factory DailyTask.fromJson(Map<String, dynamic> json) {
     return DailyTask(
-      key: (json['key'] ?? '').toString(),
-      title: (json['title'] ?? '').toString(),
+      key: json['key']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
       subtitle: json['subtitle']?.toString(),
-      reward: _toInt(json['reward']),
-      target: _toInt(json['target']),
-      progress: _toInt(json['progress']),
-      completed: (json['completed'] ?? false) == true,
-      rewarded: (json['rewarded'] ?? false) == true,
-      lastClaimedAt: json['lastClaimedAt'] != null
-          ? DateTime.tryParse(json['lastClaimedAt'].toString())
-          : null,
+      reward: (json['reward'] ?? 0) is int ? json['reward'] : int.tryParse('${json['reward']}') ?? 0,
+      target: (json['target'] ?? 0) is int ? json['target'] : int.tryParse('${json['target']}') ?? 0,
+      progress: (json['progress'] ?? 0) is int ? json['progress'] : int.tryParse('${json['progress']}') ?? 0,
+      completed: json['completed'] == true,
+      rewarded: json['rewarded'] == true,
+      lastClaimedAt: json['lastClaimedAt']?.toString(),
     );
-  }
-
-  static int _toInt(dynamic v) {
-    if (v is int) return v;
-    if (v is double) return v.toInt();
-    return int.tryParse((v ?? '0').toString()) ?? 0;
   }
 }

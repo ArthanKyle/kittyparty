@@ -1,4 +1,8 @@
+// lib/features/landing/landing_widgets/profile_widgets/daily_widgets/daily_task_list.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../../../../core/utils/user_provider.dart';
 import '../../../viewmodel/dailyTask_viewmodel.dart';
 import 'task_card.dart';
 
@@ -15,38 +19,50 @@ class DailyTaskList extends StatelessWidget {
     if (viewModel.isLoading) {
       return const Padding(
         padding: EdgeInsets.all(24),
-        child: CircularProgressIndicator(),
+        child: Center(child: CircularProgressIndicator()),
       );
     }
 
-    Widget rewardIcon(String taskKey) {
-      switch (taskKey) {
-        case "sign_in":
-        case "room_income":
-        case "recharge_7000":
-          return Image.asset(
-            "assets/icons/KPcoin.png",
-            width: 16,
-            height: 16,
-          );
+    // ✅ Get userIdentification once
+    final uid = context.read<UserProvider>().currentUser?.userIdentification ?? "";
 
-        default:
-          return const SizedBox();
-      }
-    }
-
+    // ✅ Listen for claiming state so buttons update
+    final isClaiming = context.watch<DailyTaskViewModel>().isClaiming;
 
     return Column(
-      children: viewModel.dailyTasks.map((task) {
+      children: viewModel.dailyTasks.map((t) {
+        final target = (t.target <= 0) ? 1 : t.target;
+        final ratio = (t.progress / target).clamp(0.0, 1.0);
+
+        // ✅ Receive enabled only if completed and not yet rewarded
+        final canReceive = (t.completed == true) && (t.rewarded == false);
+
+        // ✅ If you want sign_in to be handled ONLY by the header button:
+        final showReceive = t.key != 'sign_in';
+
         return TaskCard(
-          title: task.title,
-          subtitle: task.subtitle,
-          reward: task.reward,
-          rewardIcon: rewardIcon(task.key), // 👈 HERE
-          completed: task.completed,
-          progress: task.target == 0
-              ? 0
-              : task.progress / task.target,
+          title: t.title,
+          subtitle: t.subtitle,
+          reward: t.reward,
+          rewardIcon: Image.asset(
+            'assets/icons/KPcoin.png',
+            width: 18,
+            height: 18,
+            fit: BoxFit.contain,
+          ),
+          completed: t.completed,
+          rewarded: t.rewarded,
+          progress: ratio,
+
+          // ✅ Receive button behavior
+          showReceive: showReceive,
+          receiveEnabled: showReceive && canReceive && !isClaiming && uid.isNotEmpty,
+          onReceive: showReceive
+              ? () async {
+            final vm = context.read<DailyTaskViewModel>();
+            await vm.claim(uid, t.key);
+          }
+              : null,
         );
       }).toList(),
     );

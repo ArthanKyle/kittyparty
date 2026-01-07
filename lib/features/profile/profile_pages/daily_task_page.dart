@@ -21,12 +21,16 @@ class _DailyTaskPageState extends State<DailyTaskPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    final token = context.watch<UserProvider>().token;
+    final userProvider = context.watch<UserProvider>();
+    final uid = userProvider.currentUser?.userIdentification;
 
-    if (token != null && !_fetched) {
+    if (!_fetched && uid != null && uid.trim().isNotEmpty) {
       _fetched = true;
-      Future.microtask(() {
-        context.read<DailyTaskViewModel>().fetchDailyTasks(token);
+
+      // Avoid setState/notify during build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<DailyTaskViewModel>().fetchDailyTasks(uid.trim());
       });
     }
   }
@@ -34,31 +38,30 @@ class _DailyTaskPageState extends State<DailyTaskPage> {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<DailyTaskViewModel>();
-    final token = context.watch<UserProvider>().token;
+
+    // For header (if you still need something displayed there)
+    final userProvider = context.watch<UserProvider>();
+    final uid = userProvider.currentUser?.userIdentification;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF7E5),
       body: Column(
         children: [
-          DailyTaskHeader(token: token),
+          DailyTaskHeader(userIdentification: uid),
           Expanded(
             child: SafeArea(
-              top: false, // 👈 IMPORTANT
+              top: false,
               child: Column(
                 children: [
                   const TaskTabs(),
                   const SizedBox(height: 20),
-
                   Expanded(
                     child: vm.isLoading
                         ? const Center(child: CircularProgressIndicator())
                         : vm.dailyTasks.isEmpty
-                        ? const Center(
-                      child: Text("No daily tasks available"),
-                    )
+                        ? const Center(child: Text("No daily tasks available"))
                         : DailyTaskList(viewModel: vm),
                   ),
-
                   const SizedBox(height: 20),
                 ],
               ),
@@ -69,4 +72,3 @@ class _DailyTaskPageState extends State<DailyTaskPage> {
     );
   }
 }
-
