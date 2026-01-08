@@ -15,6 +15,8 @@ class User {
   // VIP (single source of truth)
   final int vipLevel;
 
+  final int wealthLevel;
+
   int coins;
   int diamonds;
 
@@ -45,6 +47,7 @@ class User {
     this.invitationCode,
     this.isFirstTimeRecharge = true,
     this.myInvitationCode,
+    this.wealthLevel = 0,
   }) : dateJoined = dateJoined ?? DateTime.now();
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -71,6 +74,9 @@ class User {
       vipLevel: json['vipLevel'] is int
           ? json['vipLevel']
           : int.tryParse(json['vipLevel']?.toString() ?? '0') ?? 0,
+      wealthLevel: json['wealthLevel'] is int
+          ? json['wealthLevel']
+          : int.tryParse(json['wealthLevel']?.toString() ?? '0') ?? 0,
       coins: json['Coins'] ?? json['coins'] ?? 0,
       diamonds: json['Diamonds'] ?? json['diamonds'] ?? 0,
       status: json['Status'] ?? json['status'] ?? 'offline',

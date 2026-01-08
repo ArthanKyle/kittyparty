@@ -32,7 +32,7 @@ class LiveAudioRoom extends StatelessWidget {
         userProvider: userProvider,
         profileService: profileService,
         roomService: roomService,
-      )..init(roomId),
+      )..init(roomId, hostId: hostId),
       child: Consumer<LiveAudioRoomViewmodel>(
         builder: (context, vm, _) {
           if (!vm.permissionChecked) {

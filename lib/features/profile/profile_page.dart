@@ -160,7 +160,7 @@ class ProfilePage extends StatelessWidget {
                               const SizedBox(width: 8),
                               _InfoBadge(
                                 icon: Icons.star,
-                                text: 'Lv ${user.vipLevel}',
+                                text: 'Lv ${user.wealthLevel}',
                                 color: const Color(0xFF19C37D),
                               ),
                             ],

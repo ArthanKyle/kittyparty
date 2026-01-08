@@ -43,6 +43,11 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
   String? _selectedUserName;
   Uint8List? _selectedAvatarBytes;
 
+  String compact(int v) => v.toString().replaceAllMapped(
+    RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+        (m) => '${m[1]},',
+  );
+
 
   @override
   void initState() {
@@ -115,6 +120,22 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
   @override
   Widget build(BuildContext context) {
     final isHost = widget.userIdentification == widget.hostId;
+
+    final s = widget.viewModel.incomeSummary;
+
+    // ✅ then read fields from s
+    final today = s?.contributionTodayCoins ?? 0;
+    final tierPaid = s?.dailyRewardTierPaid ?? 0;
+
+    const tiers = [100000, 200000, 300000, 400000, 500000, 800000, 1000000, 2000000];
+    int? nextTier() {
+      for (final t in tiers) {
+        if (t > tierPaid) return t;
+      }
+      return null;
+    }
+
+    final next = nextTier();
 
     final config = (isHost
         ? ZegoUIKitPrebuiltLiveAudioRoomConfig.host()
@@ -228,6 +249,42 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+
+              // ✅ income badge (host only)
+              if (isHost)
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.65),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        "Today: ${compact(today)} coins",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        "Tier Paid: ${compact(tierPaid)}",
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
               if (isHost)
                 GestureDetector(
                   onTap: () => _editRoomName(context),

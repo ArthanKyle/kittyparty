@@ -24,7 +24,7 @@ class _ShieldManagerPageState extends State<ShieldManagerPage> {
         children: [
           Icon(Icons.inbox_outlined, size: 80, color: Colors.grey),
           Text(
-            'Your shield list is empty',
+            'Coming soon!',
             style: TextStyle(color: Colors.grey, fontSize: 16),
           ),
         ],

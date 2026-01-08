@@ -7,6 +7,7 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'app.dart';
 
 // Services
+import 'core/services/api/agency_service.dart';
 import 'core/services/api/conversion_recharge.dart';
 import 'core/services/api/dailyTask_service.dart';
 import 'core/services/api/socket_service.dart';
@@ -15,15 +16,18 @@ import 'core/services/api/wallet_service.dart';
 
 
 // Providers
+import 'core/services/api/wealth_service.dart';
 import 'core/utils/locale_provider.dart';
 import 'core/utils/user_provider.dart';
 import 'core/utils/index_provider.dart';
 
 // ViewModels
+import 'features/landing/viewmodel/agency_viewmodel.dart';
 import 'features/landing/viewmodel/dailyTask_viewmodel.dart';
 import 'features/landing/viewmodel/landing_viewmodel.dart';
 import 'features/landing/viewmodel/post_viewmodel.dart';
 import 'features/landing/viewmodel/profile_viewmodel.dart';
+import 'features/landing/viewmodel/wealth_viewmodel.dart';
 import 'features/wallet/viewmodel/wallet_viewmodel.dart';
 
 // Assets
@@ -81,6 +85,17 @@ Future<void> bootstrap() async {
         // Posts
         ChangeNotifierProvider(
           create: (_) => PostViewModel(userProvider: userProvider),
+        ),
+
+        ChangeNotifierProvider(
+          create: (_) => WealthViewModel(
+            service: WealthService(),
+          ),
+        ),
+        ChangeNotifierProvider<AgencyViewModel>(
+            create: (_) => AgencyViewModel(
+              service: AgencyService(), // ✅ uses dotenv.env['BASE_URL']
+            ),
         ),
 
         // ✅ WALLET (single source of truth)

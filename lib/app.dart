@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kittyparty/features/auth/view/login_selection.dart';
 import 'package:kittyparty/features/livestream/view/live_audio_room.dart';
+import 'package:kittyparty/features/profile/profile_pages/agency/create_agency.dart';
 import 'package:kittyparty/features/profile/profile_pages/agency_room.dart';
 import 'package:kittyparty/features/profile/profile_pages/daily_task_page.dart';
 import 'package:kittyparty/features/profile/profile_pages/invite_page.dart';
@@ -126,6 +127,7 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute(builder: (_) => const InvitePage());
           case AppRoutes.tasks:
             return MaterialPageRoute(builder: (_) => const DailyTaskPage());
+
 
           // ✅ Dynamic route for LiveAudioRoom
           case AppRoutes.room:
