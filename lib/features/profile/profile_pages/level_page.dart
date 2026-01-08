@@ -142,13 +142,28 @@ class _LevelPageState extends State<LevelPage> {
 
   Widget _goldInfoCard(
       BuildContext context, {
-        required dynamic user, // replace with your actual User type
+        required dynamic user,
         required ProfileViewModel profileVm,
         required WealthViewModel wealthVm,
       }) {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final user = userProvider.currentUser!;
-    final profileVm = Provider.of<ProfileViewModel>(context, listen: false);
+    final WealthStatus? w = wealthVm.status;
+
+    // ⛔ Prevent null crash
+    if (w == null) {
+      return const SizedBox(
+        height: 140,
+        child: Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
+
+    final int level = w.level;
+    final int exp = w.exp;
+    final int nextLevel = w.nextLevel;
+    final double progress = w.percentToNext.clamp(0.0, 1.0);
+    final int nextReq = w.nextLevelTotalRequired;
+    final int remaining = w.remainingToNext;
 
     final profilePictureWidget = UserAvatarHelper.circleAvatar(
       userIdentification: user.userIdentification,
@@ -157,18 +172,14 @@ class _LevelPageState extends State<LevelPage> {
       localBytes: profileVm.profilePictureBytes,
     );
 
-    final WealthStatus? w = wealthVm.status;
-    final int level = w?.level ?? 1;
-    final int exp = w?.exp ?? 0;
-    final int nextLevel = w?.nextLevel ?? (level + 1);
-    final double progress = (w?.percentToNext ?? 0.0).clamp(0.0, 1.0);
-    final int? nextReq = w?.nextLevelTotalRequired;
-    final int remaining = w?.remainingToNext ?? 0;
-
     return Container(
       width: double.infinity,
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFB37A2E), Color(0xFFFFE9B6), Color(0xFFB37A2E)],
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.45),
@@ -176,17 +187,10 @@ class _LevelPageState extends State<LevelPage> {
             offset: const Offset(0, 6),
           ),
         ],
-        gradient: const LinearGradient(
-          colors: [Color(0xFFB37A2E), Color(0xFFFFE9B6), Color(0xFFB37A2E)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
       ),
-      padding: const EdgeInsets.all(14),
       child: Column(
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               profilePictureWidget,
               const SizedBox(width: 12),
@@ -197,55 +201,31 @@ class _LevelPageState extends State<LevelPage> {
                     Text(
                       'LV.$level',
                       style: const TextStyle(
-                        color: Color(0xFF3B2B19),
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
+                        color: Color(0xFF3B2B19),
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       'Wealth Value: $exp',
                       style: const TextStyle(
-                        color: Color(0xFF4A351F),
                         fontSize: 14,
+                        color: Color(0xFF4A351F),
                       ),
                     ),
-                    if (wealthVm.isLoading) ...const [
-                      SizedBox(height: 6),
-                      Text('Loading...', style: TextStyle(color: Color(0xFF4A351F), fontSize: 12)),
-                    ],
-                    if (!wealthVm.isLoading && wealthVm.error != null) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        wealthVm.error!,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.red, fontSize: 12),
-                      ),
-                    ],
                   ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6D4C2D),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'Rewards',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
           ),
+
           const SizedBox(height: 12),
+
           Row(
             children: [
-              Text(
-                'LV.$level',
-                style: const TextStyle(color: Color(0xFF52381E), fontWeight: FontWeight.w600),
-              ),
+              Text('LV.$level',
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(width: 8),
               Expanded(
                 child: ClipRRect(
@@ -259,22 +239,22 @@ class _LevelPageState extends State<LevelPage> {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                'LV.$nextLevel',
-                style: const TextStyle(color: Color(0xFF52381E), fontWeight: FontWeight.w600),
-              ),
+              Text('LV.$nextLevel',
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
             ],
           ),
+
           const SizedBox(height: 8),
+
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              w!.level >= 100
+              level >= 100
                   ? 'Max wealth level reached'
                   : 'Next milestone EXP: $nextReq (remaining: $remaining)',
               style: const TextStyle(
-                color: Color(0xFF4C351F),
                 fontSize: 13,
+                color: Color(0xFF4C351F),
               ),
             ),
           ),
@@ -282,6 +262,7 @@ class _LevelPageState extends State<LevelPage> {
       ),
     );
   }
+
 
   Widget _section({required String title, required String content}) {
     return Column(
