@@ -108,6 +108,8 @@ flutter:
     - assets/image/
     - assets/image/gift/
     - assets/image/avatar/
+    - assets/image/avatar_mall/
+    - assets/image/rides_mall/
     - assets/image/medal/
     - assets/image/medal_cp/
     - assets/image/rides/

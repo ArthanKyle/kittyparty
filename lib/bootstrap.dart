@@ -25,6 +25,7 @@ import 'core/utils/index_provider.dart';
 import 'features/landing/viewmodel/agency_viewmodel.dart';
 import 'features/landing/viewmodel/dailyTask_viewmodel.dart';
 import 'features/landing/viewmodel/landing_viewmodel.dart';
+import 'features/landing/viewmodel/mall_viewmodel.dart';
 import 'features/landing/viewmodel/post_viewmodel.dart';
 import 'features/landing/viewmodel/profile_viewmodel.dart';
 import 'features/landing/viewmodel/wealth_viewmodel.dart';
@@ -97,6 +98,8 @@ Future<void> bootstrap() async {
               service: AgencyService(), // ✅ uses dotenv.env['BASE_URL']
             ),
         ),
+
+        ChangeNotifierProvider(create: (_) => MallViewModel()),
 
         // ✅ WALLET (single source of truth)
         ChangeNotifierProvider(
