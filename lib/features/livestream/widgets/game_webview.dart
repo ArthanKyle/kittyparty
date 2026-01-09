@@ -282,158 +282,136 @@ class _GameWebViewState extends State<GameWebView> {
   // Network debug hook
   String _netDebugHooks() {
     return r"""
-(function () {
-  if (window.__KP_NET_DEBUG__) return;
-  window.__KP_NET_DEBUG__ = true;
-
-  const OldWS = window.WebSocket;
-  window.WebSocket = function (url, protocols) {
-    console.log("[KP][WS open]", url, protocols || "");
-    const ws = protocols ? new OldWS(url, protocols) : new OldWS(url);
-    ws.addEventListener("close", (e) => console.log("[KP][WS close]", e.code, e.reason));
-    ws.addEventListener("error", (e) => console.log("[KP][WS error]", e));
-    return ws;
-  };
-
-  const oldFetch = window.fetch;
-  if (oldFetch) {
-    window.fetch = async function () {
-      const args = arguments;
-      console.log("[KP][fetch]", args[0], args[1] || "");
-      const res = await oldFetch.apply(this, args);
-      try {
-        const clone = res.clone();
-        const text = await clone.text();
-        console.log("[KP][fetch resp]", res.status, (text || "").slice(0, 300));
-      } catch (e) {}
-      return res;
+  (function () {
+    if (window.__KP_NET_DEBUG__) return;
+    window.__KP_NET_DEBUG__ = true;
+  
+    const OldWS = window.WebSocket;
+    window.WebSocket = function (url, protocols) {
+      console.log("[KP][WS open]", url, protocols || "");
+      const ws = protocols ? new OldWS(url, protocols) : new OldWS(url);
+      ws.addEventListener("close", (e) => console.log("[KP][WS close]", e.code, e.reason));
+      ws.addEventListener("error", (e) => console.log("[KP][WS error]", e));
+      return ws;
     };
-  }
-
-  const XHR = window.XMLHttpRequest;
-  if (XHR) {
-    const open = XHR.prototype.open;
-    const send = XHR.prototype.send;
-
-    XHR.prototype.open = function (method, url) {
-      this.__kp = { method, url };
-      return open.apply(this, arguments);
-    };
-
-    XHR.prototype.send = function (body) {
-      this.addEventListener("loadend", function () {
+  
+    const oldFetch = window.fetch;
+    if (oldFetch) {
+      window.fetch = async function () {
+        const args = arguments;
+        console.log("[KP][fetch]", args[0], args[1] || "");
+        const res = await oldFetch.apply(this, args);
         try {
-          console.log("[KP][xhr]", this.__kp.method, this.__kp.url, "->", this.status);
-          if (this.status >= 400) {
-            console.log("[KP][xhr body]", (this.responseText || "").slice(0, 300));
-          }
+          const clone = res.clone();
+          const text = await clone.text();
+          console.log("[KP][fetch resp]", res.status, (text || "").slice(0, 300));
         } catch (e) {}
-      });
-      return send.apply(this, arguments);
-    };
-  }
-})();
-""";
-  }
+        return res;
+      };
+    }
+  
+    const XHR = window.XMLHttpRequest;
+    if (XHR) {
+      const open = XHR.prototype.open;
+      const send = XHR.prototype.send;
+  
+      XHR.prototype.open = function (method, url) {
+        this.__kp = { method, url };
+        return open.apply(this, arguments);
+      };
+  
+      XHR.prototype.send = function (body) {
+        this.addEventListener("loadend", function () {
+          try {
+            console.log("[KP][xhr]", this.__kp.method, this.__kp.url, "->", this.status);
+            if (this.status >= 400) {
+              console.log("[KP][xhr body]", (this.responseText || "").slice(0, 300));
+            }
+          } catch (e) {}
+        });
+        return send.apply(this, arguments);
+      };
+    }
+  })();
+  """;
+    }
 
-  /// Inject token + user_id into fetch/XHR headers and ws URL query.
-  /// This fixes the common 401 {code:1001} when the game forgets to send token.
   String _authHooks() {
-    // These values are substituted by Dart at runtime (not a raw string).
     final ss = _lastSsToken ?? "";
     final uid = widget.userId;
 
-    // If token is still empty at injection time, hooks still install but do nothing.
     return """
-(function () {
-  if (window.__KP_AUTH_HOOKS__) return;
-  window.__KP_AUTH_HOOKS__ = true;
-
-  function getToken() { return (window.__KP_SSTOKEN__ || "").toString(); }
-  function getUserId() { return (window.__KP_USERID__ || "").toString(); }
-
-  window.__KP_SSTOKEN__ = ${jsonEncode(ss)};
-  window.__KP_USERID__ = ${jsonEncode(uid)};
-
-  // Patch fetch
-  const oldFetch = window.fetch;
-  if (oldFetch) {
-    window.fetch = function(input, init) {
-      try {
-        init = init || {};
-        init.headers = init.headers || {};
-        const t = getToken();
-        const u = getUserId();
-        if (t) {
-          // accept multiple header names
-          init.headers["sstoken"] = t;
-          init.headers["ss_token"] = t;
-          init.headers["x-sstoken"] = t;
-          init.headers["x-ss-token"] = t;
-          init.headers["Authorization"] = "Bearer " + t;
+      (function () {
+        if (window.__KP_AUTH_HOOKS__) return;
+        window.__KP_AUTH_HOOKS__ = true;
+      
+        function getToken() { return (window.__KP_SSTOKEN__ || "").toString(); }
+        function getUserId() { return (window.__KP_USERID__ || "").toString(); }
+      
+        window.__KP_SSTOKEN__ = ${jsonEncode(ss)};
+        window.__KP_USERID__ = ${jsonEncode(uid)};
+      
+        // FETCH
+        const oldFetch = window.fetch;
+        if (oldFetch) {
+          window.fetch = function(input, init) {
+            init = init || {};
+            init.headers = init.headers || {};
+            const t = getToken();
+            const u = getUserId();
+      
+            if (t) {
+              init.headers["ss_token"] = t;
+              init.headers["sstoken"] = t;
+            }
+            if (u) {
+              init.headers["user_id"] = u;
+            }
+            return oldFetch.call(this, input, init);
+          };
         }
-        if (u) {
-          init.headers["user_id"] = u;
-          init.headers["userId"] = u;
+      
+        // XHR
+        const XHR = window.XMLHttpRequest;
+        if (XHR) {
+          const send = XHR.prototype.send;
+          XHR.prototype.send = function(body) {
+            try {
+              const t = getToken();
+              const u = getUserId();
+              if (t) {
+                this.setRequestHeader("ss_token", t);
+                this.setRequestHeader("sstoken", t);
+              }
+              if (u) {
+                this.setRequestHeader("user_id", u);
+              }
+            } catch (e) {}
+            return send.apply(this, arguments);
+          };
         }
-      } catch (e) {}
-      return oldFetch.call(this, input, init);
-    };
-  }
-
-  // Patch XHR
-  const XHR = window.XMLHttpRequest;
-  if (XHR) {
-    const open = XHR.prototype.open;
-    const send = XHR.prototype.send;
-    XHR.prototype.open = function(method, url) {
-      this.__kp_url = url;
-      return open.apply(this, arguments);
-    };
-    XHR.prototype.send = function(body) {
-      try {
-        const t = getToken();
-        const u = getUserId();
-        if (t) {
-          this.setRequestHeader("sstoken", t);
-          this.setRequestHeader("ss_token", t);
-          this.setRequestHeader("x-sstoken", t);
-          this.setRequestHeader("x-ss-token", t);
-          this.setRequestHeader("Authorization", "Bearer " + t);
+      
+        // WebSocket (query params only — allowed)
+        const OldWS = window.WebSocket;
+        if (OldWS) {
+          window.WebSocket = function(url, protocols) {
+            const t = getToken();
+            const u = getUserId();
+            if (t || u) {
+              const sep = url.includes("?") ? "&" : "?";
+              const qp = [];
+              if (t) qp.push("ss_token=" + encodeURIComponent(t));
+              if (u) qp.push("user_id=" + encodeURIComponent(u));
+              url += sep + qp.join("&");
+            }
+            return protocols ? new OldWS(url, protocols) : new OldWS(url);
+          };
         }
-        if (u) {
-          this.setRequestHeader("user_id", u);
-          this.setRequestHeader("userId", u);
-        }
-      } catch (e) {}
-      return send.apply(this, arguments);
-    };
-  }
-
-  // Patch WebSocket: append query params (?sstoken=...&user_id=...)
-  const OldWS = window.WebSocket;
-  if (OldWS) {
-    window.WebSocket = function(url, protocols) {
-      try {
-        const t = getToken();
-        const u = getUserId();
-        if (t || u) {
-          const hasQuery = url.indexOf("?") >= 0;
-          const sep = hasQuery ? "&" : "?";
-          const qp = [];
-          if (t) { qp.push("sstoken=" + encodeURIComponent(t)); qp.push("ss_token=" + encodeURIComponent(t)); }
-          if (u) { qp.push("user_id=" + encodeURIComponent(u)); qp.push("userId=" + encodeURIComponent(u)); }
-          url = url + sep + qp.join("&");
-        }
-      } catch (e) {}
-      return protocols ? new OldWS(url, protocols) : new OldWS(url);
-    };
-  }
-
-  console.log("[KP][AUTH] hooks installed. tokenLen=", getToken().length, "user=", getUserId());
-})();
-""";
-  }
+      
+        console.log("[KP][AUTH] BAISHUN-compliant headers injected");
+      })();
+      """;
+    }
 
   Future<void> _pushAuthToWebView({
     required String ssToken,
@@ -441,12 +419,12 @@ class _GameWebViewState extends State<GameWebView> {
   }) async {
     _lastSsToken = ssToken;
     final js = """
-(function(){
-  window.__KP_SSTOKEN__ = ${jsonEncode(ssToken)};
-  window.__KP_USERID__ = ${jsonEncode(userId)};
-  console.log("[KP][AUTH] updated tokenLen=", (window.__KP_SSTOKEN__||"").length, "user=", window.__KP_USERID__);
-})();
-""";
+    (function(){
+      window.__KP_SSTOKEN__ = ${jsonEncode(ssToken)};
+      window.__KP_USERID__ = ${jsonEncode(userId)};
+      console.log("[KP][AUTH] updated tokenLen=", (window.__KP_SSTOKEN__||"").length, "user=", window.__KP_USERID__);
+    })();
+    """;
     try {
       await controller.runJavaScript(js);
       // Ensure hooks exist (safe even if already installed)
