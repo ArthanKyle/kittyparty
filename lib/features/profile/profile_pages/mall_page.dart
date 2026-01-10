@@ -33,6 +33,7 @@ class _MallPageState extends State<MallPage> {
     );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<MallViewModel>().bindUser(context);
       context.read<MallViewModel>().loadMall();
     });
   }
@@ -54,6 +55,7 @@ class _MallPageState extends State<MallPage> {
       barrierDismissible: true,
       barrierColor: Colors.transparent,
       builder: (_) => MallSvgaDialog(
+        key: ValueKey('${assetKey}_${DateTime.now().millisecondsSinceEpoch}'),
         assetKey: assetKey,
         folder: _currentFolder(),
       ),

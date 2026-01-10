@@ -18,66 +18,64 @@ class MallSvgaDialog extends StatefulWidget {
 
 class _MallSvgaDialogState extends State<MallSvgaDialog>
     with SingleTickerProviderStateMixin {
+
   late final SVGAAnimationController _controller;
-  final SVGAParser _parser = SVGAParser();
+  late final SVGAParser _parser;
 
   @override
   void initState() {
     super.initState();
+    _parser = SVGAParser();
     _controller = SVGAAnimationController(vsync: this);
     _load();
   }
 
   Future<void> _load() async {
     final path = MallSvgaAssets.path(widget.assetKey);
-    if (path == null) {
-      Navigator.of(context).pop();
+
+    if (path == null || path.isEmpty) {
+      debugPrint("🚫 No SVGA mapped for ${widget.assetKey}");
+      if (mounted) Navigator.of(context).pop();
       return;
     }
 
-    final video = await _parser.decodeFromAssets(path);
-    if (!mounted) return;
+    try {
+      // REQUIRED: hard reset
+      _controller.stop();
+      _controller.videoItem = null;
 
-    _controller.videoItem = video;
-    _controller.repeat();
+      final video = await _parser.decodeFromAssets(path);
+      if (!mounted) return;
+
+      _controller.videoItem = video;
+      _controller.reset();
+      _controller.repeat(); // DO NOT use forward()
+    } catch (e) {
+      debugPrint("❌ Mall SVGA load failed: $e");
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black.withOpacity(0.65),
-      body: Stack(
-        children: [
-          /// TAP ANYWHERE TO CLOSE
-          GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            child: Center(
-              child: Transform.scale(
-                scale: 1.8,
-                child: SizedBox(
-                  width: 320,
-                  height: 320,
-                  child: _controller.videoItem == null
-                      ? const SizedBox.shrink()
-                      : SVGAImage(
-                    _controller,
-                    fit: BoxFit.contain,
-                  ),
-                ),
+      body: GestureDetector(
+        onTap: () => Navigator.of(context).pop(),
+        child: Center(
+          child: Transform.scale(
+            scale: 1.8,
+            child: SizedBox(
+              width: 320,
+              height: 320,
+              child: _controller.videoItem == null
+                  ? const SizedBox.shrink()
+                  : SVGAImage(
+                _controller,
+                fit: BoxFit.contain,
               ),
             ),
           ),
-
-          /// CLOSE ICON
-          Positioned(
-            top: 50,
-            right: 24,
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.white, size: 28),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

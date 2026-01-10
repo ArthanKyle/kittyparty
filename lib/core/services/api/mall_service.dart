@@ -23,27 +23,16 @@ class MallService {
     return data.map((e) => MallItem.fromJson(e)).toList();
   }
 
-  Future<void> buyItem({required String itemId}) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/mall/buy'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'itemId': itemId}),
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception(response.body);
-    }
-  }
-  Future<void> giftItem({
+  Future<void> buyItem({
     required String itemId,
-    required String targetUserIdentification,
+    required String userIdentification,
   }) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/mall/gift'),
+      Uri.parse('$baseUrl/purchases/buy'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'itemId': itemId,
-        'targetUserIdentification': targetUserIdentification,
+        'UserIdentification': userIdentification, // ✅ REQUIRED
       }),
     );
 
@@ -52,4 +41,23 @@ class MallService {
     }
   }
 
+  Future<void> giftItem({
+    required String itemId,
+    required String targetUserIdentification,
+    required String userIdentification,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/purchases/gift'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'itemId': itemId,
+        'targetUserIdentification': targetUserIdentification,
+        'UserIdentification': userIdentification, // ✅ REQUIRED
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(response.body);
+    }
+  }
 }

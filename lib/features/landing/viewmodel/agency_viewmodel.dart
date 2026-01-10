@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../core/services/api/agency_service.dart';
 import '../model/agency.dart';
 
-
 class AgencyViewModel extends ChangeNotifier {
   final AgencyService service;
 
@@ -24,46 +23,85 @@ class AgencyViewModel extends ChangeNotifier {
   MembersResult? membersResult;
   List<AgencyJoinRequestDto> joinRequests = [];
 
-  bool get isOwner => myRole == "owner";
-  int get membersCount =>
-      viewingAgency?.membersCount ?? myAgency?.membersCount ?? membersResult?.membersCount ?? 0;
-  int get maxMembers =>
-      viewingAgency?.maxMembers ?? myAgency?.maxMembers ?? membersResult?.maxMembers ?? 10;
-  bool get isFull => membersCount >= maxMembers;
+  /* =========================
+   * LOGGING
+   * ========================= */
+  void _log(String msg) => print("🟡 [AgencyViewModel] $msg");
 
   /* =========================
-   * LOAD / REFRESH (pattern you gave)
+   * COMPUTED
+   * ========================= */
+
+  bool get isOwner {
+    final result = myRole == "owner";
+    _log("isOwner = $result (role=$myRole)");
+    return result;
+  }
+
+  int get membersCount {
+    final count =
+        viewingAgency?.membersCount ??
+            myAgency?.membersCount ??
+            membersResult?.membersCount ??
+            0;
+
+    _log("membersCount = $count");
+    return count;
+  }
+
+  int get maxMembers {
+    final max =
+        viewingAgency?.maxMembers ??
+            myAgency?.maxMembers ??
+            membersResult?.maxMembers ??
+            10;
+
+    _log("maxMembers = $max");
+    return max;
+  }
+
+  bool get isFull {
+    final full = membersCount >= maxMembers;
+    _log("isFull = $full ($membersCount / $maxMembers)");
+    return full;
+  }
+
+  /* =========================
+   * LOAD / REFRESH
    * ========================= */
 
   Future<void> load({required String userIdentification}) async {
+    _log("load() start → user=$userIdentification");
+
     isLoading = true;
     error = null;
     _userIdentification = userIdentification;
     notifyListeners();
 
     try {
-      // ❌ REMOVE THIS
-      // final result = await service.fetchMyAgency(...);
-
       myAgency = null;
       myRole = null;
 
-      // ✅ Directly fetch agencies list
       agencies = await service.fetchAgencies(
         userIdentification: userIdentification,
       );
+
+      _log("Fetched agencies count=${agencies.length}");
     } catch (e) {
       error = e.toString();
+      _log("❌ load() error: $error");
     } finally {
       isLoading = false;
       notifyListeners();
+      _log("load() end");
     }
   }
-
 
   Future<void> fetchAgenciesIfFree({
     required String userIdentification,
   }) async {
+    _log("fetchAgenciesIfFree() user=$userIdentification");
+
     isLoading = true;
     error = null;
     notifyListeners();
@@ -72,17 +110,22 @@ class AgencyViewModel extends ChangeNotifier {
       agencies = await service.fetchAgencies(
         userIdentification: userIdentification,
       );
+
+      _log("Fetched agencies count=${agencies.length}");
     } catch (e) {
       error = e.toString();
+      _log("❌ fetchAgenciesIfFree error: $error");
     } finally {
       isLoading = false;
       notifyListeners();
+      _log("fetchAgenciesIfFree() end");
     }
   }
 
-
-  Future<void> refresh({required String userIdentification}) =>
-      load(userIdentification: userIdentification);
+  Future<void> refresh({required String userIdentification}) {
+    _log("refresh()");
+    return load(userIdentification: userIdentification);
+  }
 
   /* =========================
    * BROWSE AGENCY BY CODE
@@ -92,6 +135,8 @@ class AgencyViewModel extends ChangeNotifier {
     required String agencyCode,
     required String userIdentification,
   }) async {
+    _log("viewAgencyByCode() code=$agencyCode user=$userIdentification");
+
     isLoading = true;
     error = null;
     _userIdentification = userIdentification;
@@ -99,25 +144,31 @@ class AgencyViewModel extends ChangeNotifier {
 
     try {
       viewingAgency = await service.fetchAgencyByCode(agencyCode);
+      _log("Loaded agency: ${viewingAgency?.name}");
 
-      await loadMembers(agencyCode: agencyCode, notify: false);
+      await loadMembers(
+        agencyCode: agencyCode,
+        notify: false,
+      );
 
-      // Only load approvals if user is owner AND browsing own agency
-      // (backend will block if not owner anyway)
       if (isOwner) {
+        _log("User is owner → loading join requests");
         await loadJoinRequests(
           ownerUserIdentification: userIdentification,
           agencyCode: agencyCode,
           notify: false,
         );
       } else {
+        _log("User not owner → clearing join requests");
         joinRequests = [];
       }
     } catch (e) {
       error = e.toString();
+      _log("❌ viewAgencyByCode error: $error");
     } finally {
       isLoading = false;
       notifyListeners();
+      _log("viewAgencyByCode() end");
     }
   }
 
@@ -129,19 +180,26 @@ class AgencyViewModel extends ChangeNotifier {
     required String agencyCode,
     bool notify = true,
   }) async {
+    _log("loadMembers() code=$agencyCode notify=$notify");
+
     error = null;
     if (notify) notifyListeners();
 
     try {
       membersResult = await service.fetchMembers(agencyCode);
 
-      // update counts if we have agency object loaded
-      if (viewingAgency != null && viewingAgency!.agencyCode == agencyCode) {
+      _log(
+        "Members loaded: count=${membersResult?.membersCount}, max=${membersResult?.maxMembers}",
+      );
+
+      if (viewingAgency != null &&
+          viewingAgency!.agencyCode == agencyCode) {
         viewingAgency = _copyAgencyWithCounts(
           viewingAgency!,
           membersCount: membersResult!.membersCount,
           maxMembers: membersResult!.maxMembers,
         );
+        _log("Updated viewingAgency counts");
       }
 
       if (myAgency != null && myAgency!.agencyCode == agencyCode) {
@@ -150,11 +208,14 @@ class AgencyViewModel extends ChangeNotifier {
           membersCount: membersResult!.membersCount,
           maxMembers: membersResult!.maxMembers,
         );
+        _log("Updated myAgency counts");
       }
     } catch (e) {
       error = e.toString();
+      _log("❌ loadMembers error: $error");
     } finally {
       if (notify) notifyListeners();
+      _log("loadMembers() end");
     }
   }
 
@@ -167,6 +228,10 @@ class AgencyViewModel extends ChangeNotifier {
     required String agencyCode,
     bool notify = true,
   }) async {
+    _log(
+      "loadJoinRequests() code=$agencyCode owner=$ownerUserIdentification",
+    );
+
     error = null;
     if (notify) notifyListeners();
 
@@ -175,10 +240,14 @@ class AgencyViewModel extends ChangeNotifier {
         ownerUserIdentification: ownerUserIdentification,
         agencyCode: agencyCode,
       );
+
+      _log("Join requests loaded: ${joinRequests.length}");
     } catch (e) {
       error = e.toString();
+      _log("❌ loadJoinRequests error: $error");
     } finally {
       if (notify) notifyListeners();
+      _log("loadJoinRequests() end");
     }
   }
 
@@ -192,6 +261,8 @@ class AgencyViewModel extends ChangeNotifier {
     String description = "",
     String? logoUrl,
   }) async {
+    _log("createAgency() name=$name user=$userIdentification");
+
     isLoading = true;
     error = null;
     _userIdentification = userIdentification;
@@ -205,12 +276,17 @@ class AgencyViewModel extends ChangeNotifier {
         logoUrl: logoUrl,
       );
 
-      // treat as my agency
       myAgency = agency;
       myRole = "owner";
       viewingAgency = agency;
 
-      await loadMembers(agencyCode: agency.agencyCode, notify: false);
+      _log("Agency created: ${agency.agencyCode}");
+
+      await loadMembers(
+        agencyCode: agency.agencyCode,
+        notify: false,
+      );
+
       await loadJoinRequests(
         ownerUserIdentification: userIdentification,
         agencyCode: agency.agencyCode,
@@ -220,10 +296,12 @@ class AgencyViewModel extends ChangeNotifier {
       return true;
     } catch (e) {
       error = e.toString();
+      _log("❌ createAgency error: $error");
       return false;
     } finally {
       isLoading = false;
       notifyListeners();
+      _log("createAgency() end");
     }
   }
 
@@ -234,6 +312,8 @@ class AgencyViewModel extends ChangeNotifier {
     String? description,
     String? logoUrl,
   }) async {
+    _log("editAgency() code=$agencyCode");
+
     isLoading = true;
     error = null;
     notifyListeners();
@@ -247,13 +327,16 @@ class AgencyViewModel extends ChangeNotifier {
         logoUrl: logoUrl,
       );
 
-      // update local cached instances
       if (myAgency?.agencyCode == agencyCode) myAgency = updated;
-      if (viewingAgency?.agencyCode == agencyCode) viewingAgency = updated;
+      if (viewingAgency?.agencyCode == agencyCode) {
+        viewingAgency = updated;
+      }
 
+      _log("Agency updated");
       return true;
     } catch (e) {
       error = e.toString();
+      _log("❌ editAgency error: $error");
       return false;
     } finally {
       isLoading = false;
@@ -273,6 +356,8 @@ class AgencyViewModel extends ChangeNotifier {
     String inviterId = "",
     String? inviterPicUrl,
   }) async {
+    _log("applyToJoin() code=$agencyCode user=$userIdentification");
+
     isLoading = true;
     error = null;
     _userIdentification = userIdentification;
@@ -291,9 +376,12 @@ class AgencyViewModel extends ChangeNotifier {
         inviterId: inviterId,
         inviterPicUrl: inviterPicUrl,
       );
+
+      _log("Apply to join success");
       return true;
     } catch (e) {
       error = e.toString();
+      _log("❌ applyToJoin error: $error");
       return false;
     } finally {
       isLoading = false;
@@ -306,6 +394,8 @@ class AgencyViewModel extends ChangeNotifier {
     required String agencyCode,
     required String requestId,
   }) async {
+    _log("approveRequest() request=$requestId");
+
     isLoading = true;
     error = null;
     notifyListeners();
@@ -317,17 +407,23 @@ class AgencyViewModel extends ChangeNotifier {
         requestId: requestId,
       );
 
-      // refresh approvals + members
+      _log("Request approved");
+
       await loadJoinRequests(
         ownerUserIdentification: ownerUserIdentification,
         agencyCode: agencyCode,
         notify: false,
       );
-      await loadMembers(agencyCode: agencyCode, notify: false);
+
+      await loadMembers(
+        agencyCode: agencyCode,
+        notify: false,
+      );
 
       return true;
     } catch (e) {
       error = e.toString();
+      _log("❌ approveRequest error: $error");
       return false;
     } finally {
       isLoading = false;
@@ -341,6 +437,8 @@ class AgencyViewModel extends ChangeNotifier {
     required String requestId,
     String reason = "",
   }) async {
+    _log("rejectRequest() request=$requestId reason=$reason");
+
     isLoading = true;
     error = null;
     notifyListeners();
@@ -353,6 +451,8 @@ class AgencyViewModel extends ChangeNotifier {
         reason: reason,
       );
 
+      _log("Request rejected");
+
       await loadJoinRequests(
         ownerUserIdentification: ownerUserIdentification,
         agencyCode: agencyCode,
@@ -362,6 +462,7 @@ class AgencyViewModel extends ChangeNotifier {
       return true;
     } catch (e) {
       error = e.toString();
+      _log("❌ rejectRequest error: $error");
       return false;
     } finally {
       isLoading = false;
@@ -374,6 +475,7 @@ class AgencyViewModel extends ChangeNotifier {
    * ========================= */
 
   void clearError() {
+    _log("clearError()");
     error = null;
     notifyListeners();
   }

@@ -1,6 +1,7 @@
 // lib/features/landing/viewmodel/mall_viewmodel.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../../core/global_widgets/dialogs/dialog_info.dart';
 import '../../../core/global_widgets/dialogs/dialog_loading.dart';
 import '../../../core/services/api/mall_service.dart';
@@ -16,73 +17,94 @@ class MallViewModel extends ChangeNotifier {
   bool isLoading = false;
   bool isBuying = false;
 
-  late UserProvider _userProvider;
+  UserProvider? _userProvider;
+
+  void _log(String msg) => print("🟣 [MallViewModel] $msg");
 
   /// MUST be called once (MallPage init)
   void bindUser(BuildContext context) {
+    _log("bindUser() called");
     _userProvider = context.read<UserProvider>();
+    _log("User bound: ${_userProvider?.currentUser?.userIdentification}");
   }
 
-  /// ============================
-  /// LOAD
-  /// ============================
+  // ============================
+  // LOAD
+  // ============================
   Future<void> loadMall() async {
+    _log("loadMall() start");
+
     isLoading = true;
     notifyListeners();
 
-    items = await _service.fetchMallItems();
-
-    isLoading = false;
-    notifyListeners();
+    try {
+      items = await _service.fetchMallItems();
+      _log("Fetched ${items.length} mall items");
+    } catch (e) {
+      _log("❌ loadMall error: $e");
+    } finally {
+      isLoading = false;
+      notifyListeners();
+      _log("loadMall() end");
+    }
   }
 
-  /// ============================
-  /// LOOKUPS
-  /// ============================
+  // ============================
+  // LOOKUPS
+  // ============================
   MallItem? findByAssetKey(String assetKey) {
+    _log("findByAssetKey: $assetKey");
     try {
-      return items.firstWhere((i) => i.assetKey == assetKey);
+      final item = items.firstWhere((i) => i.assetKey == assetKey);
+      _log("Item found: ${item.name}");
+      return item;
     } catch (_) {
+      _log("Item NOT found");
       return null;
     }
   }
 
   void select(MallItem item) {
+    _log("select(): ${item.name}");
     selectedItem = item;
     notifyListeners();
   }
 
-  /// ============================
-  /// VIP / PRICE
-  /// ============================
+  // ============================
+  // VIP / PRICE
+  // ============================
   bool get isVip5 {
-    final user = _userProvider.currentUser;
-    return user != null && user.vipLevel >= 5;
+    final user = _userProvider?.currentUser;
+    final result = user != null && user.vipLevel >= 5;
+    _log("isVip5 = $result (vipLevel=${user?.vipLevel})");
+    return result;
   }
 
   int displayPrice(MallItem item) {
-    if (isVip5) {
-      return (item.priceCoins * 0.05).ceil(); // 95% off
-    }
-    return item.priceCoins;
+    final price = isVip5
+        ? (item.priceCoins * 0.05).ceil()
+        : item.priceCoins;
+
+    _log("displayPrice(${item.name}) = $price");
+    return price;
   }
 
-  /// ============================
-  /// GIFT RULES
-  /// ============================
+  // ============================
+  // GIFT RULES
+  // ============================
   bool get canGiftSelected {
-    if (selectedItem == null) return false;
-    if (selectedItem!.giftPriceCoins == null) return false;
-    if (isBuying) return false;
+    final allowed =
+        selectedItem != null &&
+            selectedItem!.giftPriceCoins != null &&
+            !isBuying;
 
-    // 🚨 TEMP friend rule hook
-    final bool isFriend = true;
-    return isFriend;
+    _log("canGiftSelected = $allowed");
+    return allowed;
   }
 
-  /// ============================
-  /// BUY
-  /// ============================
+  // ============================
+  // BUY
+  // ============================
   Future<void> buySelected(BuildContext context) async {
     if (selectedItem == null || isBuying) return;
 
@@ -92,40 +114,36 @@ class MallViewModel extends ChangeNotifier {
       confirmText: "Buy",
       onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
       onConfirm: () async {
-        Navigator.of(context, rootNavigator: true).pop();
+        Navigator.of(context, rootNavigator: true).pop(); // close confirm
 
         isBuying = true;
         notifyListeners();
 
-        DialogLoading(subtext: "Processing purchase...")
-            .build(context);
+        DialogLoading(subtext: "Processing purchase...").build(context);
 
         try {
-          await _service.buyItem(itemId: selectedItem!.id);
+          await _service.buyItem(
+            itemId: selectedItem!.id,
+            userIdentification:
+            _userProvider!.currentUser!.userIdentification,
+          );
 
-          Navigator.of(context, rootNavigator: true).pop();
+          Navigator.of(context, rootNavigator: true).pop(); // close loading
 
           DialogInfo(
-            headerText: "Success",
-            subText: "Item purchased successfully.",
+            headerText: "Purchase Successful",
+            subText:
+            "${selectedItem!.name} has been added to your inventory.",
             confirmText: "OK",
             onConfirm: () =>
                 Navigator.of(context, rootNavigator: true).pop(),
             onCancel: () =>
                 Navigator.of(context, rootNavigator: true).pop(),
           ).build(context);
-        } catch (_) {
-          Navigator.of(context, rootNavigator: true).pop();
 
-          DialogInfo(
-            headerText: "Failed",
-            subText: "Purchase failed.",
-            confirmText: "OK",
-            onConfirm: () =>
-                Navigator.of(context, rootNavigator: true).pop(),
-            onCancel: () =>
-                Navigator.of(context, rootNavigator: true).pop(),
-          ).build(context);
+        } catch (e) {
+          Navigator.of(context, rootNavigator: true).pop(); // close loading
+          _log("❌ Purchase failed: $e");
         } finally {
           isBuying = false;
           notifyListeners();
@@ -134,14 +152,20 @@ class MallViewModel extends ChangeNotifier {
     ).build(context);
   }
 
-  /// ============================
-  /// GIFT
-  /// ============================
+
+  // ============================
+  // GIFT
+  // ============================
   Future<void> giftSelected(
       BuildContext context, {
         required String targetUserIdentification,
       }) async {
-    if (!canGiftSelected || isBuying) return;
+    _log("giftSelected() called → target=$targetUserIdentification");
+
+    if (!canGiftSelected || isBuying) {
+      _log("❌ giftSelected blocked");
+      return;
+    }
 
     DialogInfo(
       headerText: "Send Gift",
@@ -154,41 +178,23 @@ class MallViewModel extends ChangeNotifier {
         isBuying = true;
         notifyListeners();
 
-        DialogLoading(subtext: "Sending gift...")
-            .build(context);
+        DialogLoading(subtext: "Sending gift...").build(context);
 
         try {
           await _service.giftItem(
             itemId: selectedItem!.id,
             targetUserIdentification: targetUserIdentification,
+            userIdentification: _userProvider!.currentUser!.userIdentification,
           );
-
+          _log("✅ Gift sent");
           Navigator.of(context, rootNavigator: true).pop();
-
-          DialogInfo(
-            headerText: "Gift Sent",
-            subText: "Your gift has been delivered.",
-            confirmText: "OK",
-            onConfirm: () =>
-                Navigator.of(context, rootNavigator: true).pop(),
-            onCancel: () =>
-                Navigator.of(context, rootNavigator: true).pop(),
-          ).build(context);
-        } catch (_) {
+        } catch (e) {
+          _log("❌ Gift failed: $e");
           Navigator.of(context, rootNavigator: true).pop();
-
-          DialogInfo(
-            headerText: "Failed",
-            subText: "Gift sending failed.",
-            confirmText: "OK",
-            onConfirm: () =>
-                Navigator.of(context, rootNavigator: true).pop(),
-            onCancel: () =>
-                Navigator.of(context, rootNavigator: true).pop(),
-          ).build(context);
         } finally {
           isBuying = false;
           notifyListeners();
+          _log("giftSelected() end");
         }
       },
     ).build(context);
