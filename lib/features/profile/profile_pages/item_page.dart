@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/utils/profile_picture_helper.dart';
 import '../../../core/utils/user_provider.dart';
+import '../../landing/viewmodel/inventory_viewmodel.dart';
 import '../../landing/viewmodel/profile_viewmodel.dart';
 
 class ItemPage extends StatefulWidget {
@@ -14,8 +15,9 @@ class ItemPage extends StatefulWidget {
 
 class _ItemPageState extends State<ItemPage> {
   int selectedIndex = 0;
+  bool _bound = false;
 
-  final List<Map<String, dynamic>> items = [
+  final List<Map<String, dynamic>> categories = [
     {'icon': 'assets/icons/item/Mount.png', 'label': 'Mount'},
     {'icon': 'assets/icons/item/Avatar.png', 'label': 'Avatar'},
     {'icon': 'assets/icons/item/Nameplate.png', 'label': 'Nameplate'},
@@ -25,123 +27,196 @@ class _ItemPageState extends State<ItemPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ProfileViewModel()..loadProfile(context),
-      child: Consumer2<UserProvider, ProfileViewModel>(
-        builder: (context, userProvider, vm, _) {
-          final user = userProvider.currentUser;
+    return Consumer3<UserProvider, ProfileViewModel, ItemViewModel>(
+      builder: (context, userProvider, profileVM, itemVM, _) {
+        // ================= SAFE BIND =================
+        if (!_bound) {
+          itemVM.ensureBound(context);
+          _bound = true;
+        }
 
-          final avatar = (user == null)
-              ? const CircleAvatar(radius: 40, backgroundColor: Colors.white24)
-              : UserAvatarHelper.circleAvatar(
-            userIdentification: user.userIdentification,
-            displayName: user.fullName ?? user.username ?? "U",
-            radius: 40,
-            localBytes: vm.profilePictureBytes,
-          );
+        final user = userProvider.currentUser;
 
-          return Scaffold(
-            backgroundColor: const Color(0xFF0C1225),
-            body: Stack(
+        final avatar = user == null
+            ? const CircleAvatar(radius: 40, backgroundColor: Colors.white24)
+            : UserAvatarHelper.circleAvatar(
+          userIdentification: user.userIdentification,
+          displayName: user.fullName ?? user.username ?? "U",
+          radius: 40,
+          localBytes: profileVM.profilePictureBytes,
+        );
+
+        return Scaffold(
+          backgroundColor: const Color(0xFF0C1225),
+          body: SafeArea(
+            child: Column(
               children: [
-                Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF061833), Color(0xFF000814)],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
+                // ================= HEADER =================
+                Padding(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back_ios,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      const Expanded(
+                        child: Center(
+                          child: Text(
+                            "My Item",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 40),
+                    ],
                   ),
                 ),
-                SafeArea(
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
-                        child: Row(
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 18),
-                              onPressed: () => Navigator.pop(context),
-                            ),
-                            const Expanded(
-                              child: Center(
-                                child: Text(
-                                  "My Item",
-                                  style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
+
+                const SizedBox(height: 10),
+                avatar,
+                const SizedBox(height: 20),
+
+                // ================= CATEGORY BAR =================
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: List.generate(categories.length, (index) {
+                      final c = categories[index];
+                      final selected = index == selectedIndex;
+
+                      return GestureDetector(
+                        onTap: () => setState(() => selectedIndex = index),
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 10),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? const Color(0xFF2A144A)
+                                : const Color(0xFF1B2440),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            children: [
+                              Image.asset(
+                                c['icon'],
+                                width: 45,
+                                height: 45,
+                                fit: BoxFit.contain,
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                c['label'],
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
                                 ),
                               ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+
+                const SizedBox(height: 30),
+
+                // ================= INVENTORY =================
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: itemVM.loadInventory,
+                    color: Colors.white,
+                    backgroundColor: const Color(0xFF1B2440),
+                    child: itemVM.isLoading && itemVM.inventory.isEmpty
+                        ? const Center(child: CircularProgressIndicator())
+                        : itemVM.inventory.isEmpty
+                        ? ListView(
+                      physics:
+                      const AlwaysScrollableScrollPhysics(),
+                      children: const [
+                        SizedBox(height: 120),
+                        Center(
+                          child: Text(
+                            "No items",
+                            style: TextStyle(
+                              color: Colors.white70,
                             ),
-                            const SizedBox(width: 40),
-                          ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 10),
+                      ],
+                    )
+                        : ListView.builder(
+                      physics:
+                      const AlwaysScrollableScrollPhysics(),
+                      itemCount: itemVM.inventory.length,
+                      itemBuilder: (_, i) {
+                        final inv = itemVM.inventory[i];
 
-                      // ✅ replaced old AssetImage avatar
-                      avatar,
+                        return ListTile(
+                          leading: inv.assetPath != null
+                              ? Image.asset(
+                            inv.assetPath!,
+                            width: 48,
+                            height: 48,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) =>
+                            const Icon(
+                              Icons.image_not_supported,
+                              color: Colors.white54,
+                            ),
+                          )
+                              : const Icon(
+                            Icons.inventory_2,
+                            color: Colors.white54,
+                          ),
 
-                      const SizedBox(height: 20),
+                          title: Text(
+                            inv.sku,
+                            style: const TextStyle(
+                              color: Colors.white,
+                            ),
+                          ),
 
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Row(
-                          children: List.generate(items.length, (index) {
-                            final item = items[index];
-                            final bool isSelected = index == selectedIndex;
+                          subtitle: Text(
+                            inv.category?.toUpperCase() ?? "UNKNOWN",
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 12,
+                            ),
+                          ),
 
-                            return GestureDetector(
-                              onTap: () => setState(() => selectedIndex = index),
-                              child: Container(
-                                margin: const EdgeInsets.only(right: 10),
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: isSelected ? const Color(0xFF2A144A) : const Color(0xFF1B2440),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Column(
-                                  children: [
-                                    Image.asset(item['icon'], width: 45, height: 45, fit: BoxFit.contain),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      item['label'],
-                                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }),
-                        ),
-                      ),
-
-                      const SizedBox(height: 40),
-
-                      Container(
-                        width: 120,
-                        height: 140,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF251B4B),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.block, size: 40, color: Colors.white70),
-                            SizedBox(height: 10),
-                            Text("Not used", style: TextStyle(color: Colors.white70, fontSize: 14)),
-                          ],
-                        ),
-                      ),
-                    ],
+                          trailing: inv.equipped
+                              ? const Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                          )
+                              : TextButton(
+                            onPressed: () =>
+                                itemVM.equip(inv),
+                            child: const Text("Equip"),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ],
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }

@@ -24,6 +24,7 @@ import 'core/utils/index_provider.dart';
 // ViewModels
 import 'features/landing/viewmodel/agency_viewmodel.dart';
 import 'features/landing/viewmodel/dailyTask_viewmodel.dart';
+import 'features/landing/viewmodel/inventory_viewmodel.dart';
 import 'features/landing/viewmodel/landing_viewmodel.dart';
 import 'features/landing/viewmodel/mall_viewmodel.dart';
 import 'features/landing/viewmodel/post_viewmodel.dart';
@@ -86,6 +87,10 @@ Future<void> bootstrap() async {
         // Posts
         ChangeNotifierProvider(
           create: (_) => PostViewModel(userProvider: userProvider),
+        ),
+
+        ChangeNotifierProvider(
+          create: (_) => ItemViewModel(),
         ),
 
         ChangeNotifierProvider(
