@@ -6,18 +6,12 @@ import '../../../landing/model/agency.dart';
 import '../../../landing/viewmodel/agency_viewmodel.dart';
 import 'create_agency.dart';
 
-
 class AgencyDetailPage extends StatefulWidget {
   final String agencyCode;
-
-  final String currentDisplayName;
-  final String currentUserId;
 
   const AgencyDetailPage({
     super.key,
     required this.agencyCode,
-    required this.currentDisplayName,
-    required this.currentUserId,
   });
 
   @override
@@ -27,7 +21,7 @@ class AgencyDetailPage extends StatefulWidget {
 class _AgencyDetailPageState extends State<AgencyDetailPage>
     with TickerProviderStateMixin {
   late TabController _tabController;
-  bool _didLoad = false;
+  bool _didInit = false;
 
   @override
   void initState() {
@@ -44,58 +38,57 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_didLoad) return;
+    if (_didInit) return;
 
-    final uid =
-        context.read<UserProvider>().currentUser?.userIdentification ?? "";
-    if (uid.isEmpty) return;
+    final user = context.read<UserProvider>().currentUser;
+    if (user == null || user.userIdentification.isEmpty) return;
+
+    final vm = context.read<AgencyViewModel>();
+    vm.bindUser(context);
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final vm = context.read<AgencyViewModel>();
-
-      // 1) Load my agency (role); allow browsing even if user has none
-      await vm.load(userIdentification: uid);
-
-      // 2) View target agency by code
+      await vm.load();
       await vm.viewAgencyByCode(
         agencyCode: widget.agencyCode,
-        userIdentification: uid,
       );
 
-      // 3) Setup tabs depending on ownership of THIS agency
-      _rebuildTabsFor(vm);
+      _rebuildTabs(vm);
 
-      _didLoad = true;
+      _didInit = true;
       if (mounted) setState(() {});
     });
   }
 
-  void _rebuildTabsFor(AgencyViewModel vm) {
-    final isOwnerOfThis = _isOwnerOfThisAgency(vm);
-    final desiredLength = isOwnerOfThis ? 3 : 2;
+  /* =========================
+   * OWNERSHIP
+   * ========================= */
+
+  bool _isOwnerOfThisAgency(AgencyViewModel vm) {
+    final uid =
+        context.read<UserProvider>().currentUser?.userIdentification;
+    if (uid == null) return false;
+
+    final members = vm.membersResult?.members ?? const [];
+    return members.any(
+          (m) => m.role == "owner" && m.userIdentification == uid,
+    );
+  }
+
+  void _rebuildTabs(AgencyViewModel vm) {
+    final isOwner = _isOwnerOfThisAgency(vm);
+    final desiredLength = isOwner ? 3 : 2;
 
     if (_tabController.length == desiredLength) return;
 
     _tabController.dispose();
-    _tabController = TabController(length: desiredLength, vsync: this);
+    _tabController =
+        TabController(length: desiredLength, vsync: this);
 
-    // owner loads join requests (uses vm.joinRequests list)
-    if (isOwnerOfThis) {
-      final uid =
-          context.read<UserProvider>().currentUser?.userIdentification ?? "";
-      if (uid.isNotEmpty) {
-        vm.loadJoinRequests(
-          ownerUserIdentification: uid,
-          agencyCode: widget.agencyCode,
-        );
-      }
+    if (isOwner) {
+      vm.loadJoinRequests(
+        agencyCode: widget.agencyCode,
+      );
     }
-  }
-
-  bool _isOwnerOfThisAgency(AgencyViewModel vm) {
-    final members = vm.membersResult?.members ?? const [];
-    return members.any((m) =>
-    m.role == "owner" && m.userIdentification == widget.currentUserId);
   }
 
   @override
@@ -107,7 +100,7 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
         if (a != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            _rebuildTabsFor(vm);
+            _rebuildTabs(vm);
           });
         }
 
@@ -119,11 +112,12 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
 
         final membersCount =
             a?.membersCount ?? vm.membersResult?.membersCount ?? 0;
-        final maxMembers = a?.maxMembers ?? vm.membersResult?.maxMembers ?? 10;
+        final maxMembers =
+            a?.maxMembers ?? vm.membersResult?.maxMembers ?? 10;
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(a == null ? "Agency" : a.name),
+            title: Text(a?.name ?? "Agency"),
             bottom: TabBar(
               controller: _tabController,
               tabs: tabs.map((t) => Tab(text: t)).toList(),
@@ -135,18 +129,11 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
               ? _ErrorBox(
             message: vm.error ?? "Agency not found.",
             onRetry: () async {
-              final uid = context
-                  .read<UserProvider>()
-                  .currentUser
-                  ?.userIdentification ??
-                  "";
-              if (uid.isEmpty) return;
-
+              vm.clearError();
               await vm.viewAgencyByCode(
                 agencyCode: widget.agencyCode,
-                userIdentification: uid,
               );
-              _rebuildTabsFor(vm);
+              _rebuildTabs(vm);
             },
           )
               : TabBarView(
@@ -157,57 +144,37 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
                 membersCount: membersCount,
                 maxMembers: maxMembers,
                 isOwner: isOwner,
-                onEdit: isOwner ? () => _editAgency(vm) : null,
-                onApply: isOwner ? null : () => _applyToJoin(vm),
+                onEdit:
+                isOwner ? () => _editAgency(vm) : null,
+                onApply:
+                isOwner ? null : () => _applyToJoin(vm),
                 isFull: membersCount >= maxMembers,
               ),
               _MembersTabDto(
-                loading: vm.isLoading && (vm.membersResult == null),
-                members: vm.membersResult?.members ?? const [],
+                loading: vm.isLoading &&
+                    vm.membersResult == null,
+                members:
+                vm.membersResult?.members ?? const [],
                 membersCount: membersCount,
                 maxMembers: maxMembers,
               ),
               if (isOwner)
                 _ApprovalsTabDto(
                   loading: vm.isLoading,
-                  requests: vm.joinRequests, // ✅ FIX: use joinRequests
-                  onRefresh: () async {
-                    final uid = context
-                        .read<UserProvider>()
-                        .currentUser
-                        ?.userIdentification ??
-                        "";
-                    if (uid.isEmpty) return;
-                    await vm.loadJoinRequests(
-                      ownerUserIdentification: uid,
-                      agencyCode: widget.agencyCode,
-                    );
-                  },
-                  onApprove: (id) async {
-                    final uid = context
-                        .read<UserProvider>()
-                        .currentUser
-                        ?.userIdentification ??
-                        "";
-                    if (uid.isEmpty) return;
-
-                    await vm.approveRequest(
-                      ownerUserIdentification: uid,
-                      agencyCode: widget.agencyCode,
-                      requestId: id,
-                    );
-                  },
+                  requests: vm.joinRequests,
+                  onRefresh: () =>
+                      vm.loadJoinRequests(
+                        agencyCode: widget.agencyCode,
+                      ),
+                  onApprove: (id) =>
+                      vm.approveRequest(
+                        agencyCode: widget.agencyCode,
+                        requestId: id,
+                      ),
                   onReject: (id) async {
-                    final uid = context
-                        .read<UserProvider>()
-                        .currentUser
-                        ?.userIdentification ??
-                        "";
-                    if (uid.isEmpty) return;
-
-                    final reason = await _askReason(context);
+                    final reason =
+                    await _askReason(context);
                     await vm.rejectRequest(
-                      ownerUserIdentification: uid,
                       agencyCode: widget.agencyCode,
                       requestId: id,
                       reason: reason ?? "",
@@ -221,13 +188,17 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
     );
   }
 
+  /* =========================
+   * ACTIONS
+   * ========================= */
+
   Future<void> _editAgency(AgencyViewModel vm) async {
     final a = vm.viewingAgency!;
     final name = TextEditingController(text: a.name);
     final desc = TextEditingController(text: a.description);
     final logo = TextEditingController(text: a.logoUrl ?? "");
 
-    final okPressed = await showDialog<bool>(
+    final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text("Edit Agency"),
@@ -246,13 +217,8 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
       ),
     );
 
-    if (okPressed == true) {
-      final uid =
-          context.read<UserProvider>().currentUser?.userIdentification ?? "";
-      if (uid.isEmpty) return;
-
+    if (ok == true) {
       await vm.editAgency(
-        ownerUserIdentification: uid,
         agencyCode: widget.agencyCode,
         name: name.text.trim(),
         description: desc.text.trim(),
@@ -262,13 +228,15 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
   }
 
   Future<void> _applyToJoin(AgencyViewModel vm) async {
+    final user = context.read<UserProvider>().currentUser;
+
     final ok = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) => AgencyRegistrationApplicationPage(
           title: "Agency Registration Application",
-          initialDisplayName: widget.currentDisplayName,
-          initialUserId: widget.currentUserId,
+          initialDisplayName: user?.username ?? "",
+          initialUserId: user?.userIdentification ?? "",
           isCreateAgency: false,
           agencyCode: widget.agencyCode,
         ),
@@ -276,15 +244,10 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
     );
 
     if (ok == true && mounted) {
-      final uid =
-          context.read<UserProvider>().currentUser?.userIdentification ?? "";
-      if (uid.isEmpty) return;
-
       await vm.viewAgencyByCode(
         agencyCode: widget.agencyCode,
-        userIdentification: uid,
       );
-      _rebuildTabsFor(vm);
+      _rebuildTabs(vm);
     }
   }
 
@@ -294,7 +257,7 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
       context: context,
       builder: (_) => AlertDialog(
         title: const Text("Reject reason (optional)"),
-        content: TextField(controller: c, decoration: const InputDecoration(hintText: "Reason")),
+        content: TextField(controller: c),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, null), child: const Text("Skip")),
           ElevatedButton(onPressed: () => Navigator.pop(context, c.text.trim()), child: const Text("Submit")),
@@ -303,6 +266,7 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
     );
   }
 }
+
 
 /* =========================
  * TABS

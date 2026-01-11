@@ -197,32 +197,27 @@ class _AgencyRegistrationApplicationPageState
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final uid = context.read<UserProvider>().currentUser?.userIdentification ?? "";
-    if (uid.isEmpty) return;
-
     final vm = context.read<AgencyViewModel>();
 
     if (widget.isCreateAgency) {
-      // ✅ CREATE AGENCY (uses ViewModel)
       final ok = await vm.createAgency(
-        userIdentification: uid,
         name: _agencyName.text.trim(),
         description: _agencyDescription.text.trim(),
-        logoUrl: _agencyAvatarUrl.text.trim().isEmpty ? null : _agencyAvatarUrl.text.trim(),
+        logoUrl: _agencyAvatarUrl.text.trim().isEmpty
+            ? null
+            : _agencyAvatarUrl.text.trim(),
       );
 
       if (ok && mounted) {
-        Navigator.of(context).pop(true); // return success
+        Navigator.of(context).pop(true);
       }
       return;
     }
 
-    // ✅ APPLY TO JOIN (uses ViewModel)
-    final code = (widget.agencyCode ?? "").trim();
+    final code = widget.agencyCode ?? "";
     if (code.isEmpty) return;
 
     final ok = await vm.applyToJoin(
-      userIdentification: uid,
       agencyCode: code,
       agencyAvatarUrl: _agencyAvatarUrl.text.trim(),
       agencyName: _agencyName.text.trim(),
@@ -231,7 +226,9 @@ class _AgencyRegistrationApplicationPageState
       contactType: _contactType.text.trim(),
       agentIdCardUrl: _agentIdCardUrl.text.trim(),
       inviterId: _inviterId.text.trim(),
-      inviterPicUrl: _inviterPicUrl.text.trim().isEmpty ? null : _inviterPicUrl.text.trim(),
+      inviterPicUrl: _inviterPicUrl.text.trim().isEmpty
+          ? null
+          : _inviterPicUrl.text.trim(),
     );
 
     if (ok && mounted) {

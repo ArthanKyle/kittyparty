@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:kittyparty/app.dart';
 import 'package:provider/provider.dart';
 
 import 'package:kittyparty/core/constants/colors.dart';
@@ -20,32 +19,25 @@ class AgencyRoom extends StatefulWidget {
 
 class _AgencyRoomState extends State<AgencyRoom> {
   final _searchController = TextEditingController();
-  bool _didLoad = false;
+  bool _didInit = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_didLoad) return;
+    if (_didInit) return;
 
-    final uid = context
-        .read<UserProvider>()
-        .currentUser
-        ?.userIdentification ?? "";
-    if (uid.isEmpty) return;
+    final user = context.read<UserProvider>().currentUser;
+    if (user == null || user.userIdentification.isEmpty) return;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final vm = context.read<AgencyViewModel>();
+    final vm = context.read<AgencyViewModel>();
+    vm.bindUser(context);
 
-      await vm.load(userIdentification: uid);
-
-      if (vm.myAgency == null) {
-        await vm.fetchAgenciesIfFree(userIdentification: uid);
-      }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      vm.load();
     });
 
-    _didLoad = true;
+    _didInit = true;
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +52,7 @@ class _AgencyRoomState extends State<AgencyRoom> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: BasicTextField(
-                labelText: 'UserName',
+                labelText: 'Agency Code',
                 controller: _searchController,
                 hintText: 'Please enter the Agency Code to search',
                 validator: (_) => null,
@@ -78,23 +70,15 @@ class _AgencyRoomState extends State<AgencyRoom> {
               return _ErrorState(
                 message: vm.error!,
                 onRetry: () {
-                  final uid = context
-                      .read<UserProvider>()
-                      .currentUser
-                      ?.userIdentification ?? "";
-                  if (uid.isNotEmpty) {
-                    vm.refresh(userIdentification: uid);
-                  }
+                  vm.clearError();
+                  vm.load();
                 },
               );
             }
 
-
-            /// ✅ NO AGENCY STATE (with Create button)
+            /// NO AGENCY
             if (vm.myAgency == null) {
-              final user = context
-                  .read<UserProvider>()
-                  .currentUser;
+              final user = context.read<UserProvider>().currentUser;
 
               return SingleChildScrollView(
                 padding: const EdgeInsets.all(18),
@@ -114,63 +98,59 @@ class _AgencyRoomState extends State<AgencyRoom> {
                                 AgencyRegistrationApplicationPage(
                                   title: "Create Agency",
                                   initialDisplayName: user?.username ?? "",
-                                  initialUserId: user?.userIdentification ?? "",
+                                  initialUserId:
+                                  user?.userIdentification ?? "",
                                   isCreateAgency: true,
                                 ),
                           ),
                         );
 
-                        if (ok == true && context.mounted) {
-                          final uid = user?.userIdentification ?? "";
-                          if (uid.isNotEmpty) {
-                            context
-                                .read<AgencyViewModel>()
-                                .refresh(userIdentification: uid);
-                          }
+                        if (ok == true && mounted) {
+                          vm.refresh();
                         }
                       },
                     ),
 
                     const SizedBox(height: 24),
 
-                  ],
-                ),
-              );
-            }
-
-            return Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    _AgencyHeader(
-                      name: vm.myAgency!.name,
-                      code: vm.myAgency!.agencyCode,
-                      membersCount: vm.myAgency!.membersCount,
-                      maxMembers: vm.myAgency!.maxMembers,
-                      role: vm.myRole ?? "",
-                    ),
-                    const SizedBox(height: 10),
-                    // ✅ LIST AVAILABLE AGENCIES
+                    /// AVAILABLE AGENCIES
                     ListView.separated(
                       shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
+                      physics:
+                      const NeverScrollableScrollPhysics(),
                       itemCount: vm.agencies.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      separatorBuilder: (_, __) =>
+                      const SizedBox(height: 12),
                       itemBuilder: (context, index) {
                         final agency = vm.agencies[index];
-
                         return AgencyCard(
                           username: agency.name,
                           agentId: agency.agencyCode,
-                          membersCount: agency.membersCount,
-                          maxMembers: agency.maxMembers,
-                          onJoin: () => _showDialog(context),
+                          membersCount:
+                          agency.membersCount,
+                          maxMembers:
+                          agency.maxMembers,
+                          onJoin: () =>
+                              _showDialog(context),
                         );
                       },
                     ),
                   ],
                 ),
+              );
+            }
+
+            /// HAS AGENCY
+            return Padding(
+              padding: const EdgeInsets.all(8),
+              child: _AgencyHeader(
+                name: vm.myAgency!.name,
+                code: vm.myAgency!.agencyCode,
+                membersCount:
+                vm.myAgency!.membersCount,
+                maxMembers:
+                vm.myAgency!.maxMembers,
+                role: vm.myRole ?? "",
               ),
             );
           },
@@ -179,6 +159,8 @@ class _AgencyRoomState extends State<AgencyRoom> {
     );
   }
 }
+
+
 class _NoAgencyYet extends StatelessWidget {
   const _NoAgencyYet();
 
