@@ -186,35 +186,8 @@ class _SettingPageState extends State<SettingPage> {
                       ),
                     ),
                   ),
-                  _buildItem('Notification Setting', onTap: () {}),
-                  _buildItem(
-                    'Language',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LanguagePage()),
-                    ),
-                  ),
                 ]),
-
-                _buildGroup([
-                  _buildItem(
-                    'Shield Manager',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ShieldManagerPage(),
-                      ),
-                    ),
-                  ),
-                  _buildItem(
-                    'Blacklist Management',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const BlackListPage()),
-                    ),
-                  ),
-                ]),
-
+                
                 _buildGroup([
                   _buildItem(
                     'Personal Information and Permissions',

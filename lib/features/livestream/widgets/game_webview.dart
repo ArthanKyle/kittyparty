@@ -35,13 +35,14 @@ class GameWebView extends StatefulWidget {
 class _GameWebViewState extends State<GameWebView> {
   late final WebViewController controller;
 
+
   bool isLoading = true;
   bool hasError = false;
   String? errorMessage;
 
-  late final String backendBaseUrl; // e.g. https://domain.com (NO trailing slash, NO /api)
-  late final String baishunAppId; // APP_ID
-  late final String baishunAppKey; // APP_KEY (must match process.env.BAISHUN_APP_KEY)
+  String backendBaseUrl = ""; // e.g. https://domain.com (NO trailing slash, NO /api)
+  String baishunAppId = ""; // APP_ID
+  String baishunAppKey = ""; // APP_KEY (must match process.env.BAISHUN_APP_KEY)
 
   String? _lastSsToken;
 
@@ -51,11 +52,15 @@ class _GameWebViewState extends State<GameWebView> {
   void initState() {
     super.initState();
 
+
+
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     backendBaseUrl = _normalizeBaseUrl(dotenv.env['BASE_URL'] ?? '');
     baishunAppId = (dotenv.env['BAISHUN_APP_ID'] ?? '').trim();
     baishunAppKey = (dotenv.env['BAISHUN_APP_KEY'] ?? '').trim();
+
+    debugPrint("📘 Using BAISHUN_APP_ID = $baishunAppId");
 
     if (backendBaseUrl.isEmpty) _setFatalError('BASE_URL is empty. Please set BASE_URL in .env');
     if (baishunAppId.isEmpty) _setFatalError('APP_ID is empty. Please set APP_ID in .env');
@@ -339,79 +344,79 @@ class _GameWebViewState extends State<GameWebView> {
   String _authHooks() {
     final ss = _lastSsToken ?? "";
     final uid = widget.userId;
+    final backendHost = Uri.parse(backendBaseUrl).host;
 
     return """
-      (function () {
-        if (window.__KP_AUTH_HOOKS__) return;
-        window.__KP_AUTH_HOOKS__ = true;
-      
-        function getToken() { return (window.__KP_SSTOKEN__ || "").toString(); }
-        function getUserId() { return (window.__KP_USERID__ || "").toString(); }
-      
-        window.__KP_SSTOKEN__ = ${jsonEncode(ss)};
-        window.__KP_USERID__ = ${jsonEncode(uid)};
-      
-        // FETCH
-        const oldFetch = window.fetch;
-        if (oldFetch) {
-          window.fetch = function(input, init) {
-            init = init || {};
-            init.headers = init.headers || {};
-            const t = getToken();
-            const u = getUserId();
-      
-            if (t) {
-              init.headers["ss_token"] = t;
-              init.headers["sstoken"] = t;
-            }
-            if (u) {
-              init.headers["user_id"] = u;
-            }
-            return oldFetch.call(this, input, init);
-          };
-        }
-      
-        // XHR
-        const XHR = window.XMLHttpRequest;
-        if (XHR) {
-          const send = XHR.prototype.send;
-          XHR.prototype.send = function(body) {
-            try {
-              const t = getToken();
-              const u = getUserId();
-              if (t) {
-                this.setRequestHeader("ss_token", t);
-                this.setRequestHeader("sstoken", t);
-              }
-              if (u) {
-                this.setRequestHeader("user_id", u);
-              }
-            } catch (e) {}
-            return send.apply(this, arguments);
-          };
-        }
-      
-        // WebSocket (query params only — allowed)
-        const OldWS = window.WebSocket;
-        if (OldWS) {
-          window.WebSocket = function(url, protocols) {
-            const t = getToken();
-            const u = getUserId();
-            if (t || u) {
-              const sep = url.includes("?") ? "&" : "?";
-              const qp = [];
-              if (t) qp.push("ss_token=" + encodeURIComponent(t));
-              if (u) qp.push("user_id=" + encodeURIComponent(u));
-              url += sep + qp.join("&");
-            }
-            return protocols ? new OldWS(url, protocols) : new OldWS(url);
-          };
-        }
-      
-        console.log("[KP][AUTH] BAISHUN-compliant headers injected");
-      })();
-      """;
+  (function () {
+    if (window.__KP_AUTH_HOOKS__) return;
+    window.__KP_AUTH_HOOKS__ = true;
+
+    window.__KP_SSTOKEN__ = ${jsonEncode(ss)};
+    window.__KP_USERID__ = ${jsonEncode(uid)};
+
+    function isBackend(url) {
+      try {
+        return new URL(url, location.href).host === "$backendHost";
+      } catch (e) {
+        return false;
+      }
     }
+
+    // FETCH
+    const oldFetch = window.fetch;
+    if (oldFetch) {
+      window.fetch = function(input, init) {
+        init = init || {};
+        init.headers = init.headers || {};
+
+        const url = (typeof input === "string") ? input : input.url;
+
+        // ✅ ONLY inject for YOUR backend
+        if (isBackend(url)) {
+          if (window.__KP_SSTOKEN__) {
+            init.headers["ss_token"] = window.__KP_SSTOKEN__;
+            init.headers["sstoken"] = window.__KP_SSTOKEN__;
+          }
+          if (window.__KP_USERID__) {
+            init.headers["user_id"] = window.__KP_USERID__;
+          }
+        }
+
+        return oldFetch.call(this, input, init);
+      };
+    }
+
+    // XHR
+    const XHR = window.XMLHttpRequest;
+    if (XHR) {
+      const open = XHR.prototype.open;
+      const send = XHR.prototype.send;
+
+      XHR.prototype.open = function(method, url) {
+        this.__kp_url = url;
+        return open.apply(this, arguments);
+      };
+
+      XHR.prototype.send = function(body) {
+        try {
+          if (isBackend(this.__kp_url)) {
+            if (window.__KP_SSTOKEN__) {
+              this.setRequestHeader("ss_token", window.__KP_SSTOKEN__);
+              this.setRequestHeader("sstoken", window.__KP_SSTOKEN__);
+            }
+            if (window.__KP_USERID__) {
+              this.setRequestHeader("user_id", window.__KP_USERID__);
+            }
+          }
+        } catch (e) {}
+        return send.apply(this, arguments);
+      };
+    }
+
+    console.log("[KP][AUTH] ss_token injected ONLY for backend");
+  })();
+  """;
+  }
 
   Future<void> _pushAuthToWebView({
     required String ssToken,

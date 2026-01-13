@@ -1,4 +1,4 @@
-// lib/features/livestream/viewmodel/live_audio_room_viewmodel.dart
+
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -193,6 +193,7 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
 
     // REQUIRED: backend must return this (total coins spent for the gift)
     final totalCoinsSpent = (result["totalCoinsSpent"] ?? 0) as int;
+    final txId = (result["txId"] ?? "").toString(); // <- use as externalId
 
     if (totalCoinsSpent > 0) {
       await roomIncomeService.recordIncome(
@@ -201,12 +202,13 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
         amountCoins: totalCoinsSpent,
         senderId: senderId,
         receiverId: receiverId,
+        externalId: txId.isEmpty ? null : txId, // <- NEW (dedupe)
         meta: {
           "giftType": giftType,
           "giftCount": giftCount,
           "giftName": result["giftName"] ?? "",
           "giftID": result["giftID"] ?? giftType,
-          "txId": result["txId"] ?? "",
+          "txId": txId,
         },
       );
 
@@ -214,6 +216,7 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
         await _fetchIncomeSummary(roomId);
       }
     }
+
 
     // 3) Trigger gift animation
     if (giftName.isNotEmpty) _giftController.add(giftName);

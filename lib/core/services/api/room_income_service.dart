@@ -44,7 +44,7 @@ class RoomIncomeService {
   RoomIncomeService({String? baseUrl})
       : baseUrl = baseUrl ?? dotenv.env['BASE_URL']!;
 
-  /// Generic income event recorder
+  /// Generic income event recorder (dedupe supported via externalId)
   Future<bool> recordIncome({
     required String roomId,
     required String eventType,
@@ -52,6 +52,7 @@ class RoomIncomeService {
     String? senderId,
     String? receiverId,
     Map<String, dynamic>? meta,
+    String? externalId, // <- txId goes here
   }) async {
     final res = await http.post(
       Uri.parse('$baseUrl/rooms/$roomId/income'),
@@ -62,9 +63,12 @@ class RoomIncomeService {
         "senderId": senderId,
         "receiverId": receiverId,
         "meta": meta ?? {},
+        "externalId": externalId, // <- NEW
       }),
     );
-    return res.statusCode == 201;
+
+    // allow 201 (created) or 200 (duplicate ignored)
+    return res.statusCode == 201 || res.statusCode == 200;
   }
 
   /// Convenience wrapper for gifts
@@ -76,6 +80,7 @@ class RoomIncomeService {
     required String giftId,
     required String giftName,
     int giftCount = 1,
+    String? txId, // <- NEW
   }) {
     return recordIncome(
       roomId: roomId,
@@ -83,10 +88,12 @@ class RoomIncomeService {
       amountCoins: amountCoins,
       senderId: senderId,
       receiverId: receiverId,
+      externalId: txId, // <- NEW
       meta: {
         "giftId": giftId,
         "giftName": giftName,
         "giftCount": giftCount,
+        "txId": txId ?? "",
       },
     );
   }

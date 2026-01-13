@@ -192,6 +192,8 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
         padding: const EdgeInsets.all(12),
       ),
       onPressed: () {
+        final receiverId = _selectedUserId ?? widget.hostId;
+
         showModalBottomSheet(
           context: context,
           useRootNavigator: true,
@@ -200,7 +202,7 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
           builder: (_) => GiftModal(
             viewModel: widget.viewModel,
             roomId: widget.roomId,
-            receiverId: widget.hostId,
+            receiverId: receiverId,
             senderId: widget.userIdentification,
           ),
         );

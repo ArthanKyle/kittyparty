@@ -13,7 +13,7 @@ class ConvertDiamondsAppBar extends StatelessWidget {
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.only(
-          top: MediaQuery.of(context).padding.top + 12,
+          top: MediaQuery.of(context).padding.top + 12, // ✅ cover status bar
           left: 24,
           right: 24,
           bottom: 16,

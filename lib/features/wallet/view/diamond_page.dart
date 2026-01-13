@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kittyparty/app.dart';
 import 'package:provider/provider.dart';
 import '../viewmodel/wallet_viewmodel.dart';
 import '../wallet_widgets/diamond_card.dart';
@@ -22,7 +23,9 @@ class DiamondsPage extends StatelessWidget {
             ),
             const SizedBox(height: 35),
             ConvertButton(
-              onPressed: () {},
+              onPressed: () {
+                Navigator.of(context).pushNamed(AppRoutes.diamond);
+              },
             ),
             const Spacer(),
           ],

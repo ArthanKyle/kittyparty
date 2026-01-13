@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:kittyparty/core/global_widgets/dialogs/dialog_loading.dart';
 import 'package:kittyparty/core/global_widgets/dialogs/dialog_info.dart';
 
+import '../../../core/constants/colors.dart';
 import '../../../core/utils/user_provider.dart';
 import '../../wallet/viewmodel/wallet_viewmodel.dart';
 import '../wallet_widgets/wallet_diamond_appbar.dart';
@@ -141,7 +142,11 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
                 }
               }
                   : null,
-              child: const Text("Confirm Exchange"),
+              child: const Text("Confirm Exchange",
+                style: TextStyle(
+                    color: AppColors.accentWhite
+                ),
+              ),
             ),
           ],
         ),
