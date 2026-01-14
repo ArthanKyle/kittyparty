@@ -215,21 +215,6 @@ class _GiftModalState extends State<GiftModal>
 
         if (receiver == null) return;
 
-        // ❌ Prevent self-gifting
-        if (receiver == widget.senderId) {
-          DialogInfo(
-            headerText: "Warning!",
-            subText: "You cannot send gifts to yourself!",
-            confirmText: "OK",
-            onConfirm: () {
-              Navigator.of(rootContext, rootNavigator: true).pop();
-            },
-            onCancel: (){
-          Navigator.of(rootContext, rootNavigator: true).pop();
-          },
-          ).build(rootContext);
-          return;
-        }
 
         widget.viewModel.sendGift(
           roomId: widget.roomId,

@@ -1,4 +1,3 @@
-// lib/core/services/api/room_income_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -41,10 +40,17 @@ class RoomIncomeSummary {
 
 class RoomIncomeService {
   final String baseUrl;
+
   RoomIncomeService({String? baseUrl})
       : baseUrl = baseUrl ?? dotenv.env['BASE_URL']!;
 
-  /// Generic income event recorder (dedupe supported via externalId)
+  String get socketUrl {
+    var u = baseUrl;
+    if (u.endsWith("/")) u = u.substring(0, u.length - 1);
+    if (u.endsWith("/api")) u = u.substring(0, u.length - 4);
+    return u;
+  }
+
   Future<bool> recordIncome({
     required String roomId,
     required String eventType,
@@ -52,10 +58,10 @@ class RoomIncomeService {
     String? senderId,
     String? receiverId,
     Map<String, dynamic>? meta,
-    String? externalId, // <- txId goes here
+    String? externalId,
   }) async {
     final res = await http.post(
-      Uri.parse('$baseUrl/rooms/$roomId/income'),
+      Uri.parse('$baseUrl/room-income/$roomId/income'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         "eventType": eventType,
@@ -63,44 +69,16 @@ class RoomIncomeService {
         "senderId": senderId,
         "receiverId": receiverId,
         "meta": meta ?? {},
-        "externalId": externalId, // <- NEW
+        "externalId": externalId,
       }),
     );
 
-    // allow 201 (created) or 200 (duplicate ignored)
     return res.statusCode == 201 || res.statusCode == 200;
-  }
-
-  /// Convenience wrapper for gifts
-  Future<bool> recordGiftContribution({
-    required String roomId,
-    required int amountCoins,
-    required String senderId,
-    required String receiverId,
-    required String giftId,
-    required String giftName,
-    int giftCount = 1,
-    String? txId, // <- NEW
-  }) {
-    return recordIncome(
-      roomId: roomId,
-      eventType: "gift_sent",
-      amountCoins: amountCoins,
-      senderId: senderId,
-      receiverId: receiverId,
-      externalId: txId, // <- NEW
-      meta: {
-        "giftId": giftId,
-        "giftName": giftName,
-        "giftCount": giftCount,
-        "txId": txId ?? "",
-      },
-    );
   }
 
   Future<RoomIncomeSummary?> getSummary(String roomId) async {
     final res = await http.get(
-      Uri.parse('$baseUrl/rooms/$roomId/income/summary'),
+      Uri.parse('$baseUrl/room-income/$roomId/income/summary'),
     );
     if (res.statusCode != 200) return null;
 

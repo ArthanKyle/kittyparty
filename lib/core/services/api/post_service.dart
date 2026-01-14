@@ -44,6 +44,20 @@ class PostService {
   }
 
   // ===========================================================
+  // DELETE POST
+  // ===========================================================
+    Future<bool> deletePost(String postId) async {
+      final url = Uri.parse('$baseUrl/posts/$postId');
+
+      final res = await http.delete(url);
+
+      _print("DELETE /posts/$postId", res);
+
+      return res.statusCode == 200;
+    }
+
+
+  // ===========================================================
   // CREATE POST (Images + Videos via GridFS)
   // ===========================================================
   Future<Map<String, dynamic>?> createPost({

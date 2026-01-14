@@ -1,17 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import '../../../../core/utils/profile_picture_helper.dart';
+import '../../../../core/utils/user_provider.dart';
 import '../../viewmodel/post_viewmodel.dart';
 import '../../model/post.dart';
 
 class CommentSheet extends StatelessWidget {
   final Post post;
 
-  const CommentSheet({super.key, required this.post});
+  const CommentSheet({
+    super.key,
+    required this.post,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final vm = Provider.of<PostViewModel>(context, listen: false);
-    final TextEditingController commentCtrl = TextEditingController();
+    final postVm = context.read<PostViewModel>();
+    final userProvider = context.watch<UserProvider>();
+    final commentCtrl = TextEditingController();
+
+    final canComment =
+        userProvider.currentUser?.userIdentification != null;
 
     return Container(
       padding: EdgeInsets.only(
@@ -25,7 +35,6 @@ class CommentSheet extends StatelessWidget {
         height: MediaQuery.of(context).size.height * 0.75,
         child: Column(
           children: [
-            // --- HEADER ---
             const SizedBox(height: 12),
             Container(
               height: 5,
@@ -45,17 +54,18 @@ class CommentSheet extends StatelessWidget {
             ),
             const SizedBox(height: 10),
 
-            // --- COMMENT LIST ---
+            // ================= COMMENTS LIST =================
             Expanded(
-              child: FutureBuilder(
-                future: vm.getComments(post.id),
+              child: FutureBuilder<List<dynamic>>(
+                future: postVm.getComments(post.id),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(
+                      child: CircularProgressIndicator(),
+                    );
                   }
 
-                  final comments = snapshot.data as List<dynamic>;
-
+                  final comments = snapshot.data!;
                   if (comments.isEmpty) {
                     return const Center(
                       child: Text("No comments yet."),
@@ -66,11 +76,32 @@ class CommentSheet extends StatelessWidget {
                     itemCount: comments.length,
                     itemBuilder: (context, index) {
                       final c = comments[index];
+                      final author = c["author"] ?? {};
+
+                      final userId = (author["UserIdentification"] ??
+                          "unknown_user")
+                          .toString();
+
+                      final displayName = (author["Username"] ??
+                          author["FullName"] ??
+                          "User")
+                          .toString();
 
                       return ListTile(
-                        leading: const CircleAvatar(child: Icon(Icons.person)),
-                        title: Text(c["content"] ?? ""),
-                        subtitle: Text("User ${c["user"]}"),
+                        leading: UserAvatarHelper.circleAvatar(
+                          userIdentification: userId,
+                          displayName: displayName,
+                          radius: 18,
+                        ),
+                        title: Text(
+                          displayName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: Text(
+                          (c["content"] ?? "").toString(),
+                        ),
                       );
                     },
                   );
@@ -78,44 +109,55 @@ class CommentSheet extends StatelessWidget {
               ),
             ),
 
-            // --- INPUT AREA ---
+            // ================= INPUT =================
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
               color: Colors.grey.shade100,
               child: Row(
                 children: [
                   Expanded(
                     child: TextField(
                       controller: commentCtrl,
+                      enabled: canComment,
                       decoration: InputDecoration(
-                        hintText: "Write a comment...",
+                        hintText: canComment
+                            ? "Write a comment..."
+                            : "Login required",
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 16),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                        ),
                       ),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.send, color: Colors.blueAccent),
-                    onPressed: () async {
-                      if (commentCtrl.text.trim().isEmpty) return;
+                    icon: const Icon(
+                      Icons.send,
+                      color: Colors.blueAccent,
+                    ),
+                    onPressed: !canComment
+                        ? null
+                        : () async {
+                      final text = commentCtrl.text.trim();
+                      if (text.isEmpty) return;
 
-                      await vm.addComment(
-                        post.id,
-                        commentCtrl.text.trim(),
-                      );
+                      await postVm.addComment(post.id, text);
 
-                      Navigator.pop(context); // close sheet
+                      Navigator.pop(context);
                       showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
                         backgroundColor: Colors.transparent,
-                        builder: (_) => CommentSheet(post: post),
+                        builder: (_) =>
+                            CommentSheet(post: post),
                       );
                     },
-                  )
+                  ),
                 ],
               ),
             ),

@@ -1,3 +1,5 @@
+// android/app/build.gradle.kts
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -20,24 +22,57 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.kittyparty"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 23
         targetSdk = 36
+
+        // Flutter provides these values
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
         multiDexEnabled = true
     }
 
-    buildTypes {
-        release {
-            // Enable R8 / Proguard
-            isMinifyEnabled = true
-            isShrinkResources = false
+    /**
+     * RELEASE SIGNING (Kotlin DSL)
+     *
+     * Option 1 (recommended): use environment variables (or gradle.properties via System.getenv not needed)
+     * - KEYSTORE_FILE        e.g. C:\\path\\to\\keystore.jks  OR  keystore.jks (relative to android/app)
+     * - KEYSTORE_PASSWORD
+     * - KEY_ALIAS
+     * - KEY_PASSWORD
+     *
+     * Option 2 (quick test): set signingConfig to "debug" in release buildType below.
+     */
+    signingConfigs {
+        create("release") {
+            // If KEYSTORE_FILE is not set, it will look for android/app/keystore.jks
+            val ksFile = System.getenv("KEYSTORE_FILE") ?: "keystore.jks"
+            storeFile = file(ksFile)
 
-            // Point to default + custom rules
+            // These must be present for a real release signing
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("KEY_ALIAS")
+            keyPassword = System.getenv("KEY_PASSWORD")
+        }
+    }
+
+    buildTypes {
+        getByName("debug") {
+            // keep default debug behavior
+        }
+
+        getByName("release") {
+            // Enable R8 / Proguard (Kotlin DSL syntax)
+            isMinifyEnabled = true
+            isShrinkResources = true
+
+            // Use proper release signing config:
+            signingConfig = signingConfigs.getByName("release")
+
+            // QUICK TEST ONLY (uncomment if you don't have a release keystore yet)
+            // signingConfig = signingConfigs.getByName("debug")
+
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -50,6 +85,6 @@ flutter {
     source = "../.."
 }
 
-tasks.withType<JavaCompile> {
+tasks.withType<JavaCompile>().configureEach {
     options.compilerArgs.addAll(listOf("-Xlint:none", "-nowarn"))
 }

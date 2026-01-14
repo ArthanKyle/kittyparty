@@ -37,6 +37,15 @@ class PostViewModel with ChangeNotifier {
     });
   }
 
+  final Set<String> hiddenPostIds = {};
+
+  void hidePost(String postId) {
+    hiddenPostIds.add(postId);
+    recommendedPosts.removeWhere((p) => p.id == postId);
+    followingPosts.removeWhere((p) => p.id == postId);
+    notifyListeners();
+  }
+
   void _attachSocketStreams(UserProvider provider) {
     _likeSub?.cancel();
     _commentSub?.cancel();
@@ -222,6 +231,21 @@ class PostViewModel with ChangeNotifier {
 
     notifyListeners();
   }
+
+  Future<bool> deletePost(String postId) async {
+    if (currentUserId == null) return false;
+
+    final ok = await _service.deletePost(postId);
+
+    if (ok) {
+      recommendedPosts.removeWhere((p) => p.id == postId);
+      followingPosts.removeWhere((p) => p.id == postId);
+      notifyListeners();
+    }
+
+    return ok;
+  }
+
 
   @override
   void dispose() {

@@ -96,6 +96,17 @@ class AgencyViewModel extends ChangeNotifier {
       myAgency = me.agency;
       myRole = me.myRole;
 
+// agency == null is VALID
+      if (myAgency == null) {
+        agencies = await service.fetchAgencies(
+          userIdentification: uid,
+        );
+      }
+
+
+      myAgency = me.agency;
+      myRole = me.myRole;
+
       _log("myAgency=${myAgency?.agencyCode}, role=$myRole");
 
       // 2️⃣ Only fetch agencies if user is free

@@ -1,9 +1,9 @@
-
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:zego_uikit/zego_uikit.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 import '../../../core/services/api/gift_service.dart';
 import '../../../core/services/api/room_income_service.dart';
@@ -29,6 +29,7 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
 
   bool hasPermission = false;
   bool permissionChecked = false;
+  bool _disposed = false;
 
   String? userIdentification;
   String? userName;
@@ -38,7 +39,6 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
   final Map<String, Uint8List?> profileCache = {};
 
   BuildContext? globalContext;
-  bool _disposed = false;
 
   StreamSubscription<List<ZegoUIKitUser>>? _zegoJoinSubscription;
 
@@ -46,20 +46,25 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
   StreamController<String>.broadcast();
   Stream<String> get giftStream => _giftController.stream;
 
-  // ===== Room Income (Host UI) =====
   RoomIncomeSummary? incomeSummary;
-  Timer? _incomeTimer;
   String? _hostId;
 
   bool get isHost =>
-      userIdentification != null && _hostId != null && userIdentification == _hostId;
+      userIdentification != null &&
+          _hostId != null &&
+          userIdentification == _hostId;
+
+  IO.Socket? _socket;
 
   void initContext(BuildContext context) {
     globalContext = context;
   }
 
-  void safeNotify() {
-    if (!_disposed) notifyListeners();
+  int _asInt(dynamic v) {
+    if (v is int) return v;
+    if (v is double) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? 0;
+    return 0;
   }
 
   Future<void> init(String roomId, {required String hostId}) async {
@@ -67,17 +72,22 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
 
     await _requestPermission();
     if (!hasPermission) {
-      safeNotify();
+      _safeNotify();
       return;
     }
 
     await _loadCurrentUser();
     await _joinBackendRoom(roomId);
+
     _subscribeToZegoUserEvents();
+    _initRoomSocket(roomId);
 
-    _startIncomePollingIfHost(roomId);
+    // initial fetch
+    if (isHost) {
+      incomeSummary = await roomIncomeService.getSummary(roomId);
+    }
 
-    safeNotify();
+    _safeNotify();
   }
 
   Future<void> _requestPermission() async {
@@ -96,15 +106,15 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
     final profile = await profileService.getProfileByUserIdentification(
       currentUser.userIdentification,
     );
+    if (profile == null) return;
 
-    if (profile != null) {
-      userProfile = profile;
+    userProfile = profile;
 
-      if (profile.profilePicture != null && profile.profilePicture!.isNotEmpty) {
-        currentUserAvatar = await profileService.fetchProfilePicture(currentUser.id);
-        if (currentUserAvatar != null) {
-          profileCache[userIdentification!] = currentUserAvatar;
-        }
+    if (profile.profilePicture != null && profile.profilePicture!.isNotEmpty) {
+      currentUserAvatar =
+      await profileService.fetchProfilePicture(currentUser.id);
+      if (currentUserAvatar != null) {
+        profileCache[userIdentification!] = currentUserAvatar;
       }
     }
   }
@@ -128,7 +138,7 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
     final bytes = await profileService.fetchProfilePicture(userId);
     if (bytes != null && bytes.isNotEmpty) {
       profileCache[userId] = bytes;
-      safeNotify();
+      _safeNotify();
     }
   }
 
@@ -139,34 +149,39 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
     final bytes = await profileService.fetchProfilePicture(userId);
     if (bytes != null && bytes.isNotEmpty) {
       profileCache[userId] = bytes;
-      safeNotify();
+      _safeNotify();
       return MemoryImage(bytes);
     }
-
     return null;
   }
 
-  // ===== Income Polling =====
-  void _startIncomePollingIfHost(String roomId) {
-    _incomeTimer?.cancel();
+  // ✅ Socket connects to host (NO /api)
+  void _initRoomSocket(String roomId) {
+    _socket = IO.io(
+      roomIncomeService.socketUrl,
+      IO.OptionBuilder()
+          .setTransports(['websocket'])
+          .enableAutoConnect()
+          .build(),
+    );
 
-    if (!isHost) return;
+    _socket!.onConnect((_) {
+      _socket!.emit("joinRoom", roomId);
+    });
 
-    _fetchIncomeSummary(roomId);
+    _socket!.on("room_income_update", (data) {
+      if (data is! Map) return;
 
-    _incomeTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      _fetchIncomeSummary(roomId);
+      incomeSummary = RoomIncomeSummary(
+        contributionTodayCoins: _asInt(data["contributionTodayCoins"]),
+        contributionTotalCoins: _asInt(data["contributionTotalCoins"]),
+        dailyRewardTierPaid: _asInt(data["dailyRewardTierPaid"]),
+        lastResetAt: null,
+      );
+      _safeNotify();
     });
   }
 
-  Future<void> _fetchIncomeSummary(String roomId) async {
-    final summary = await roomIncomeService.getSummary(roomId);
-    if (summary == null) return;
-    incomeSummary = summary;
-    safeNotify();
-  }
-
-  // ===== Gift Send + Room Income Record =====
   Future<void> sendGift({
     required String roomId,
     required String senderId,
@@ -189,39 +204,56 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
     if (result["success"] != true) return;
 
     final giftName = (result["giftName"] ?? "").toString();
-    final coinsWon = (result["coinsWon"] ?? 0) as int;
+    final txId = (result["txId"] ?? "").toString();
 
-    // REQUIRED: backend must return this (total coins spent for the gift)
-    final totalCoinsSpent = (result["totalCoinsSpent"] ?? 0) as int;
-    final txId = (result["txId"] ?? "").toString(); // <- use as externalId
+    final totalCoinsSpent = _asInt(result["totalCoinsSpent"]);
+    final coinsWon = _asInt(result["coinsWon"]);
 
+    // 1) gift spend -> income
     if (totalCoinsSpent > 0) {
-      await roomIncomeService.recordIncome(
+      final ok = await roomIncomeService.recordIncome(
         roomId: roomId,
         eventType: "gift_sent",
         amountCoins: totalCoinsSpent,
         senderId: senderId,
         receiverId: receiverId,
-        externalId: txId.isEmpty ? null : txId, // <- NEW (dedupe)
+        externalId: txId.isEmpty ? null : txId,
         meta: {
           "giftType": giftType,
           "giftCount": giftCount,
-          "giftName": result["giftName"] ?? "",
-          "giftID": result["giftID"] ?? giftType,
+          "giftName": giftName,
           "txId": txId,
         },
       );
-
-      if (isHost) {
-        await _fetchIncomeSummary(roomId);
-      }
+      debugPrint("🟣 recordIncome gift_sent ok=$ok amount=$totalCoinsSpent txId=$txId");
     }
 
+    // 2) coinback -> income too
+    if (coinsWon > 0) {
+      final ok2 = await roomIncomeService.recordIncome(
+        roomId: roomId,
+        eventType: "lucky_coinback",
+        amountCoins: coinsWon,
+        senderId: senderId,
+        receiverId: senderId,
+        externalId: txId.isEmpty ? null : "coinback:$txId",
+        meta: {
+          "source": "lucky_gift",
+          "giftType": giftType,
+          "giftCount": giftCount,
+          "giftName": giftName,
+          "txId": txId,
+        },
+      );
+      debugPrint("🟣 recordIncome lucky_coinback ok=$ok2 amount=$coinsWon txId=$txId");
+    }
 
-    // 3) Trigger gift animation
+    // quick verify
+    final s = await roomIncomeService.getSummary(roomId);
+    debugPrint("🟣 summary today=${s?.contributionTodayCoins} total=${s?.contributionTotalCoins}");
+
     if (giftName.isNotEmpty) _giftController.add(giftName);
 
-    // 4) Lucky popup
     if (coinsWon > 0 && globalContext != null) {
       ScaffoldMessenger.of(globalContext!).showSnackBar(
         SnackBar(
@@ -229,17 +261,11 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
           backgroundColor: Colors.green,
         ),
       );
-
-      // OPTIONAL: if you want coinback to count as contribution too
-      // await roomIncomeService.recordIncome(
-      //   roomId: roomId,
-      //   eventType: "lucky_coinback",
-      //   amountCoins: coinsWon,
-      //   senderId: senderId,
-      //   receiverId: senderId,
-      //   meta: {"source": "lucky_gift"},
-      // );
     }
+  }
+
+  void _safeNotify() {
+    if (!_disposed) notifyListeners();
   }
 
   Future<void> showGameListModal(BuildContext context, String roomId) async {
@@ -253,7 +279,10 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
 
   @override
   void dispose() {
-    _incomeTimer?.cancel();
+    _socket?.emit("leaveRoom", null);
+    _socket?.disconnect();
+    _socket?.dispose();
+
     _giftController.close();
     _zegoJoinSubscription?.cancel();
     _disposed = true;

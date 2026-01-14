@@ -90,16 +90,22 @@ class AgencyService {
     _log("Status code: ${res.statusCode}");
     _log("Raw response: ${res.body}");
 
+    // ⭐ KEY FIX
+    if (res.statusCode == 404) {
+      _log("No agency found → returning null agency");
+      return MyAgencyResult(
+        agency: null,
+        myRole: null,
+      );
+    }
+
     if (res.statusCode != 200) {
       throw _fail("Failed to fetch my agency");
     }
 
     final data = jsonDecode(res.body) as Map<String, dynamic>;
-    final agencyJson = (data["agency"] as Map<String, dynamic>);
+    final agencyJson = data["agency"] as Map<String, dynamic>;
     final role = data["myRole"]?.toString();
-
-    _log("Parsed myRole: $role");
-    _log("Parsed agencyCode: ${agencyJson["agencyCode"]}");
 
     return MyAgencyResult(
       agency: AgencyDto.fromJson(agencyJson),
@@ -419,7 +425,7 @@ class AgencyService {
  * ========================= */
 
 class MyAgencyResult {
-  final AgencyDto agency;
+  final AgencyDto? agency;
   final String? myRole;
 
   MyAgencyResult({required this.agency, required this.myRole});
