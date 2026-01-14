@@ -9,36 +9,28 @@ class SocialService {
   SocialService({String? baseUrl})
       : baseUrl = baseUrl ?? dotenv.env['BASE_URL']!;
 
-  /// Fetch a user's social data (following, fans, friends, visitors)
-  Future<Social?> fetchSocialData(String userId) async {
+  /// Fetch a user's social data
+  Future<Social> fetchSocialData(String userId) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/socials/$userId'));
-
-      print("🔍 Raw Response (${response.statusCode}): ${response.body}");
+      final response = await http.get(
+        Uri.parse('$baseUrl/socials/$userId'),
+      );
 
       if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        print('📌 Parsed Social Data: $data');
-        return Social.fromJson(data);
+        return Social.fromJson(jsonDecode(response.body));
       }
-      else if (response.statusCode == 404) {
-        print('⚠️ Social data not found, returning default zeros');
-        return Social(
-          user: userId,        // <-- Now string
-          following: 0,
-          fans: 0,
-          friends: 0,
-          visitors: 0,
-        );
-      }
-      else {
-        print('⚠️ Failed to load social data. Status code: ${response.statusCode}');
-        return null;
-      }
-    } catch (e) {
-      print('❌ Social API Error: $e');
+
+      // fallback empty
       return Social(
-        user: userId,          // <-- Now string
+        user: userId,
+        following: 0,
+        fans: 0,
+        friends: 0,
+        visitors: 0,
+      );
+    } catch (_) {
+      return Social(
+        user: userId,
         following: 0,
         fans: 0,
         friends: 0,
@@ -47,48 +39,63 @@ class SocialService {
     }
   }
 
-
   /// Follow another user
-  Future<bool> followUser(int userId, int targetId) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/socials/follow'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'userId': userId,
-          'targetId': targetId,
-        }),
-      );
-
-      print("[SocialService] POST /socials/follow -> ${response.statusCode}");
-      print("🔍 Raw Response (${response.statusCode}): ${response.body}");
-
-      return response.statusCode == 200;
-    } catch (e) {
-      print("[SocialService] Exception following user: $e");
-      return false;
-    }
+  Future<void> followUser({
+    required String userId,
+    required String targetId,
+  }) async {
+    await http.post(
+      Uri.parse('$baseUrl/socials/follow'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'userId': userId,
+        'targetId': targetId,
+      }),
+    );
   }
 
-  /// Unfollow a user
-  Future<bool> unfollowUser(int userId, int targetId) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/socials/unfollow'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'userId': userId,
-          'targetId': targetId,
-        }),
-      );
-
-      print("[SocialService] POST /socials/unfollow -> ${response.statusCode}");
-      print("🔍 Raw Response (${response.statusCode}): ${response.body}");
-
-      return response.statusCode == 200;
-    } catch (e) {
-      print("[SocialService] Exception unfollowing user: $e");
-      return false;
-    }
+  /// Unfollow another user
+  Future<void> unfollowUser({
+    required String userId,
+    required String targetId,
+  }) async {
+    await http.post(
+      Uri.parse('$baseUrl/socials/unfollow'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'userId': userId,
+        'targetId': targetId,
+      }),
+    );
   }
+
+  /// Add friend (mutual)
+  Future<void> addFriend({
+    required String userId,
+    required String targetId,
+  }) async {
+    await http.post(
+      Uri.parse('$baseUrl/socials/add-friend'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'userId': userId,
+        'targetId': targetId,
+      }),
+    );
+  }
+
+  Future<void> unfriendUser({
+    required String userId,
+    required String targetId,
+  }) async {
+    await http.post(
+      Uri.parse('$baseUrl/socials/unfriend'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'userId': userId,
+        'targetId': targetId,
+      }),
+    );
+  }
+
 }

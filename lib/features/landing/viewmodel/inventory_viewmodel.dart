@@ -28,7 +28,8 @@ class ItemViewModel extends ChangeNotifier {
     _isBound = true;
 
     _log("User bound: ${_userProvider?.currentUser?.userIdentification}");
-    loadInventory();
+
+    Future.microtask(loadInventory);
   }
 
   // ============================
