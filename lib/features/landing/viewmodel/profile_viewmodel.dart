@@ -7,11 +7,15 @@ import '../../../core/services/api/social_service.dart';
 import '../../../core/utils/user_provider.dart';
 import '../../landing/model/socials.dart';
 import '../model/userProfile.dart';
+import '../../../core/services/api/invite_service.dart';
 
 class ProfileViewModel extends ChangeNotifier {
   final UserProfileService _profileService = UserProfileService();
   final SocialService _socialService = SocialService();
+  final InviteService _inviteService = InviteService();
 
+  int inviteEarnings = 0;
+  bool inviteLoading = false;
   UserProfile? userProfile;
   Uint8List? profilePictureBytes;
   Social? userSocial;
@@ -118,4 +122,30 @@ class ProfileViewModel extends ChangeNotifier {
       debugPrint("❌ Failed to update picture: $e");
     }
   }
+  Future<void> fetchInviteEarnings(BuildContext context) async {
+    try {
+      inviteLoading = true;
+      safeNotify();
+
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final token = userProvider.token;
+
+      if (token == null) {
+        inviteEarnings = 0;
+        inviteLoading = false;
+        safeNotify();
+        return;
+      }
+
+      inviteEarnings = await _inviteService.fetchInviteEarnings(
+        token: token,
+      );
+    } catch (_) {
+      inviteEarnings = 0;
+    } finally {
+      inviteLoading = false;
+      safeNotify();
+    }
+  }
+
 }
