@@ -32,7 +32,7 @@ class _BannerCarouselState extends State<BannerCarousel> {
     'assets/image/banner/win-coin-back-banner.jpg': AppRoutes.wallet,
     'assets/image/banner/couple-event-banner.jpg': AppRoutes.posts,
     'assets/image/banner/invite-banner.jpg': AppRoutes.invite,
-    'assets/image/banner/monthly-recharge-banner.jpg': AppRoutes.wallet,
+    'assets/image/banner/monthly-recharge-banner.jpg': AppRoutes.monthlyRecharge,
     'assets/image/banner/pretty-id-banner.jpg': AppRoutes.profile,
     'assets/image/banner/wealth-level-reward-banner.jpg': AppRoutes.level,
     'assets/image/banner/weekly-star-banner.jpg': AppRoutes.tasks,

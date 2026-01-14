@@ -8,6 +8,7 @@ import 'package:kittyparty/features/profile/profile_pages/invite_page.dart';
 import 'package:kittyparty/features/profile/profile_pages/setting_page.dart';
 import 'package:kittyparty/features/svga_tester.dart';
 import 'package:kittyparty/features/wallet/view/convert_coins_to_diamond_page.dart';
+import 'package:kittyparty/features/wallet/view/monthly_recharge_page.dart';
 import 'core/config/app_theme.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
@@ -114,7 +115,7 @@ class MyApp extends StatelessWidget {
           case AppRoutes.setting:
             return MaterialPageRoute(builder: (_) => const SettingPage());
           case AppRoutes.diamond:
-            return MaterialPageRoute(builder: (_)=> const ConvertCoinsPage());
+            return MaterialPageRoute(builder: (_) => const ConvertCoinsPage());
 
           // ✅ Profile subpages
           case AppRoutes.vip:
@@ -131,7 +132,10 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute(builder: (_) => const InvitePage());
           case AppRoutes.tasks:
             return MaterialPageRoute(builder: (_) => const DailyTaskPage());
-
+          case AppRoutes.monthlyRecharge:
+            return MaterialPageRoute(
+              builder: (_) => const MonthlyRechargePage(),
+            );
 
           // ✅ Dynamic route for LiveAudioRoom
           case AppRoutes.room:
@@ -187,6 +191,7 @@ abstract class AppRoutes {
   static const mall = "/profile/mall";
   static const invite = "/profile/invite";
   static const tasks = "/profile/tasks";
+  static const monthlyRecharge = "/profile/monthly-recharge";
   static const testSVGA = "/test/svga";
   static const vip = "/profile/vip";
   static const agency = "/agency";
