@@ -1,11 +1,12 @@
-// lib/features/profile/profile_pages/level_page.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/services/api/charm_service.dart';
 import '../../../core/services/api/wealth_service.dart';
 import '../../../core/utils/profile_picture_helper.dart';
 import '../../../core/utils/user_provider.dart';
 import '../../landing/model/wealth.dart';
+import '../../landing/viewmodel/charm_viewmodel.dart';
 import '../../landing/viewmodel/profile_viewmodel.dart';
 import '../../landing/viewmodel/wealth_viewmodel.dart';
 
@@ -16,13 +17,27 @@ class LevelPage extends StatefulWidget {
   State<LevelPage> createState() => _LevelPageState();
 }
 
-class _LevelPageState extends State<LevelPage> {
+class _LevelPageState extends State<LevelPage>
+    with SingleTickerProviderStateMixin {
   bool _didInit = false;
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF2B160A),
+      backgroundColor: const Color(0xFF1A0E22),
       body: SafeArea(
         child: Consumer<UserProvider>(
           builder: (context, userProvider, _) {
@@ -30,26 +45,32 @@ class _LevelPageState extends State<LevelPage> {
 
             if (userProvider.isLoading || user == null) {
               return const Center(
-                child: CircularProgressIndicator(color: Colors.yellow),
+                child: CircularProgressIndicator(color: Colors.white),
               );
             }
 
             final uid = user.userIdentification?.trim() ?? "";
             if (uid.isEmpty) {
               return const Center(
-                child: Text('No UserIdentification', style: TextStyle(color: Colors.white)),
+                child: Text(
+                  'No UserIdentification',
+                  style: TextStyle(color: Colors.white),
+                ),
               );
             }
 
             return MultiProvider(
               providers: [
                 ChangeNotifierProvider(
-                  create: (context) => ProfileViewModel()..loadProfile(context),
+                  create: (_) => ProfileViewModel()..loadProfile(context),
                 ),
                 ChangeNotifierProvider(
-                  create: (_) => WealthViewModel(
-                    service: WealthService(),
-                  ),
+                  create: (_) =>
+                      WealthViewModel(service: WealthService()),
+                ),
+                ChangeNotifierProvider(
+                  create: (_) =>
+                      CharmViewModel(service: CharmService()),
                 ),
               ],
               child: Builder(
@@ -58,78 +79,73 @@ class _LevelPageState extends State<LevelPage> {
                     if (_didInit) return;
                     _didInit = true;
 
-                    final wealthVm = context.read<WealthViewModel>();
-                    if (wealthVm.status == null && !wealthVm.isLoading) {
-                      await wealthVm.load(userIdentification: uid);
-                    }
+                    await context
+                        .read<WealthViewModel>()
+                        .load(userIdentification: uid);
+
+                    await context
+                        .read<CharmViewModel>()
+                        .load(userIdentification: uid);
                   });
 
-                  return Consumer2<ProfileViewModel, WealthViewModel>(
-                    builder: (context, profileVm, wealthVm, _) {
-                      return RefreshIndicator(
-                        onRefresh: () => wealthVm.refresh(userIdentification: uid),
-                        child: SingleChildScrollView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-                          child: Column(
-                            children: [
-                              Row(
-                                children: [
-                                  IconButton(
-                                    onPressed: () => Navigator.maybePop(context),
-                                    icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                                  ),
-                                  const Expanded(
-                                    child: Text(
-                                      'Wealth Level',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 48),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-
-                              _goldInfoCard(
-                                context,
-                                user: user,
-                                profileVm: profileVm,
-                                wealthVm: wealthVm,
-                              ),
-                              const SizedBox(height: 18),
-
-                              _section(
-                                title: 'How to upgrade',
-                                content:
-                                'For every gift of 1 gold coins, you can accumulate 1 experience point. The more experience points you accumulate, the higher your level will be.',
-                              ),
-                              _section(
-                                title: 'Obtaining Conditions',
-                                content:
-                                '1. Users at Lv.1 and above can receive a level badge.\n2. Users at Lv.30 and above can unlock level privileges (room entry dazzling special effects).',
-                              ),
-                              _section(
-                                title: 'Level Icon Description',
-                                content:
-                                'The level icon will be displayed on the room screen, personal profile page, and other places. The higher the level, the cooler the icon.',
-                              ),
-                              _section(
-                                title: 'Wealth Level Special Selection Description',
-                                content:
-                                'Wealth level includes upgrading room entry dazzling special effects. The higher the level, the cooler the entry special effects.',
-                              ),
-
-                              const SizedBox(height: 40),
-                            ],
+                  return Column(
+                    children: [
+                      // ================= HEADER =================
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: () => Navigator.maybePop(context),
+                            icon: const Icon(Icons.arrow_back_ios,
+                                color: Colors.white),
                           ),
+                          const Expanded(
+                            child: Text(
+                              'Level',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 48),
+                        ],
+                      ),
+
+                      // ================= TABS =================
+                      TabBar(
+                        controller: _tabController,
+                        indicatorColor: Colors.white,
+                        labelColor: Colors.white,
+                        unselectedLabelColor: Colors.white54,
+                        tabs: const [
+                          Tab(text: 'Wealth Level'),
+                          Tab(text: 'Charm Level'),
+                        ],
+                      ),
+
+                      // ================= CONTENT =================
+                      Expanded(
+                        child: TabBarView(
+                          controller: _tabController,
+                          children: [
+                            _buildTab(
+                              context,
+                              isCharm: false,
+                              user: user,
+                              uid: uid,
+                            ),
+                            _buildTab(
+                              context,
+                              isCharm: true,
+                              user: user,
+                              uid: uid,
+                            ),
+                          ],
                         ),
-                      );
-                    },
+                      ),
+                    ],
                   );
                 },
               ),
@@ -140,16 +156,76 @@ class _LevelPageState extends State<LevelPage> {
     );
   }
 
-  Widget _goldInfoCard(
+  // ============================================================
+  // TAB CONTENT
+  // ============================================================
+  Widget _buildTab(
       BuildContext context, {
+        required bool isCharm,
+        required dynamic user,
+        required String uid,
+      }) {
+    final profileVm = context.watch<ProfileViewModel>();
+    final WealthStatus? status = isCharm
+        ? context.watch<CharmViewModel>().status
+        : context.watch<WealthViewModel>().status;
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        if (isCharm) {
+          await context
+              .read<CharmViewModel>()
+              .refresh(userIdentification: uid);
+        } else {
+          await context
+              .read<WealthViewModel>()
+              .refresh(userIdentification: uid);
+        }
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        child: Column(
+          children: [
+            _levelCard(
+              context,
+              isCharm: isCharm,
+              user: user,
+              profileVm: profileVm,
+              status: status,
+            ),
+            const SizedBox(height: 18),
+            _section(
+              title: 'How to upgrade',
+              content: isCharm
+                  ? 'For every gift of gold coins you receive, you gain charm points.'
+                  : 'For every gold coin you spend, you gain wealth experience.',
+              isCharm: isCharm,
+            ),
+            _section(
+              title: 'Obtaining Conditions',
+              content:
+              'Lv.1+ unlocks badge\nLv.30+ unlocks entry effects',
+              isCharm: isCharm,
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // LEVEL CARD (WEALTH / CHARM)
+  // ============================================================
+  Widget _levelCard(
+      BuildContext context, {
+        required bool isCharm,
         required dynamic user,
         required ProfileViewModel profileVm,
-        required WealthViewModel wealthVm,
+        required WealthStatus? status,
       }) {
-    final WealthStatus? w = wealthVm.status;
-
-    // ⛔ Prevent null crash
-    if (w == null) {
+    if (status == null) {
       return const SizedBox(
         height: 140,
         child: Center(
@@ -158,12 +234,9 @@ class _LevelPageState extends State<LevelPage> {
       );
     }
 
-    final int level = w.level;
-    final int exp = w.exp;
-    final int nextLevel = w.nextLevel;
-    final double progress = w.percentToNext.clamp(0.0, 1.0);
-    final int nextReq = w.nextLevelTotalRequired;
-    final int remaining = w.remainingToNext;
+    final level = status.level;
+    final exp = status.exp;
+    final progress = status.percentToNext.clamp(0.0, 1.0);
 
     final profilePictureWidget = UserAvatarHelper.circleAvatar(
       userIdentification: user.userIdentification,
@@ -172,14 +245,27 @@ class _LevelPageState extends State<LevelPage> {
       localBytes: profileVm.profilePictureBytes,
     );
 
+    final gradient = isCharm
+        ? const LinearGradient(
+      colors: [
+        Color(0xFF2E1147),
+        Color(0xFF5B2A86),
+        Color(0xFF2E1147),
+      ],
+    )
+        : const LinearGradient(
+      colors: [
+        Color(0xFFB37A2E),
+        Color(0xFFFFE9B6),
+        Color(0xFFB37A2E),
+      ],
+    );
+
     return Container(
-      width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
-        gradient: const LinearGradient(
-          colors: [Color(0xFFB37A2E), Color(0xFFFFE9B6), Color(0xFFB37A2E)],
-        ),
+        gradient: gradient,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.45),
@@ -194,124 +280,70 @@ class _LevelPageState extends State<LevelPage> {
             children: [
               profilePictureWidget,
               const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'LV.$level',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF3B2B19),
-                      ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'LV.$level',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: isCharm
+                          ? Colors.white
+                          : const Color(0xFF3B2B19),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Wealth Value: $exp',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF4A351F),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          Row(
-            children: [
-              Text('LV.$level',
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 8,
-                    backgroundColor: Colors.white.withOpacity(0.7),
-                    color: const Color(0xFF8C5A2D),
                   ),
-                ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${isCharm ? "Charm" : "Wealth"} Value: $exp',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color:
+                      isCharm ? Colors.white70 : const Color(0xFF4A351F),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              Text('LV.$nextLevel',
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
             ],
           ),
-
-          const SizedBox(height: 8),
-
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              level >= 100
-                  ? 'Max wealth level reached'
-                  : 'Next milestone EXP: $nextReq (remaining: $remaining)',
-              style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xFF4C351F),
-              ),
-            ),
+          const SizedBox(height: 12),
+          LinearProgressIndicator(
+            value: progress,
+            minHeight: 8,
+            backgroundColor: Colors.white24,
+            color: isCharm
+                ? const Color(0xFFB46BFF)
+                : const Color(0xFF8C5A2D),
           ),
         ],
       ),
     );
   }
 
-
-  Widget _section({required String title, required String content}) {
+  // ============================================================
+  // SECTION
+  // ============================================================
+  Widget _section({
+    required String title,
+    required String content,
+    required bool isCharm,
+  }) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Container(
-          margin: const EdgeInsets.only(bottom: 8, top: 16),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: const LinearGradient(
-              colors: [Color(0xFF8C5A2D), Color(0xFFFFE6A8), Color(0xFF8C5A2D)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            boxShadow: const [
-              BoxShadow(color: Colors.black54, blurRadius: 6, offset: Offset(0, 3)),
-            ],
-          ),
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: Colors.black87,
-              fontWeight: FontWeight.w700,
-              fontSize: 15,
-            ),
+        Text(
+          title,
+          style: TextStyle(
+            color: isCharm ? Colors.purpleAccent : Colors.amberAccent,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
-          margin: const EdgeInsets.only(bottom: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: LinearGradient(
-              colors: [
-                const Color(0xFF2D1A0E).withOpacity(0.9),
-                const Color(0xFF3B2213).withOpacity(0.75),
-              ],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-            border: Border.all(color: Colors.black.withOpacity(0.4), width: 0.6),
-          ),
-          child: Text(
-            content,
-            style: const TextStyle(color: Color(0xFFEDD6B1), fontSize: 14, height: 1.5),
-          ),
+        const SizedBox(height: 8),
+        Text(
+          content,
+          style: const TextStyle(color: Colors.white70),
+          textAlign: TextAlign.center,
         ),
+        const SizedBox(height: 20),
       ],
     );
   }
