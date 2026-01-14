@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
+
 import '../../../core/global_widgets/dialogs/dialog_info.dart';
 import '../../../core/global_widgets/dialogs/dialog_loading.dart';
 import '../../../core/services/api/auth_service.dart';
@@ -12,28 +13,30 @@ import '../../auth/model/auth_response.dart';
 class RegisterViewModel extends ChangeNotifier {
   final AuthService _authService = AuthService();
   final myRegBox = Hive.box('myRegistrationBox');
+
   bool isGoogleSignIn = false;
   String? pictureUrl;
   String? googleIdToken;
 
   final formKey = GlobalKey<FormState>();
 
-  // Controllers
+  // Controllers (NO PASSWORD)
   final TextEditingController nameController = TextEditingController();
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController inviteController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
 
   String selectedGender = "";
   String? selectedCountry;
-  bool isLoading = false;
   bool isFirstTimeRecharge = true;
+  bool isLoading = false;
 
   RegisterViewModel() {
     _initListeners();
   }
+
+  /* ================= LOCAL CACHE ================= */
 
   void _initListeners() {
     nameController.addListener(_saveFormData);
@@ -41,7 +44,6 @@ class RegisterViewModel extends ChangeNotifier {
     emailController.addListener(_saveFormData);
     phoneController.addListener(_saveFormData);
     inviteController.addListener(_saveFormData);
-    passwordController.addListener(_saveFormData);
   }
 
   void _saveFormData() {
@@ -55,15 +57,17 @@ class RegisterViewModel extends ChangeNotifier {
     myRegBox.put('nationality', selectedCountry ?? '');
   }
 
-  void setFirstTimeRecharge(bool value) {
-    isFirstTimeRecharge = value;
-    myRegBox.put('isFirstTimeRecharge', value);
-    notifyListeners();
-  }
+  /* ================= SETTERS ================= */
 
   void setGender(String gender) {
     selectedGender = gender;
     _saveFormData();
+    notifyListeners();
+  }
+
+  void setCountry(String? country) {
+    selectedCountry = country;
+    myRegBox.put('nationality', country ?? '');
     notifyListeners();
   }
 
@@ -80,20 +84,13 @@ class RegisterViewModel extends ChangeNotifier {
 
     googleIdToken = idToken;
     this.isGoogleSignIn = isGoogleSignIn;
-
     notifyListeners();
   }
 
-
-  void setCountry(String? country) {
-    selectedCountry = country;
-    myRegBox.put('nationality', country ?? '');
-    notifyListeners();
-  }
+  /* ================= REGISTER ================= */
 
   Future<Map<String, dynamic>> register() async {
     if (!formKey.currentState!.validate()) {
-      print("⚠️ Form validation failed");
       return {"error": "Form is not valid"};
     }
 
@@ -101,22 +98,6 @@ class RegisterViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final bodyData = {
-        "FullName": nameController.text.trim(),
-        "Username": usernameController.text.trim(),
-        "Email": emailController.text.trim(),
-        "PhoneNumber": phoneController.text.trim(),
-        "CountryCode": selectedCountry ?? '',
-        "Gender": selectedGender,
-        "InvitationCode": inviteController.text.trim().isEmpty
-            ? null
-            : inviteController.text.trim(),
-        "isFirstTimeRecharge": isFirstTimeRecharge,
-        "Password": passwordController.text.trim(),
-      };
-
-      print("📤 Registering user with data: $bodyData");
-
       final response = await _authService.register(
         fullName: nameController.text.trim(),
         username: usernameController.text.trim(),
@@ -135,8 +116,6 @@ class RegisterViewModel extends ChangeNotifier {
         myRegBox.put('myInvitationCode', response['MyInvitationCode']);
       }
 
-      print("📥 Register response: $response");
-
       return response;
     } catch (e) {
       if (e is HttpException) return {"error": e.message};
@@ -147,31 +126,20 @@ class RegisterViewModel extends ChangeNotifier {
     }
   }
 
+  /* ================= HANDLE REGISTER ================= */
+
   Future<void> handleRegister(BuildContext context) async {
     if (selectedGender.isEmpty) {
-      DialogInfo(
-        headerText: "Missing Info",
-        subText: "Please select your gender.",
-        confirmText: "OK",
-        onConfirm: () => Navigator.of(context, rootNavigator: true).pop(),
-        onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
-      ).build(context);
+      _showError(context, "Please select your gender.");
       return;
     }
 
     if (selectedCountry == null) {
-      DialogInfo(
-        headerText: "Missing Info",
-        subText: "Please select your country.",
-        confirmText: "OK",
-        onConfirm: () => Navigator.of(context, rootNavigator: true).pop(),
-        onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
-      ).build(context);
+      _showError(context, "Please select your country.");
       return;
     }
 
     if (!(formKey.currentState?.validate() ?? false)) {
-      formKey.currentState?.validate();
       return;
     }
 
@@ -180,85 +148,29 @@ class RegisterViewModel extends ChangeNotifier {
     Navigator.of(context, rootNavigator: true).pop();
 
     if (response['error'] != null) {
-      DialogInfo(
-        headerText: "Error",
-        subText: response['error'],
-        confirmText: "Try again",
-        onConfirm: () => Navigator.of(context, rootNavigator: true).pop(),
-        onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
-      ).build(context);
+      _showError(context, response['error']);
       return;
     }
 
+    /* ================= AUTO LOGIN ================= */
 
-    if (isGoogleSignIn) {
-      try {
-        DialogLoading(subtext: "Finishing Google Sign-In...").build(context);
+    final authResponse = AuthResponse.fromJson(response);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    await userProvider.setUser(authResponse);
 
-        final googleUser = await GoogleSignIn().signInSilently();
-        final freshAuth = await googleUser?.authentication;
-        final freshIdToken = freshAuth?.idToken;
+    Navigator.pushNamedAndRemoveUntil(context, "/", (_) => false);
+  }
 
-        final googleLoginResponse = await _authService.googleLogin(
-          idToken: freshIdToken!,
-        );
+  /* ================= HELPERS ================= */
 
-        Navigator.of(context, rootNavigator: true).pop();
-
-        if (googleLoginResponse['status'] == 'success') {
-          final authResponse = AuthResponse.fromJson(googleLoginResponse);
-          final userProvider = Provider.of<UserProvider>(context, listen: false);
-          await userProvider.setUser(authResponse);
-
-          Navigator.pushNamedAndRemoveUntil(context, "/", (_) => false);
-        } else {
-          throw Exception("Google login failed after registration.");
-        }
-      } catch (e) {
-        Navigator.of(context, rootNavigator: true).pop();
-        Navigator.pushNamedAndRemoveUntil(context, "/login", (_) => false);
-      }
-      return;
-    }
-
-    try {
-      DialogLoading(subtext: "Logging in...").build(context);
-
-      final loginResponse = await _authService.login(
-        identifier: emailController.text.trim(),
-        password: passwordController.text.trim(),
-      );
-
-      Navigator.of(context, rootNavigator: true).pop(); // close loading dialog
-
-      final authResponse = AuthResponse.fromJson(loginResponse);
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      await userProvider.setUser(authResponse);
-
-      DialogInfo(
-        headerText: "Welcome!",
-        subText: "Your account has been created and you’re now logged in.",
-        confirmText: "Continue",
-        onConfirm: () {
-          Navigator.of(context, rootNavigator: true).pop();
-          Navigator.pushNamedAndRemoveUntil(context, "/", (_) => false);
-        },
-        onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
-      ).build(context);
-    } catch (e) {
-      Navigator.of(context, rootNavigator: true).pop();
-      DialogInfo(
-        headerText: "Account Created",
-        subText:
-        "Registration succeeded, but automatic login failed. Please log in manually.",
-        confirmText: "Go to Login",
-        onConfirm: () {
-          Navigator.of(context, rootNavigator: true).pop();
-          Navigator.pushNamedAndRemoveUntil(context, "/login", (_) => false);
-        },
-        onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
-      ).build(context);
-    }
+  void _showError(BuildContext context, String message) {
+    DialogInfo(
+      headerText: "Notice",
+      subText: message,
+      confirmText: "OK",
+      onConfirm: () => Navigator.pop(context),
+      onCancel: () => Navigator.pop(context),
+    ).build(context);
   }
 
   @override
@@ -268,7 +180,6 @@ class RegisterViewModel extends ChangeNotifier {
     emailController.dispose();
     phoneController.dispose();
     inviteController.dispose();
-    passwordController.dispose();
     super.dispose();
   }
 }
