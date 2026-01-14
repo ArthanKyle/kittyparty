@@ -95,7 +95,10 @@ class ProfileMenu extends StatelessWidget {
       );
 
       // Fetch user's room(s)
-      final rooms = await _roomService.getRoomsByHostId(user.id);
+      final rooms = await _roomService.getRoomsByHostId(
+        user.userIdentification, // MUST match HostID
+      );
+
 
       if (rooms.isNotEmpty) {
         final Room userRoom = rooms.first;
@@ -105,11 +108,11 @@ class ProfileMenu extends StatelessWidget {
           AppRoutes.room,
           arguments: {
             'roomId': userRoom.id,
-            'hostId': user.id,
+            'hostId': user.userIdentification, // ✅ MATCHES LandingViewModel + backend
             'roomName': userRoom.roomName,
           },
         );
-      } else {
+    } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text("You don't have a room yet!"),
