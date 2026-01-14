@@ -1,4 +1,4 @@
-// lib/pages/game_webview.dart
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -19,6 +19,7 @@ class GameWebView extends StatefulWidget {
   final String gameName;
   final String userId;
   final String roomId;
+  final int gameId;
 
   const GameWebView({
     super.key,
@@ -26,6 +27,7 @@ class GameWebView extends StatefulWidget {
     required this.gameName,
     required this.userId,
     required this.roomId,
+    required this.gameId,
   });
 
   @override
@@ -34,50 +36,47 @@ class GameWebView extends StatefulWidget {
 
 class _GameWebViewState extends State<GameWebView> {
   late final WebViewController controller;
-
+  late StreamSubscription _bsSub;
 
   bool isLoading = true;
   bool hasError = false;
   String? errorMessage;
+  bool _eventBound = false;
+  bool _authInProgress = false;
+  bool _authCompleted = false;
+  bool _sstokenIssued = false;
 
-  String backendBaseUrl = ""; // e.g. https://domain.com (NO trailing slash, NO /api)
-  String baishunAppId = ""; // APP_ID
-  String baishunAppKey = ""; // APP_KEY (must match process.env.BAISHUN_APP_KEY)
+  late final String backendBaseUrl;
+  late final int baishunAppId; // ✅ INT64
+  late final String baishunAppKey;
 
   String? _lastSsToken;
 
   static const EventChannel _bsEventChannel = EventChannel('kitty');
 
+  // ===========================
+  // INIT
+  // ===========================
   @override
   void initState() {
     super.initState();
 
-
+    _bsSub = _bsEventChannel
+        .receiveBroadcastStream()
+        .listen(_onNativeEvent);
 
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     backendBaseUrl = _normalizeBaseUrl(dotenv.env['BASE_URL'] ?? '');
-    baishunAppId = (dotenv.env['BAISHUN_APP_ID'] ?? '').trim();
-    baishunAppKey = (dotenv.env['BAISHUN_APP_KEY'] ?? '').trim();
-
-    debugPrint("📘 Using BAISHUN_APP_ID = $baishunAppId");
-
-    if (backendBaseUrl.isEmpty) _setFatalError('BASE_URL is empty. Please set BASE_URL in .env');
-    if (baishunAppId.isEmpty) _setFatalError('APP_ID is empty. Please set APP_ID in .env');
-    if (baishunAppKey.isEmpty) _setFatalError('APP_KEY is empty. Please set APP_KEY in .env');
+    baishunAppId = int.parse(dotenv.env['BAISHUN_APP_ID']!);
+    baishunAppKey = dotenv.env['BAISHUN_APP_KEY']!;
 
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..enableZoom(false)
-      ..addJavaScriptChannel(
-        "REQ",
-        onMessageReceived: (msg) => debugPrint("🟣 JS-REQ → ${msg.message}"),
-      )
-      ..setBackgroundColor(const Color(0x00000000))
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (_) {
-            debugPrint("🔵 WebView page started");
             if (!mounted) return;
             setState(() {
               isLoading = true;
@@ -86,118 +85,104 @@ class _GameWebViewState extends State<GameWebView> {
             });
           },
           onPageFinished: (_) async {
-            try {
-              await controller.runJavaScript(_netDebugHooks());
-              // Inject auth hooks *after* page loads (so game requests include token)
-              await controller.runJavaScript(_authHooks());
-              debugPrint("🟢 WebView page finished + hooks injected");
-            } catch (e) {
-              debugPrint("⚠️ JS hook injection failed: $e");
-            }
-
-            if (!mounted) return;
-            setState(() => isLoading = false);
+            await controller.runJavaScript(_authHooks());
+            if (mounted) setState(() => isLoading = false);
           },
-          onWebResourceError: (error) {
-            debugPrint("🔴 WebView error: ${error.description}");
-            _setFatalError(error.description);
-          },
+          onWebResourceError: (e) => _setFatalError(e.description),
         ),
       )
       ..loadRequest(Uri.parse(widget.url));
 
     if (controller.platform is AndroidWebViewController) {
-      AndroidWebViewController.enableDebugging(false);
-      (controller.platform as AndroidWebViewController).setMediaPlaybackRequiresUserGesture(false);
+      (controller.platform as AndroidWebViewController)
+          .setMediaPlaybackRequiresUserGesture(false);
     }
 
-    if (Platform.isAndroid) {
-      _bsEventChannel.receiveBroadcastStream().listen(
-        _onNativeEvent,
-        onError: (err) => debugPrint('🔴 BSEventChannel error: $err'),
-      );
+    if (Platform.isAndroid && !_eventBound) {
+      _eventBound = true;
+      _bsEventChannel
+          .receiveBroadcastStream()
+          .listen(_onNativeEvent);
     }
   }
 
-  // -----------------------------
-  // URL helpers
-  // -----------------------------
+  // ===========================
+  // URL HELPERS
+  // ===========================
   String _normalizeBaseUrl(String url) {
     var u = url.trim();
-    while (u.endsWith('/')) {
-      u = u.substring(0, u.length - 1);
-    }
+    while (u.endsWith('/')) u = u.substring(0, u.length - 1);
     return u;
   }
 
-  /// Builds: {BASE_URL}/api/{path}
-  Uri _api(String path) {
-    final p = path.startsWith('/') ? path.substring(1) : path;
-    return Uri.parse('$backendBaseUrl/$p');
-  }
+  Uri _games(String path) =>
+      Uri.parse('$backendBaseUrl/games/${path.startsWith('/')
+          ? path.substring(1)
+          : path}');
 
-  /// Builds: {BASE_URL}/api/games/{path}
-  Uri _games(String path) {
-    final p = path.startsWith('/') ? path.substring(1) : path;
-    return _api('games/$p');
-  }
+  // ===========================
+  // BAISHUN SIGNATURE (CORRECT)
+  // md5(app_id + user_id + game_id + provider_name + timestamp + nonce + app_key)
+  // ===========================
+  int _timestampSeconds() =>
+      DateTime
+          .now()
+          .millisecondsSinceEpoch ~/ 1000;
 
-  // -----------------------------
-  // Signature (BAISHUN)
-  // signature = md5(nonce + appKey + timestampSeconds)
-  // -----------------------------
-  int _timestampSeconds() => DateTime.now().millisecondsSinceEpoch ~/ 1000;
-
-  String _randomNonceHex({int bytes = 8}) {
+  String _randomNonce({int length = 24}) {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final rnd = Random.secure();
-    final b = Uint8List(bytes);
-    for (var i = 0; i < bytes; i++) {
-      b[i] = rnd.nextInt(256);
-    }
-    final sb = StringBuffer();
-    for (final v in b) {
-      sb.write(v.toRadixString(16).padLeft(2, '0'));
-    }
-    return sb.toString();
+    return List
+        .generate(length, (_) => chars[rnd.nextInt(chars.length)])
+        .join();
   }
 
-  String _makeSignature({
-    required String nonce,
-    required String appKey,
-    required int timestampSeconds,
-  }) {
-    final raw = '$nonce$appKey$timestampSeconds';
-    return md5.convert(utf8.encode(raw)).toString();
+  // ===========================
+  // BACKEND CALLS
+  // ===========================
+  Future<Map<String, dynamic>> _generateOtpAndBalance() async {
+    final resp = await http.post(
+      _games('generate_code_and_get_balance'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'user_id': widget.userId}),
+    );
+
+    final body = jsonDecode(resp.body);
+    if (body['code'] != 0) throw Exception(body['message']);
+
+    return {
+      'otp': body['otp'],
+      'balance': (body['balance'] as num).toDouble(),
+    };
   }
 
-  // -----------------------------
-  // Backend calls
-  // -----------------------------
   Future<String> _exchangeOtpToSsToken({
     required String otp,
     required String userId,
   }) async {
-    final nonce = _randomNonceHex();
-    final ts = _timestampSeconds();
-    final sig = _makeSignature(nonce: nonce, appKey: baishunAppKey, timestampSeconds: ts);
+    final int ts = _timestampSeconds();
+    final String nonce = _randomNonce();
 
-    // ✅ Correct because app.js mounts /api, routes mounts /games:
-    // -> {BASE_URL}/api/games/v1/api/get_sstoken
-    final endpoint = _games('v1/api/get_sstoken');
+    // ✅ BAISHUN SPEC (DO NOT CHANGE ORDER)
+    // Signature = md5(signature_nonce + appKey + timestamp)
+    final String raw = '$nonce$baishunAppKey$ts';
+    final String signature =
+    md5.convert(utf8.encode(raw)).toString();
+
+    final Uri endpoint = _games('v1/api/get_sstoken');
 
     final payload = <String, dynamic>{
-      'app_id': baishunAppId,
+      'app_id': baishunAppId,     // validated only
       'user_id': userId,
       'code': otp,
-
-      // BAISHUN signature fields (must match backend middleware keys)
-      'signature_nonce': nonce,
       'timestamp': ts,
-      'signature': sig,
+      'signature_nonce': nonce,
+      'signature': signature,
     };
 
-    debugPrint("🟡 get_sstoken POST = $endpoint");
-    debugPrint("🟡 get_sstoken payload = ${jsonEncode(payload)}");
+    debugPrint("🟡 get_sstoken RAW = $raw");
+    debugPrint("🟡 get_sstoken MD5 = $signature");
+    debugPrint("🟡 get_sstoken PAYLOAD = ${jsonEncode(payload)}");
 
     final resp = await http
         .post(
@@ -208,70 +193,128 @@ class _GameWebViewState extends State<GameWebView> {
         .timeout(const Duration(seconds: 12));
 
     debugPrint("🟢 get_sstoken status = ${resp.statusCode}");
-    debugPrint("🟢 get_sstoken body   = ${resp.body}");
+    debugPrint("🟢 get_sstoken body = ${resp.body}");
 
     if (resp.statusCode != 200) {
       throw Exception('get_sstoken failed (HTTP ${resp.statusCode})');
     }
 
     final body = jsonDecode(resp.body);
-    if (body is! Map) throw Exception('get_sstoken response not JSON object');
-
-    final code = body['code'];
-    if (code != 0) {
-      throw Exception('get_sstoken error: ${body['message'] ?? body['msg'] ?? 'Unknown'}');
+    if (body['code'] != 0) {
+      throw Exception(body['message'] ?? 'get_sstoken error');
     }
 
-    final data = body['data'];
-    if (data is! Map) throw Exception('get_sstoken data missing');
-
-    final ssToken = (data['ss_token'] ?? '').toString().trim();
-    if (ssToken.isEmpty) throw Exception('ss_token is empty');
+    final ssToken = (body['data']?['ss_token'] ?? '').toString();
+    if (ssToken.isEmpty) {
+      throw Exception('ss_token missing');
+    }
 
     return ssToken;
   }
 
-  Future<Map<String, dynamic>> _generateOtpAndBalance() async {
-    // ✅ Correct because app.js mounts /api, routes mounts /games:
-    // -> {BASE_URL}/api/games/generate_code_and_get_balance
-    final endpoint = _games('generate_code_and_get_balance');
+  // ===========================
+  // JS INJECTION
+  // ===========================
+  String _authHooks() {
+    final ss = _lastSsToken ?? '';
+    final uid = widget.userId;
+    final host = Uri
+        .parse(backendBaseUrl)
+        .host;
 
-    final resp = await http
-        .post(
-      endpoint,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'user_id': widget.userId,
-        'gameName': widget.gameName,
-      }),
-    )
-        .timeout(const Duration(seconds: 12));
-
-    debugPrint("🟢 generate_code_and_get_balance status = ${resp.statusCode}");
-    debugPrint("🟢 generate_code_and_get_balance body   = ${resp.body}");
-
-    if (resp.statusCode != 200) {
-      throw Exception('generate_code_and_get_balance failed (HTTP ${resp.statusCode})');
+    return """
+  (function () {
+    window.__KP_SSTOKEN__ = ${jsonEncode(ss)};
+    window.__KP_USERID__ = ${jsonEncode(uid)};
+  
+    function isBackend(url) {
+      try { return new URL(url, location.href).host === "$host"; }
+      catch (e) { return false; }
     }
-
-    final body = jsonDecode(resp.body);
-    if (body is! Map) throw Exception('generate_code_and_get_balance response not JSON object');
-
-    if ((body['code'] ?? -1) != 0) {
-      throw Exception('backend error: ${body['message'] ?? body['msg'] ?? 'Unknown'}');
+  
+    const oldFetch = window.fetch;
+    if (oldFetch) {
+      window.fetch = function(input, init) {
+        init = init || {};
+        init.headers = init.headers || {};
+        const url = typeof input === "string" ? input : input.url;
+  
+        if (isBackend(url)) {
+          if (window.__KP_SSTOKEN__) {
+            init.headers["ss_token"] = window.__KP_SSTOKEN__;
+            init.headers["sstoken"] = window.__KP_SSTOKEN__;
+          }
+          init.headers["user_id"] = window.__KP_USERID__;
+        }
+        return oldFetch.call(this, input, init);
+      };
     }
-
-    final otp = (body['otp'] ?? '').toString().trim();
-    final balance = (body['balance'] as num?)?.toDouble() ?? 0.0;
-
-    if (otp.isEmpty) throw Exception('OTP is empty');
-
-    return {'otp': otp, 'balance': balance};
+  })();
+  """;
   }
 
-  // -----------------------------
-  // UI + error
-  // -----------------------------
+  Future<void> _pushAuth(String token) async {
+    _lastSsToken = token;
+    await controller.runJavaScript(_authHooks());
+  }
+
+  // ===========================
+  // NATIVE EVENTS
+  // ===========================
+  void _onNativeEvent(dynamic event) async {
+    // 🔒 HARD GUARD — FIRST LINE
+    if (_authInProgress || _authCompleted) {
+      debugPrint("⚠️ get_sstoken skipped (already handled)");
+      return;
+    }
+
+    _authInProgress = true;
+
+    try {
+      final obj = jsonDecode(event as String);
+      final jsCallback = obj['jsCallback'] ?? 'onGetConfig';
+
+      final gen = await _generateOtpAndBalance();
+      final otp = gen['otp'];
+      final balance = gen['balance'];
+
+      final ssToken = await _exchangeOtpToSsToken(
+        otp: otp,
+        userId: widget.userId,
+      );
+
+      await _pushAuth(ssToken);
+
+      final config = GetConfigData(
+        appChannel: 'kitty',
+        appId: baishunAppId,
+        userId: widget.userId,
+        gameMode: '3',
+        language: '2',
+        gsp: 101,
+        roomId: widget.roomId,
+        code: otp,
+        balance: balance,
+        gameConfig: GameConfig(sceneMode: 0, currencyIcon: ''),
+      );
+
+      await controller.runJavaScript(
+        '$jsCallback(${jsonEncode(config.toJson())});',
+      );
+
+      // ✅ MARK SUCCESS ONLY AT THE END
+      _authCompleted = true;
+      debugPrint("✅ ss_token issued and config sent");
+    } catch (e) {
+      debugPrint("❌ auth flow failed: $e");
+      _authInProgress = false;
+      _setFatalError(e.toString());
+    }
+  }
+
+  // ===========================
+  // UI
+  // ===========================
   void _setFatalError(String msg) {
     if (!mounted) return;
     setState(() {
@@ -281,283 +324,50 @@ class _GameWebViewState extends State<GameWebView> {
     });
   }
 
-  // -----------------------------
-  // JS hooks
-  // -----------------------------
-  // Network debug hook
-  String _netDebugHooks() {
-    return r"""
-  (function () {
-    if (window.__KP_NET_DEBUG__) return;
-    window.__KP_NET_DEBUG__ = true;
-  
-    const OldWS = window.WebSocket;
-    window.WebSocket = function (url, protocols) {
-      console.log("[KP][WS open]", url, protocols || "");
-      const ws = protocols ? new OldWS(url, protocols) : new OldWS(url);
-      ws.addEventListener("close", (e) => console.log("[KP][WS close]", e.code, e.reason));
-      ws.addEventListener("error", (e) => console.log("[KP][WS error]", e));
-      return ws;
-    };
-  
-    const oldFetch = window.fetch;
-    if (oldFetch) {
-      window.fetch = async function () {
-        const args = arguments;
-        console.log("[KP][fetch]", args[0], args[1] || "");
-        const res = await oldFetch.apply(this, args);
-        try {
-          const clone = res.clone();
-          const text = await clone.text();
-          console.log("[KP][fetch resp]", res.status, (text || "").slice(0, 300));
-        } catch (e) {}
-        return res;
-      };
-    }
-  
-    const XHR = window.XMLHttpRequest;
-    if (XHR) {
-      const open = XHR.prototype.open;
-      const send = XHR.prototype.send;
-  
-      XHR.prototype.open = function (method, url) {
-        this.__kp = { method, url };
-        return open.apply(this, arguments);
-      };
-  
-      XHR.prototype.send = function (body) {
-        this.addEventListener("loadend", function () {
-          try {
-            console.log("[KP][xhr]", this.__kp.method, this.__kp.url, "->", this.status);
-            if (this.status >= 400) {
-              console.log("[KP][xhr body]", (this.responseText || "").slice(0, 300));
-            }
-          } catch (e) {}
-        });
-        return send.apply(this, arguments);
-      };
-    }
-  })();
-  """;
-    }
-
-  String _authHooks() {
-    final ss = _lastSsToken ?? "";
-    final uid = widget.userId;
-    final backendHost = Uri.parse(backendBaseUrl).host;
-
-    return """
-  (function () {
-    if (window.__KP_AUTH_HOOKS__) return;
-    window.__KP_AUTH_HOOKS__ = true;
-
-    window.__KP_SSTOKEN__ = ${jsonEncode(ss)};
-    window.__KP_USERID__ = ${jsonEncode(uid)};
-
-    function isBackend(url) {
-      try {
-        return new URL(url, location.href).host === "$backendHost";
-      } catch (e) {
-        return false;
-      }
-    }
-
-    // FETCH
-    const oldFetch = window.fetch;
-    if (oldFetch) {
-      window.fetch = function(input, init) {
-        init = init || {};
-        init.headers = init.headers || {};
-
-        const url = (typeof input === "string") ? input : input.url;
-
-        // ✅ ONLY inject for YOUR backend
-        if (isBackend(url)) {
-          if (window.__KP_SSTOKEN__) {
-            init.headers["ss_token"] = window.__KP_SSTOKEN__;
-            init.headers["sstoken"] = window.__KP_SSTOKEN__;
-          }
-          if (window.__KP_USERID__) {
-            init.headers["user_id"] = window.__KP_USERID__;
-          }
-        }
-
-        return oldFetch.call(this, input, init);
-      };
-    }
-
-    // XHR
-    const XHR = window.XMLHttpRequest;
-    if (XHR) {
-      const open = XHR.prototype.open;
-      const send = XHR.prototype.send;
-
-      XHR.prototype.open = function(method, url) {
-        this.__kp_url = url;
-        return open.apply(this, arguments);
-      };
-
-      XHR.prototype.send = function(body) {
-        try {
-          if (isBackend(this.__kp_url)) {
-            if (window.__KP_SSTOKEN__) {
-              this.setRequestHeader("ss_token", window.__KP_SSTOKEN__);
-              this.setRequestHeader("sstoken", window.__KP_SSTOKEN__);
-            }
-            if (window.__KP_USERID__) {
-              this.setRequestHeader("user_id", window.__KP_USERID__);
-            }
-          }
-        } catch (e) {}
-        return send.apply(this, arguments);
-      };
-    }
-
-    console.log("[KP][AUTH] ss_token injected ONLY for backend");
-  })();
-  """;
-  }
-
-  Future<void> _pushAuthToWebView({
-    required String ssToken,
-    required String userId,
-  }) async {
-    _lastSsToken = ssToken;
-    final js = """
-    (function(){
-      window.__KP_SSTOKEN__ = ${jsonEncode(ssToken)};
-      window.__KP_USERID__ = ${jsonEncode(userId)};
-      console.log("[KP][AUTH] updated tokenLen=", (window.__KP_SSTOKEN__||"").length, "user=", window.__KP_USERID__);
-    })();
-    """;
-    try {
-      await controller.runJavaScript(js);
-      // Ensure hooks exist (safe even if already installed)
-      await controller.runJavaScript(_authHooks());
-    } catch (e) {
-      debugPrint("⚠️ Failed pushing auth to WebView: $e");
-    }
-  }
-
-  // -----------------------------
-  // Native event handler
-  // -----------------------------
-  void _onNativeEvent(dynamic event) async {
-    debugPrint("🔵 Native Event Received: $event");
-    try {
-      final obj = json.decode(event as String);
-      if (obj is! Map) return;
-
-      final jsFunName = (obj['jsCallback'] as String?) ?? '';
-      final payload = obj['data'] ?? {};
-
-      final jsCallback = jsFunName.isNotEmpty ? jsFunName : 'onGetConfig';
-
-      if (jsFunName.contains('getConfig')) {
-        await _handleGetConfig(payload, jsCallback);
-      } else if (jsFunName.contains('destroy')) {
-        await controller.loadRequest(Uri.parse('about:blank'));
-        if (mounted) Navigator.of(context).maybePop();
-      } else if (jsFunName.contains('gameRecharge')) {
-        _openRecharge();
-      } else if (jsFunName.contains('gameLoaded')) {
-        if (mounted) setState(() => isLoading = false);
-      }
-    } catch (e) {
-      debugPrint('🔴 Error handling native event: $e');
-    }
-  }
-
-  Future<void> _handleGetConfig(dynamic payload, String jsCallback) async {
-    debugPrint("📘 [getConfig] user_id=${widget.userId} room_id=${widget.roomId} app_id=$baishunAppId");
-
-    if (backendBaseUrl.isEmpty || baishunAppId.isEmpty || baishunAppKey.isEmpty) {
-      _setFatalError('Missing BASE_URL / APP_ID / APP_KEY configuration.');
-      return;
-    }
-
-    try {
-      // 1) Generate OTP and balance from your backend
-      final gen = await _generateOtpAndBalance();
-      final otp = gen['otp'] as String;
-      final balance = gen['balance'] as double;
-
-      // 2) Exchange OTP -> ss_token (BAISHUN)
-      final ssToken = await _exchangeOtpToSsToken(otp: otp, userId: widget.userId);
-      debugPrint("🟢 ss_token acquired (len=${ssToken.length})");
-
-      // 3) Push token into WebView so game network requests stop 401
-      await _pushAuthToWebView(ssToken: ssToken, userId: widget.userId);
-
-      // 4) Build config to JS callback
-      final configData = GetConfigData(
-        appChannel: "kitty",
-        appId: int.tryParse(baishunAppId) ?? 0,
-        userId: widget.userId,
-        gameMode: (payload is Map && payload['gameMode'] != null) ? payload['gameMode'].toString() : "3",
-        language: (payload is Map && payload['language'] != null) ? payload['language'].toString() : "2",
-        gsp: (payload is Map && payload['gsp'] != null) ? payload['gsp'] : 101,
-        roomId: widget.roomId,
-
-        // IMPORTANT:
-        // Some game builds want "code" (otp), some want "ss_token".
-        // We keep your existing field "code" = otp, and ALSO include token by injecting auth hooks.
-        code: otp,
-        balance: balance,
-
-        gameConfig: GameConfig(
-          sceneMode: (payload is Map && payload['gameConfig'] is Map && payload['gameConfig']['sceneMode'] != null)
-              ? payload['gameConfig']['sceneMode']
-              : 0,
-          currencyIcon: "",
-        ),
-      );
-
-      debugPrint("📤 [FINAL CONFIG] ${configData.toJson()}");
-      await _finalMapToJs(jsCallback, configData.toJson());
-    } catch (e) {
-      _setFatalError('getConfig error: $e');
-      return;
-    }
-  }
-
-  Future<void> _finalMapToJs(String jsFuncName, Map<String, dynamic> map) async {
-    final js = "$jsFuncName(${jsonEncode(map)});";
-    try {
-      await controller.runJavaScript(js);
-    } catch (e) {
-      _setFatalError('Failed to run JS callback: $e');
-    }
-  }
-
-  void _openRecharge() {
-    debugPrint('🟡 openRecharge()');
-  }
-
   @override
   void dispose() {
-    debugPrint("🔵 GameWebView disposed");
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    _bsSub.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // ---- DEBUG LOGS (VALID LOCATION) ----
+    debugPrint(
+      "🧱 [BUILD] hasError=$hasError | isLoading=$isLoading | errorMessage=$errorMessage",
+    );
+
+    if (!hasError) {
+      debugPrint("🧱 [BUILD] WebView should be visible");
+    }
+
+    if (isLoading && !hasError) {
+      debugPrint("🧱 [BUILD] Loading spinner visible");
+    }
+
+    if (hasError) {
+      debugPrint("🧱 [BUILD] Error UI visible → $errorMessage");
+    }
+
+    // ---- UI ----
     return Scaffold(
-      appBar: AppBar(title: Text(widget.gameName)),
+      appBar: AppBar(
+        title: Text(widget.gameName),
+      ),
       body: Stack(
         children: [
-          if (!hasError) WebViewWidget(controller: controller),
-          if (isLoading && !hasError) const Center(child: CircularProgressIndicator()),
+          if (!hasError)
+            WebViewWidget(controller: controller),
+
+          if (isLoading && !hasError)
+            const Center(child: CircularProgressIndicator()),
+
           if (hasError)
-            Container(
-              color: Colors.black,
-              alignment: Alignment.center,
-              padding: const EdgeInsets.all(16),
+            Center(
               child: Text(
-                errorMessage ?? "Unknown error",
-                style: const TextStyle(color: Colors.white),
-                textAlign: TextAlign.center,
+                errorMessage ?? 'Error',
+                style: const TextStyle(color: Colors.red),
               ),
             ),
         ],

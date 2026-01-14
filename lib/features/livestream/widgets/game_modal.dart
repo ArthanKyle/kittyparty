@@ -46,28 +46,23 @@ class _GameListModalState extends State<GameListModal> {
 
 
   void _openGame(Map<String, dynamic> game) {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final userId = userProvider.currentUser?.userIdentification ?? "guest_user";
-
-    final baseUrl = game['play_url'];
-
-    // You can keep adding it to the URL if the game needs it there too
-    final url = baseUrl.contains('?')
-        ? "$baseUrl&user_id=$userId&gameMode=3"
-        : "$baseUrl?user_id=$userId&gameMode=3";
+    final userProvider = context.read<UserProvider>();
+    final userId = userProvider.currentUser!.userIdentification;
 
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => GameWebView(
-          url: url,
+          url: game['play_url'],
           gameName: game['name'],
-          userId: userId, // <--- PASS IT HERE
+          userId: userId,
           roomId: widget.roomId,
+          gameId: game['id'], // ✅ MUST BE INT
         ),
       ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
