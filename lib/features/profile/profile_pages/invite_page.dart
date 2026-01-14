@@ -352,15 +352,7 @@ class _InvitePageState extends State<InvitePage> {
                                   border: Border.all(
                                       color: const Color(0xFFFFD700), width: 2),
                                 ),
-                                child: const Text(
-                                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. '
-                                      'Mauris vel mauris nec turpis porttitor feugiat.',
-                                  style: TextStyle(
-                                    color: Color(0xFFFFF8DC),
-                                    fontSize: 14,
-                                    height: 1.4,
-                                  ),
-                                ),
+                                child: inviteRulesCard(),
                               ),
                             ],
                           ),
@@ -382,6 +374,64 @@ class _InvitePageState extends State<InvitePage> {
             ),
           );
         },
+      ),
+    );
+  }
+  Widget inviteRulesCard() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF3E2C13), Color(0xFF6B4F2A)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Color(0xFFFFD700), width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          Text(
+            "Invite friends to recharge and get coins (valid for 30 days)",
+            style: TextStyle(color: Color(0xFFFFF8DC), fontSize: 13),
+          ),
+          SizedBox(height: 14),
+
+          Text(
+            "Direct Invite Rewards",
+            style: TextStyle(
+              color: Colors.yellow,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 6),
+
+          Text(
+            "• <70,000 coins → 1%\n"
+                "• 70,000–699,999 coins → 2%\n"
+                "• ≥700,000 coins → 4%",
+            style: TextStyle(color: Colors.white, height: 1.4),
+          ),
+
+          SizedBox(height: 14),
+
+          Text(
+            "Indirect Invite Rewards",
+            style: TextStyle(
+              color: Colors.yellow,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 6),
+
+          Text(
+            "• ≥70,000 coins → 0.5%\n"
+                "• ≥700,000 coins → 1%",
+            style: TextStyle(color: Colors.white, height: 1.4),
+          ),
+        ],
       ),
     );
   }
