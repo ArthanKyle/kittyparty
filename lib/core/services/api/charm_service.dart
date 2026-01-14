@@ -17,7 +17,7 @@ class CharmService {
     required String userIdentification,
   }) async {
     final uri = Uri.parse(
-      '$baseUrl/charm/me?UserIdentification=$userIdentification',
+      '$baseUrl/charms/me?UserIdentification=$userIdentification',
     );
 
     final res = await http.get(uri);

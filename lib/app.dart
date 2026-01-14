@@ -6,7 +6,6 @@ import 'package:kittyparty/features/profile/profile_pages/agency_room.dart';
 import 'package:kittyparty/features/profile/profile_pages/daily_task_page.dart';
 import 'package:kittyparty/features/profile/profile_pages/invite_page.dart';
 import 'package:kittyparty/features/profile/profile_pages/setting_page.dart';
-import 'package:kittyparty/features/svga_tester.dart';
 import 'package:kittyparty/features/wallet/view/convert_coins_to_diamond_page.dart';
 import 'package:kittyparty/features/wallet/view/monthly_recharge_page.dart';
 import 'core/config/app_theme.dart';
@@ -110,8 +109,6 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute(builder: (_) => const WalletPage());
           case AppRoutes.test:
             return MaterialPageRoute(builder: (_) => AssetTest());
-          case AppRoutes.testSVGA:
-            return MaterialPageRoute(builder: (_) => const SvgATesterPage());
           case AppRoutes.setting:
             return MaterialPageRoute(builder: (_) => const SettingPage());
           case AppRoutes.diamond:
@@ -192,7 +189,6 @@ abstract class AppRoutes {
   static const invite = "/profile/invite";
   static const tasks = "/profile/tasks";
   static const monthlyRecharge = "/profile/monthly-recharge";
-  static const testSVGA = "/test/svga";
   static const vip = "/profile/vip";
   static const agency = "/agency";
   static const diamond = "/recharge/convert";
