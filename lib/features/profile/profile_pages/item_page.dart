@@ -15,9 +15,8 @@ class ItemPage extends StatefulWidget {
 
 class _ItemPageState extends State<ItemPage> {
   int selectedIndex = 0;
-  bool _bound = false;
 
-  final List<Map<String, dynamic>> categories = [
+  final List<Map<String, dynamic>> categories = const [
     {'icon': 'assets/icons/item/Mount.png', 'label': 'Mount'},
     {'icon': 'assets/icons/item/Avatar.png', 'label': 'Avatar'},
     {'icon': 'assets/icons/item/Nameplate.png', 'label': 'Nameplate'},
@@ -26,19 +25,26 @@ class _ItemPageState extends State<ItemPage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+
+    /// 🔐 SAFE: runs AFTER first frame, never during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ItemViewModel>().ensureBound(context);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Consumer3<UserProvider, ProfileViewModel, ItemViewModel>(
       builder: (context, userProvider, profileVM, itemVM, _) {
-        // ================= SAFE BIND =================
-        if (!_bound) {
-          itemVM.ensureBound(context);
-          _bound = true;
-        }
-
         final user = userProvider.currentUser;
 
         final avatar = user == null
-            ? const CircleAvatar(radius: 40, backgroundColor: Colors.white24)
+            ? const CircleAvatar(
+          radius: 40,
+          backgroundColor: Colors.white24,
+        )
             : UserAvatarHelper.circleAvatar(
           userIdentification: user.userIdentification,
           displayName: user.fullName ?? user.username ?? "U",
@@ -100,7 +106,7 @@ class _ItemPageState extends State<ItemPage> {
                         child: Container(
                           margin: const EdgeInsets.only(right: 10),
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 10),
+                              horizontal: 14, vertical:  10),
                           decoration: BoxDecoration(
                             color: selected
                                 ? const Color(0xFF2A144A)
@@ -140,7 +146,9 @@ class _ItemPageState extends State<ItemPage> {
                     color: Colors.white,
                     backgroundColor: const Color(0xFF1B2440),
                     child: itemVM.isLoading && itemVM.inventory.isEmpty
-                        ? const Center(child: CircularProgressIndicator())
+                        ? const Center(
+                      child: CircularProgressIndicator(),
+                    )
                         : itemVM.inventory.isEmpty
                         ? ListView(
                       physics:
@@ -181,14 +189,12 @@ class _ItemPageState extends State<ItemPage> {
                             Icons.inventory_2,
                             color: Colors.white54,
                           ),
-
                           title: Text(
                             inv.sku,
                             style: const TextStyle(
                               color: Colors.white,
                             ),
                           ),
-
                           subtitle: Text(
                             inv.category?.toUpperCase() ?? "UNKNOWN",
                             style: const TextStyle(
@@ -196,7 +202,6 @@ class _ItemPageState extends State<ItemPage> {
                               fontSize: 12,
                             ),
                           ),
-
                           trailing: inv.equipped
                               ? const Icon(
                             Icons.check_circle,
