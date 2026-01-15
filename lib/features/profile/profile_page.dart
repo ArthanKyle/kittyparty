@@ -26,7 +26,7 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  bool _bound = false;
+  bool _initialized = false;
 
   UserGender _mapGender(dynamic raw) {
     if (raw == null) return UserGender.female;
@@ -41,26 +41,27 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
 
-    /// 🔥 ALL side-effects happen AFTER first frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final profileVM = context.read<ProfileViewModel>();
+    /// 🔥 SINGLE post-frame init (order matters)
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (_initialized) return;
+      _initialized = true;
+
       final itemVM = context.read<ItemViewModel>();
+      final profileVM = context.read<ProfileViewModel>();
 
-      /// Load profile ONCE
-      profileVM.loadProfile(context);
+      /// 1️⃣ Ensure inventory is bound & loaded FIRST
+      itemVM.ensureBound(context);
 
-      /// Bind inventory → avatar frame (ONCE)
-      if (!_bound) {
-        _bound = true;
+      /// 2️⃣ Load profile
+      await profileVM.loadProfile(context);
 
-        // initial sync
+      /// 3️⃣ Initial inventory → profile sync
+      profileVM.syncFromInventory(itemVM.inventory);
+
+      /// 4️⃣ React to future inventory updates
+      itemVM.addListener(() {
         profileVM.syncFromInventory(itemVM.inventory);
-
-        // react to future inventory changes
-        itemVM.addListener(() {
-          profileVM.syncFromInventory(itemVM.inventory);
-        });
-      }
+      });
     });
   }
 
@@ -96,9 +97,8 @@ class _ProfilePageState extends State<ProfilePage> {
               child: SafeArea(
                 child: RefreshIndicator(
                   onRefresh: () async {
-                    await vm.loadProfile(context);
-
                     final itemVM = context.read<ItemViewModel>();
+                    await vm.loadProfile(context);
                     vm.syncFromInventory(itemVM.inventory);
                   },
                   child: SingleChildScrollView(
@@ -142,7 +142,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             displayName: displayName,
                             radius: 40,
                             localBytes: vm.profilePictureBytes,
-                            frameAsset: vm.avatarFrameAsset, // ✅ FRAME MOUNTS
+                            frameAsset: vm.avatarFrameAsset, // ✅ FIXED
                           ),
                         ),
 
@@ -254,8 +254,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             ),
                             StatItem(
                               label: "Fans",
-                              value:
-                              (vm.userSocial?.fans ?? 0).toString(),
+                              value: (vm.userSocial?.fans ?? 0).toString(),
                             ),
                             StatItem(
                               label: "Friends",

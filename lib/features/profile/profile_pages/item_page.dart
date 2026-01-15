@@ -29,9 +29,6 @@ class _ItemPageState extends State<ItemPage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ItemViewModel>().ensureBound(context);
-    });
   }
 
   // ================= CATEGORY HELPERS =================

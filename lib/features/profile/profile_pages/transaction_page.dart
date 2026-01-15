@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/utils/time_helper.dart';
 import '../../../core/utils/user_provider.dart';
 import '../../landing/model/gift_transaction.dart';
 import '../../landing/viewmodel/transaction_viewmodel.dart';
@@ -196,9 +197,10 @@ class _TransactionPageState extends State<TransactionPage>
     return ListTile(
       leading: const Icon(Icons.card_giftcard),
       title: Text(tx.giftName),
-      subtitle:
-      Text("From ${tx.senderId} → ${tx.receiverId}\n${tx.createdAt}"),
-      trailing: Text("-${tx.coinsSpent} coins"),
+      subtitle: Text(
+        "From ${tx.senderId} → ${tx.receiverId}\n"
+            "${TimeFormat.dateTime(tx.createdAt)}",
+      ),
     );
   }
 
@@ -206,7 +208,9 @@ class _TransactionPageState extends State<TransactionPage>
     return ListTile(
       leading: const Icon(Icons.account_balance_wallet),
       title: Text("${tx.coinsFinal} coins"),
-      subtitle: Text("${tx.status.toUpperCase()} • ${tx.createdAt}"),
+      subtitle: Text(
+        "${tx.status.toUpperCase()} • ${TimeFormat.dateTime(tx.createdAt)}",
+      ),
       trailing: Text("${tx.amount} ${tx.currency}"),
     );
   }

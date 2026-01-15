@@ -60,9 +60,9 @@ class UserAvatarHelper {
     }
 
     // ============================
-    // FRAME SIZE (BIGGER THAN AVATAR)
+    // FRAME SIZE (Slightly Larger for better fitting)
     // ============================
-    final frameSize = radius * 2.4; // 🔑 critical value
+    final frameSize = radius * 2.5; // Increased slightly to fit better
 
     return SizedBox(
       width: frameSize,
@@ -77,8 +77,8 @@ class UserAvatarHelper {
           IgnorePointer(
             child: Image.asset(
               frameAsset,
-              width: frameSize,
-              height: frameSize,
+              width: frameSize + 8, // Slight extra space to ensure no overlap
+              height: frameSize + 8, // Slight extra space to ensure no overlap
               fit: BoxFit.contain,
               errorBuilder: (_, __, ___) => const SizedBox.shrink(),
             ),
