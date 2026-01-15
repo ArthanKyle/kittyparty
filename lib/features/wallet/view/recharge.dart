@@ -19,7 +19,7 @@ class RechargeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final userProvider = context.read<UserProvider>();
-    final rechargeService = RechargeService();
+    final rechargeService = context.read<RechargeService>(); // ✅ FIX
 
     return ChangeNotifierProvider(
       create: (_) => RechargeViewModel(
@@ -39,6 +39,7 @@ class RechargeScreen extends StatelessWidget {
           centerTitle: true,
         ),
         body: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -54,7 +55,12 @@ class RechargeScreen extends StatelessWidget {
               Consumer<RechargeViewModel>(
                 builder: (context, viewModel, _) {
                   if (viewModel.isLoading) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
                   }
 
                   return Padding(
@@ -136,23 +142,20 @@ class RechargeScreen extends StatelessWidget {
                         final pkg = viewModel.selectedPackage;
                         if (pkg == null) return;
 
-                        unawaited(
-                          DialogLoading(subtext: "Processing")
-                              .build(context),
-                        );
+                        DialogLoading(subtext: "Processing")
+                            .build(context);
 
                         try {
                           final tx = await viewModel
                               .createPaymentIntent(method: "card");
 
-                          if (tx == null ||
-                              tx.clientSecret == null ||
-                              tx.id == null) {
+                          if (tx?.clientSecret == null ||
+                              tx?.id == null) {
                             throw Exception("Invalid transaction");
                           }
 
                           await viewModel.presentPaymentSheet(
-                            clientSecret: tx.clientSecret!,
+                            clientSecret: tx!.clientSecret!,
                           );
 
                           await viewModel.confirmPayment(tx.id!);

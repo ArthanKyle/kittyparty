@@ -24,10 +24,10 @@ class ProfileGradientBackground extends StatelessWidget {
               gradient: LinearGradient(
                 colors: [
                   AppColors.primary,
-                  AppColors.primaryLight,
+                  AppColors.primaryDark,
                   Colors.white,
                 ],
-                stops: [0.0, 0.6, 1.0], // fade point
+                stops: [0.0, 0.6, 2.0], // fade point
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),

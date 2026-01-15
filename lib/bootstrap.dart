@@ -10,6 +10,9 @@ import 'app.dart';
 import 'core/services/api/agency_service.dart';
 import 'core/services/api/conversion_recharge.dart';
 import 'core/services/api/dailyTask_service.dart';
+import 'core/services/api/gift_transaction_service.dart';
+import 'core/services/api/recharge_service.dart';
+import 'core/services/api/room_income_service.dart';
 import 'core/services/api/socket_service.dart';
 import 'core/services/api/user_service.dart';
 import 'core/services/api/wallet_service.dart';
@@ -29,6 +32,7 @@ import 'features/landing/viewmodel/landing_viewmodel.dart';
 import 'features/landing/viewmodel/mall_viewmodel.dart';
 import 'features/landing/viewmodel/post_viewmodel.dart';
 import 'features/landing/viewmodel/profile_viewmodel.dart';
+import 'features/landing/viewmodel/transaction_viewmodel.dart';
 import 'features/landing/viewmodel/wealth_viewmodel.dart';
 import 'features/wallet/viewmodel/wallet_viewmodel.dart';
 
@@ -69,6 +73,19 @@ Future<void> bootstrap() async {
   runApp(
     MultiProvider(
       providers: [
+
+        Provider<GiftTransactionService>(
+          create: (_) => GiftTransactionService(),
+        ),
+
+        Provider<RechargeService>(
+          create: (_) => RechargeService(),
+        ),
+
+        Provider<RoomIncomeService>(
+          create: (_) => RoomIncomeService(),
+        ),
+
         // Locale
         ChangeNotifierProvider.value(value: localeProvider),
 
@@ -105,6 +122,14 @@ Future<void> bootstrap() async {
         ),
 
         ChangeNotifierProvider(create: (_) => MallViewModel()),
+
+        ChangeNotifierProvider<TransactionViewModel>(
+          create: (context) => TransactionViewModel(
+            giftService: context.read<GiftTransactionService>(),
+            rechargeService: context.read<RechargeService>(),
+            roomIncomeService: context.read<RoomIncomeService>(),
+          ),
+        ),
 
         // ✅ WALLET (single source of truth)
         ChangeNotifierProvider(

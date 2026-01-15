@@ -77,16 +77,17 @@ class RechargeService {
   /* =============================
      STEP 4: USER HISTORY
   ============================== */
-  Future<List<TransactionModel>> getUserHistory(
-      String userIdentification,) async {
-    final url = Uri.parse(
-      "$baseUrl/recharge/user-history/$userIdentification",
-    );
+  Future<List<TransactionModel>> getUserHistory(String userIdentification) async {
+    final url =
+    Uri.parse("$baseUrl/recharge/user-history/$userIdentification");
 
     final response = await http.get(url);
-    final List list = jsonDecode(response.body);
-    return list.map((e) => TransactionModel.fromJson(e)).toList();
+    final Map<String, dynamic> decoded = jsonDecode(response.body); // Decode as a map
+    final List<dynamic> list = decoded['data'] ?? []; // Safely extract the data array
+
+    return list.map((e) => TransactionModel.fromJson(e)).toList(); // Convert to list of models
   }
+
 
   /* =============================
      STEP 5: FETCH PACKAGES

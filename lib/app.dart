@@ -6,6 +6,7 @@ import 'package:kittyparty/features/profile/profile_pages/agency_room.dart';
 import 'package:kittyparty/features/profile/profile_pages/daily_task_page.dart';
 import 'package:kittyparty/features/profile/profile_pages/invite_page.dart';
 import 'package:kittyparty/features/profile/profile_pages/setting_page.dart';
+import 'package:kittyparty/features/profile/profile_pages/transaction_page.dart';
 import 'package:kittyparty/features/wallet/view/convert_coins_to_diamond_page.dart';
 import 'package:kittyparty/features/wallet/view/monthly_recharge_page.dart';
 import 'core/config/app_theme.dart';
@@ -112,6 +113,8 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute(builder: (_) => const SettingPage());
           case AppRoutes.diamond:
             return MaterialPageRoute(builder: (_) => const ConvertCoinsPage());
+          case AppRoutes.transactions:
+            return MaterialPageRoute(builder: (_) => const TransactionPage());
 
           // ✅ Profile subpages
           case AppRoutes.vip:

@@ -19,7 +19,7 @@ class AppColors {
   /// Main gradient (Kitty Party theme)
   static const List<Color> mainGradient = [
     primary, // #D946EF
-    primaryLight, // #A78BFA
+    primaryDark, // #A78BFA
   ];
 
   /// Optional other gradients
