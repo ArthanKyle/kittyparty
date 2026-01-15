@@ -89,7 +89,36 @@ class _GiftModalState extends State<GiftModal>
     _gift("4009", "golden wedding", 2000000, couple: true),
     _gift("4010", "Wedding Waltz", 50000, couple: true),
     _gift("4011", "glorious century", 450000, couple: true),
-  ];
+
+    // ================= MALL RIDES (LUCKY) =================
+    _gift("5001", "eMule fans", 55000, lucky: true),
+    _gift("5002", "eDonkey blue", 35000, lucky: true),
+    _gift("5003", "Fortress Armored - Taurus", 150000, lucky: true),
+    _gift("5004", "Corona King - Leo", 28000, lucky: true),
+    _gift("5005", "Golden Dragon", 300000, lucky: true),
+    _gift("5006", "Divine Dragon Supreme", 1000000, lucky: true),
+    _gift("5007", "Starry Sky Off-Road - Sagittarius", 75000, lucky: true),
+    _gift("5008", "Blazing Storm", 45000, lucky: true),
+    _gift("5009", "Neon Phantom", 25000, lucky: true),
+    _gift("5010", "Gilded Phantom", 55000, lucky: true),
+
+  // ================= AVATAR FRAMES (LUCKY) =================
+      _gift("6001", "Luxury car lion shadow avatar frame", 55000, lucky: true),
+      _gift("6002", "Heart-fluttering 520 profile picture frame", 10000, lucky: true),
+      _gift("6003", "520 Flower Profile Picture Frame", 20000, lucky: true),
+      _gift("6004", "Black Rose Avatar Frame", 15000, lucky: true),
+      _gift("6005", "Green Rose Avatar Frame", 15000, lucky: true),
+      _gift("6006", "Crystal Crown - Silver", 3000, lucky: true),
+      _gift("6007", "Springtime Vitality - Profile Picture Frame", 4000, lucky: true),
+      _gift("6008", "Let's get married profile picture frame", 10000, lucky: true),
+      _gift("6009", "Eternal Love Avatar Frame", 10000, lucky: true),
+      _gift("6010", "CP Cat - Female", 5000, lucky: true),
+      _gift("6011", "CP Cat - Male", 8000, lucky: true),
+      _gift("6012", "Purple Rose Avatar Frame", 12000, lucky: true),
+      _gift("6013", "Blue Rose Avatar Frame", 15000, lucky: true),
+      _gift("6014", "Pink Rose Avatar Frame", 10000, lucky: true),
+    ];
+
 
   List<GiftItem> get _general => _gifts.where((g) => !g.isLucky && !g.isCouple).toList();
   List<GiftItem> get _lucky => _gifts.where((g) => g.isLucky).toList();
@@ -278,7 +307,7 @@ String toSentenceCase(String text) {
 }
 
 
-class GiftItem{
+class GiftItem {
   final String id;
   final String baseName;
   final int price;
@@ -290,9 +319,25 @@ class GiftItem{
     required this.baseName,
     required this.price,
     required this.isLucky,
-    this.isCouple=false,
+    this.isCouple = false,
   });
 
-  String get png => GiftAssets.png(baseName);
+  String get png {
+    final prefix = id.substring(0, 1);
+
+    // 5xxx → rides
+    if (prefix == '5') {
+      return GiftAssets.ridePng(baseName);
+    }
+
+    // 6xxx → avatar frames
+    if (prefix == '6') {
+      return GiftAssets.avatarPng(baseName);
+    }
+
+    // default → gifts
+    return GiftAssets.png(baseName);
+  }
+
   String get svga => GiftAssets.svga(baseName);
 }

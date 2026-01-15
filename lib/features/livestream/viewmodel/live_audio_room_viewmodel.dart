@@ -192,6 +192,7 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
     final token = userProvider.token;
     if (token == null) return;
 
+    // ================= SEND TO BACKEND =================
     final result = await giftService.sendGift(
       token: token,
       roomId: roomId,
@@ -203,13 +204,15 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
 
     if (result["success"] != true) return;
 
-    final giftName = (result["giftName"] ?? "").toString();
-    final txId = (result["txId"] ?? "").toString();
+    // ================= REQUIRED RESPONSE FIELDS =================
+    final String assetKey = (result["assetKey"] ?? "").toString(); // 🔥 SVGA KEY
+    final String giftName = (result["giftName"] ?? "").toString(); // display only
+    final String txId = (result["txId"] ?? "").toString();
 
-    final totalCoinsSpent = _asInt(result["totalCoinsSpent"]);
-    final coinsWon = _asInt(result["coinsWon"]);
+    final int totalCoinsSpent = _asInt(result["totalCoinsSpent"]);
+    final int coinsWon = _asInt(result["coinsWon"]);
 
-    // 1) gift spend -> income
+    // ================= ROOM INCOME =================
     if (totalCoinsSpent > 0) {
       final ok = await roomIncomeService.recordIncome(
         roomId: roomId,
@@ -222,13 +225,17 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
           "giftType": giftType,
           "giftCount": giftCount,
           "giftName": giftName,
+          "assetKey": assetKey, // 🔒 PASS THROUGH
           "txId": txId,
         },
       );
-      debugPrint("🟣 recordIncome gift_sent ok=$ok amount=$totalCoinsSpent txId=$txId");
+
+      debugPrint(
+        "🟣 recordIncome gift_sent ok=$ok amount=$totalCoinsSpent txId=$txId",
+      );
     }
 
-    // 2) coinback -> income too
+    // ================= LUCKY COINBACK =================
     if (coinsWon > 0) {
       final ok2 = await roomIncomeService.recordIncome(
         roomId: roomId,
@@ -242,18 +249,32 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
           "giftType": giftType,
           "giftCount": giftCount,
           "giftName": giftName,
+          "assetKey": assetKey, // 🔒 PASS THROUGH
           "txId": txId,
         },
       );
-      debugPrint("🟣 recordIncome lucky_coinback ok=$ok2 amount=$coinsWon txId=$txId");
+
+      debugPrint(
+        "🟣 recordIncome lucky_coinback ok=$ok2 amount=$coinsWon txId=$txId",
+      );
     }
 
-    // quick verify
-    final s = await roomIncomeService.getSummary(roomId);
-    debugPrint("🟣 summary today=${s?.contributionTodayCoins} total=${s?.contributionTotalCoins}");
+    // ================= VERIFY SUMMARY =================
+    final summary = await roomIncomeService.getSummary(roomId);
+    debugPrint(
+      "🟣 summary today=${summary?.contributionTodayCoins} "
+          "total=${summary?.contributionTotalCoins}",
+    );
 
-    if (giftName.isNotEmpty) _giftController.add(giftName);
+    // ================= 🎬 PLAY SVGA =================
+    if (assetKey.isNotEmpty) {
+      debugPrint("🎬 Playing SVGA assetKey=$assetKey");
+      _giftController.add(assetKey); // 🔥 THIS TRIGGERS SVGA
+    } else {
+      debugPrint("🚫 No assetKey returned — SVGA skipped");
+    }
 
+    // ================= UI FEEDBACK =================
     if (coinsWon > 0 && globalContext != null) {
       ScaffoldMessenger.of(globalContext!).showSnackBar(
         SnackBar(

@@ -163,7 +163,6 @@ class _GameWebViewState extends State<GameWebView> {
     final int ts = _timestampSeconds();
     final String nonce = _randomNonce();
 
-    // ✅ BAISHUN SPEC (DO NOT CHANGE ORDER)
     // Signature = md5(signature_nonce + appKey + timestamp)
     final String raw = '$nonce$baishunAppKey$ts';
     final String signature =
