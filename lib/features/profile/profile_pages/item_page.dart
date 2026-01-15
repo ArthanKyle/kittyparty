@@ -6,7 +6,7 @@ import '../../../core/utils/user_provider.dart';
 import '../../landing/landing_widgets/profile_widgets/inventory_asset_resolver.dart';
 import '../../landing/viewmodel/inventory_viewmodel.dart';
 import '../../landing/viewmodel/profile_viewmodel.dart';
-
+import '../../landing/model/userInventory.dart';
 
 class ItemPage extends StatefulWidget {
   const ItemPage({super.key});
@@ -34,22 +34,63 @@ class _ItemPageState extends State<ItemPage> {
     });
   }
 
-  /// UI category → allowed backend categories
+  // ================= CATEGORY HELPERS =================
+
+  String deriveCategoryFromSku(String sku) {
+    final s = sku.toUpperCase();
+    if (s.startsWith('MOUNT')) return 'MOUNT';
+    if (s.contains('FRAME') || s.contains('AVATAR')) return 'AVATAR';
+    if (s.contains('NAMEPLATE')) return 'NAMEPLATE';
+    if (s.contains('PROFILE')) return 'PROFILECARD';
+    if (s.contains('CHAT')) return 'CHATBUBBLE';
+    return 'UNKNOWN';
+  }
+
+  bool isAvatarFrame(String sku) {
+    return sku.toUpperCase().contains('FRAME');
+  }
+
   List<String> _allowedCategoriesFor(String label) {
     switch (label) {
       case 'Mount':
-        return ['mount', 'MOUNT'];
+        return ['MOUNT'];
       case 'Avatar':
-        return ['avatar', 'AVATAR', 'AVATARFRAME', 'avatarframe'];
+        return ['AVATAR'];
       case 'Nameplate':
-        return ['nameplate', 'NAMEPLATE'];
+        return ['NAMEPLATE'];
       case 'Profile Card':
-        return ['profile_card', 'PROFILECARD'];
+        return ['PROFILECARD'];
       case 'Chat Bubble':
-        return ['chat_bubble', 'CHATBUBBLE'];
+        return ['CHATBUBBLE'];
       default:
         return [];
     }
+  }
+
+  // ================= EQUIP / UNEQUIP =================
+
+  Future<void> _handleEquip(BuildContext context, UserInventoryItem inv) async {
+    final itemVM = context.read<ItemViewModel>();
+    final profileVM = context.read<ProfileViewModel>();
+
+    if (itemVM.isEquipping) return;
+
+    await itemVM.equip(inv);
+
+    // ✅ FORCE PROFILE SYNC AFTER EQUIP
+    profileVM.syncFromInventory(itemVM.inventory);
+  }
+
+  Future<void> _handleUnequip(BuildContext context, UserInventoryItem inv) async {
+    final itemVM = context.read<ItemViewModel>();
+    final profileVM = context.read<ProfileViewModel>();
+
+    if (itemVM.isEquipping) return;
+
+    await itemVM.unequip(inv);
+
+    // ✅ FORCE PROFILE SYNC AFTER UNEQUIP
+    profileVM.syncFromInventory(itemVM.inventory);
   }
 
   @override
@@ -59,26 +100,20 @@ class _ItemPageState extends State<ItemPage> {
         final user = userProvider.currentUser;
 
         final avatar = user == null
-            ? const CircleAvatar(
-          radius: 40,
-          backgroundColor: Colors.white24,
-        )
+            ? const CircleAvatar(radius: 60)
             : UserAvatarHelper.circleAvatar(
           userIdentification: user.userIdentification,
-          displayName:
-          user.fullName ?? user.username ?? "U",
-          radius: 40,
+          displayName: user.fullName ?? user.username ?? 'U',
+          radius: 60,
           localBytes: profileVM.profilePictureBytes,
+          frameAsset: profileVM.avatarFrameAsset,
         );
 
-        // ================= FILTER + SORT =================
         final selectedLabel = categories[selectedIndex]['label'];
-        final allowedCategories =
-        _allowedCategoriesFor(selectedLabel);
+        final allowed = _allowedCategoriesFor(selectedLabel);
 
-        final filteredInventory = itemVM.inventory
-            .where((inv) =>
-            allowedCategories.contains(inv.category))
+        final items = itemVM.inventory
+            .where((i) => allowed.contains(deriveCategoryFromSku(i.sku)))
             .toList()
           ..sort((a, b) {
             if (a.equipped && !b.equipped) return -1;
@@ -93,8 +128,8 @@ class _ItemPageState extends State<ItemPage> {
               children: [
                 // ================= HEADER =================
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 8),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   child: Row(
                     children: [
                       IconButton(
@@ -108,120 +143,89 @@ class _ItemPageState extends State<ItemPage> {
                       const Expanded(
                         child: Center(
                           child: Text(
-                            "My Item",
+                            'My Item',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 20,
+                              fontSize: 18,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 40),
+                      const SizedBox(width: 40), // balance back button
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 10),
-                avatar,
                 const SizedBox(height: 20),
+                avatar,
+                const SizedBox(height: 50),
 
                 // ================= CATEGORY BAR =================
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
-                    children: List.generate(categories.length,
-                            (index) {
-                          final c = categories[index];
-                          final selected =
-                              index == selectedIndex;
+                    children: List.generate(categories.length, (i) {
+                      final c = categories[i];
+                      final selected = i == selectedIndex;
 
-                          return GestureDetector(
-                            onTap: () => setState(
-                                    () => selectedIndex = index),
-                            child: Container(
-                              margin: const EdgeInsets.only(right: 10),
-                              padding:
-                              const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 10),
-                              decoration: BoxDecoration(
-                                color: selected
-                                    ? const Color(0xFF2A144A)
-                                    : const Color(0xFF1B2440),
-                                borderRadius:
-                                BorderRadius.circular(12),
+                      return GestureDetector(
+                        onTap: () => setState(() => selectedIndex = i),
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 10),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? const Color(0xFF2A144A)
+                                : const Color(0xFF1B2440),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            children: [
+                              Image.asset(c['icon'], width: 45),
+                              const SizedBox(height: 6),
+                              Text(
+                                c['label'],
+                                style:
+                                const TextStyle(color: Colors.white),
                               ),
-                              child: Column(
-                                children: [
-                                  Image.asset(
-                                    c['icon'],
-                                    width: 45,
-                                    height: 45,
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    c['label'],
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
                   ),
                 ),
 
-                const SizedBox(height: 30),
+                const SizedBox(height: 40),
 
                 // ================= INVENTORY =================
                 Expanded(
-                  child: filteredInventory.isEmpty
-                      ? ListView(
-                    children: const [
-                      SizedBox(height: 120),
-                      Center(
-                        child: Text(
-                          "No items",
-                          style: TextStyle(
-                              color: Colors.white70),
-                        ),
-                      ),
-                    ],
+                  child: items.isEmpty
+                      ? const Center(
+                    child: Text(
+                      'No items',
+                      style:
+                      TextStyle(color: Colors.white70),
+                    ),
                   )
                       : ListView.builder(
-                    itemCount:
-                    filteredInventory.length,
+                    itemCount: items.length,
                     itemBuilder: (_, i) {
-                      final inv =
-                      filteredInventory[i];
+                      final inv = items[i];
+                      final category =
+                      deriveCategoryFromSku(inv.sku);
 
-                      final resolvedPath =
+                      final asset =
                       InventoryAssetResolver.resolve(
-                        category: inv.category ?? '',
+                        category: category,
                         sku: inv.sku,
                       );
 
                       return ListTile(
-                        leading: resolvedPath != null
-                            ? Image.asset(
-                          resolvedPath,
-                          width: 48,
-                          height: 48,
-                          errorBuilder:
-                              (_, __, ___) =>
-                          const Icon(
-                            Icons
-                                .image_not_supported,
-                            color:
-                            Colors.white54,
-                          ),
-                        )
+                        leading: asset != null
+                            ? Image.asset(asset, width: 48)
                             : const Icon(
                           Icons.inventory_2,
                           color: Colors.white54,
@@ -229,25 +233,29 @@ class _ItemPageState extends State<ItemPage> {
                         title: Text(
                           inv.sku,
                           style: const TextStyle(
-                              color: Colors.white),
-                        ),
-                        subtitle: Text(
-                          inv.category ?? '',
-                          style: const TextStyle(
-                            color: Colors.white54,
-                            fontSize: 12,
+                            color: Colors.white,
                           ),
                         ),
-                        trailing: inv.equipped
-                            ? const Icon(
-                          Icons.check_circle,
-                          color: Colors.green,
+                        subtitle: Text(
+                          category,
+                          style: const TextStyle(
+                            color: Colors.white54,
+                          ),
+                        ),
+                        trailing: itemVM.isEquipping
+                            ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                            : inv.equipped
+                            ? TextButton(
+                          onPressed: () => _handleUnequip(context, inv),
+                          child: const Text('Unequip'),
                         )
                             : TextButton(
-                          onPressed: () =>
-                              itemVM.equip(inv),
-                          child:
-                          const Text("Equip"),
+                          onPressed: () => _handleEquip(context, inv),
+                          child: const Text('Equip'),
                         ),
                       );
                     },

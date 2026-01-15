@@ -1,23 +1,34 @@
 class TransactionModel {
   final String id;
-  final String userId;
+
+  // 🔑 STRING IDENTIFIER (matches backend)
+  final String userIdentification;
+
   final String? paymentIntentId;
   final String? clientSecret;
   final String paymentMethod;
   final String status;
+
+  // 💰 Payment info
   final double amount; // local currency
   final String currency;
+
+  // 🪙 Coins
   final int coinsBase;
   final int coinsBonus;
   final int coinsFinal;
+
+  // 🔗 References
   final String transactionRef;
   final String? providerId;
+
+  // ⏱️ Timestamps
   final DateTime createdAt;
   final DateTime updatedAt;
 
   TransactionModel({
     required this.id,
-    required this.userId,
+    required this.userIdentification,
     this.paymentIntentId,
     this.clientSecret,
     required this.paymentMethod,
@@ -35,19 +46,19 @@ class TransactionModel {
 
   factory TransactionModel.fromJson(Map<String, dynamic> json) {
     return TransactionModel(
-      id: json['_id'],
-      userId: json['userId'],
-      paymentIntentId: json['paymentIntentId'],
-      clientSecret: json['clientSecret'],
+      id: json['_id'] as String,
+      userIdentification: json['userIdentification'] as String,
+      paymentIntentId: json['paymentIntentId'] as String?,
+      clientSecret: json['clientSecret'] as String?,
       paymentMethod: json['paymentMethod'] ?? 'card',
       status: json['status'] ?? 'pending',
       amount: (json['amount'] as num).toDouble(),
-      currency: json['currency'],
-      coinsBase: json['coinsBase'] ?? 0,
-      coinsBonus: json['coinsBonus'] ?? 0,
-      coinsFinal: json['coinsFinal'] ?? 0,
-      transactionRef: json['transactionRef'],
-      providerId: json['providerId'],
+      currency: json['currency'] as String,
+      coinsBase: (json['coinsBase'] ?? 0) as int,
+      coinsBonus: (json['coinsBonus'] ?? 0) as int,
+      coinsFinal: (json['coinsFinal'] ?? 0) as int,
+      transactionRef: json['transactionRef'] as String,
+      providerId: json['providerId'] as String?,
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
     );
@@ -56,7 +67,7 @@ class TransactionModel {
   Map<String, dynamic> toJson() {
     return {
       '_id': id,
-      'userId': userId,
+      'userIdentification': userIdentification,
       'paymentIntentId': paymentIntentId,
       'clientSecret': clientSecret,
       'paymentMethod': paymentMethod,

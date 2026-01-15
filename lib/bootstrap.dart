@@ -53,11 +53,13 @@ Future<void> bootstrap() async {
 
   Stripe.publishableKey = dotenv.env["STRIPE_PUBLISHABLE_KEY"] ?? "";
 
+  final String baseUrl = dotenv.env["BASE_URL"] ?? "";
 
 
   // 🔑 Load user BEFORE widget tree
   final userProvider = UserProvider();
   await userProvider.loadUser();
+
 
   final socketService = SocketService();
   if (userProvider.currentUser != null) {
@@ -71,9 +73,7 @@ Future<void> bootstrap() async {
         ChangeNotifierProvider.value(value: localeProvider),
 
         //Profile
-        ChangeNotifierProvider(
-          create: (context) => ProfileViewModel()..loadProfile(context),
-        ),
+        ChangeNotifierProvider(create: (_) => ProfileViewModel()),
 
         // Auth / User
         ChangeNotifierProvider<UserProvider>.value(value: userProvider),

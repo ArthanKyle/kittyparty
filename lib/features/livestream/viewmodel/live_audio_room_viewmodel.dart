@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:zego_uikit/zego_uikit.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:zego_uikit_prebuilt_live_audio_room/zego_uikit_prebuilt_live_audio_room.dart';
 
 import '../../../core/services/api/gift_service.dart';
 import '../../../core/services/api/room_income_service.dart';
@@ -49,7 +50,9 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
   Stream<String> get giftStream => _giftController.stream;
 
   RoomIncomeSummary? incomeSummary;
+
   String? _hostId;
+  String? _roomId; // ✅ FIX: store roomId
 
   bool get isHost =>
       userIdentification != null &&
@@ -69,7 +72,11 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
     return 0;
   }
 
+  // =========================
+  // INIT
+  // =========================
   Future<void> init(String roomId, {required String hostId}) async {
+    _roomId = roomId; // ✅ FIX
     _hostId = hostId;
 
     await _requestPermission();
@@ -84,7 +91,6 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
     _subscribeToZegoUserEvents();
     _initRoomSocket(roomId);
 
-    // initial fetch
     if (isHost) {
       incomeSummary = await roomIncomeService.getSummary(roomId);
     }
@@ -126,12 +132,16 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
     await roomService.joinRoom(roomId, userIdentification!);
   }
 
+  // =========================
+  // ZEGO EVENTS
+  // =========================
   void _subscribeToZegoUserEvents() {
-    _zegoJoinSubscription = ZegoUIKit().getUserJoinStream().listen((users) async {
-      for (final user in users) {
-        await _preloadAvatar(user.id);
-      }
-    });
+    _zegoJoinSubscription =
+        ZegoUIKit().getUserJoinStream().listen((users) async {
+          for (final user in users) {
+            await _preloadAvatar(user.id);
+          }
+        });
   }
 
   Future<void> _preloadAvatar(String userId) async {
@@ -157,7 +167,9 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
     return null;
   }
 
-  // ✅ Socket connects to host (NO /api)
+  // =========================
+  // SOCKET
+  // =========================
   void _initRoomSocket(String roomId) {
     _socket = IO.io(
       roomIncomeService.socketUrl,
@@ -184,6 +196,9 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
     });
   }
 
+  // =========================
+  // 🎁 GIFTS
+  // =========================
   Future<void> sendGift({
     required String roomId,
     required String senderId,
@@ -203,26 +218,15 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
       giftCount: giftCount,
     );
 
-    debugPrint("🎁 sendGift response => $result");
-
     if (result["success"] != true) return;
 
     final String assetKey = (result["assetKey"] ?? "").toString();
-    final String giftName = (result["giftName"] ?? "").toString();
-    final String txId = (result["txId"] ?? "").toString();
-
-    final int totalCoinsSpent = _asInt(result["totalCoinsSpent"]);
     final int coinsWon = _asInt(result["coinsWon"]);
 
-    // 🎬 PLAY SVGA (THIS IS THE ONLY REQUIREMENT)
     if (assetKey.isNotEmpty) {
-      debugPrint("🎬 Playing SVGA assetKey=$assetKey");
       _giftController.add(assetKey);
-    } else {
-      debugPrint("🚫 assetKey missing — SVGA skipped");
     }
 
-    // Optional UI feedback
     if (coinsWon > 0 && globalContext != null) {
       ScaffoldMessenger.of(globalContext!).showSnackBar(
         SnackBar(
@@ -233,7 +237,39 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
     }
   }
 
+  // =========================
+  // 🚫 MODERATION (SEAT + SERVER KICK)
+  // =========================
+  Future<bool> kickUserFromCall({
+    required String targetUserId,
+  }) async {
+    if (!isHost) return false;
+    if (targetUserId == userIdentification) return false;
 
+    try {
+      final result =
+      await ZegoUIKitPrebuiltLiveAudioRoomController()
+          .user
+          .remove([targetUserId]);
+
+      if (!result && globalContext != null) {
+        ScaffoldMessenger.of(globalContext!).showSnackBar(
+          const SnackBar(
+            content: Text("Failed to remove user from call"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return result;
+    } catch (e) {
+      debugPrint("❌ remove user error: $e");
+      return false;
+    }
+  }
+
+  // =========================
+  // UI
+  // =========================
   void _safeNotify() {
     if (!_disposed) notifyListeners();
   }
@@ -247,6 +283,9 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
     );
   }
 
+  // =========================
+  // DISPOSE
+  // =========================
   @override
   void dispose() {
     _socket?.emit("leaveRoom", null);

@@ -91,7 +91,7 @@ class CommentSheet extends StatelessWidget {
                         leading: UserAvatarHelper.circleAvatar(
                           userIdentification: userId,
                           displayName: displayName,
-                          radius: 18,
+                          radius: 18, frameAsset: null,
                         ),
                         title: Text(
                           displayName,

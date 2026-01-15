@@ -23,7 +23,6 @@ import 'features/auth/viewmodel/register_viewmodel.dart';
 import 'features/landing/view/landing_page.dart';
 import 'features/landing/view/messages_page.dart';
 import 'features/navigation/page_handler.dart';
-import 'features/profile/profile_pages/transaction_page.dart';
 import 'features/profile/profile_pages/vip_page.dart';
 import 'features/test.dart';
 import 'features/wallet/view/wallet_page.dart';

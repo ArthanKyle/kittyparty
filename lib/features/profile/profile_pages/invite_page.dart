@@ -68,6 +68,7 @@ class _InvitePageState extends State<InvitePage> {
             displayName: user.fullName ?? user.username ?? "U",
             radius: 28,
             localBytes: vm.profilePictureBytes,
+            frameAsset: null,
           );
 
           return Scaffold(

@@ -78,6 +78,7 @@ class RecommendPostItem extends StatelessWidget {
                     localBytes:
                     isMyPost ? userProvider.profilePictureBytes : null,
                     radius: 20,
+                    frameAsset:null
                   ),
                 ),
                 const SizedBox(width: 10),

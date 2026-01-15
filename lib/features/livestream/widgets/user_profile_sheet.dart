@@ -1,4 +1,3 @@
-// lib/features/livestream/widgets/user_frame_profile_sheet.dart
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -18,6 +17,7 @@ class UserFrameProfileSheet {
         VoidCallback? onActionMuteSpeaker,
         VoidCallback? onActionLock,
         VoidCallback? onActionStand,
+        List<ListTile>? actions,
       }) async {
     await showModalBottomSheet(
       context: context,

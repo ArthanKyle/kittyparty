@@ -21,6 +21,7 @@ class VipIdentificationSection extends StatelessWidget {
       displayName: user?.fullName ?? user?.username ?? "U",
       radius: 32,
       localBytes: vm.profilePictureBytes,
+      frameAsset:vm.avatarFrameAsset,
     );
 
     return Row(

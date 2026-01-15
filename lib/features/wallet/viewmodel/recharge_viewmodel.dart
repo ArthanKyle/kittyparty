@@ -37,7 +37,9 @@ class RechargeViewModel extends ChangeNotifier {
     if (!_disposed) notifyListeners();
 
     try {
-      packages = await rechargeService.fetchPackages(user.id);
+      packages = await rechargeService.fetchPackages(
+        user.userIdentification,
+      );
 
       if (!user.isFirstTimeRecharge) {
         _hideBonusesIfNotFirstRecharge();
@@ -46,8 +48,6 @@ class RechargeViewModel extends ChangeNotifier {
       if (packages.isNotEmpty) {
         selectPackage(packages.first);
       }
-    } catch (e) {
-      print("❌ fetchPackages failed: $e");
     } finally {
       isLoading = false;
       if (!_disposed) notifyListeners();
@@ -60,8 +60,7 @@ class RechargeViewModel extends ChangeNotifier {
   void selectPackage(RechargePackage pkg) {
     selectedPackage = pkg;
     displayAmount = pkg.price;
-    displaySymbol = pkg.symbol; // 🔥 ONLY SYMBOL
-
+    displaySymbol = pkg.symbol;
     if (!_disposed) notifyListeners();
   }
 
@@ -79,7 +78,7 @@ class RechargeViewModel extends ChangeNotifier {
 
     try {
       final json = await rechargeService.createPaymentIntent(
-        userId: user.id,
+        userIdentification: user.userIdentification,
         amount: selectedPackage!.price,
         countryCode:
         user.countryCode.isNotEmpty ? user.countryCode : "PH",
@@ -93,20 +92,19 @@ class RechargeViewModel extends ChangeNotifier {
 
       if (clientSecret == null || transactionId == null) return null;
 
-      // 🔒 Backend is authoritative
       displayAmount =
-          (display?['amount'] as num?)?.toDouble() ?? selectedPackage!.price;
-      displaySymbol = display?['symbol'] ?? selectedPackage!.symbol;
+          (display?['amount'] as num?)?.toDouble() ?? displayAmount;
+      displaySymbol = display?['symbol'] ?? displaySymbol;
 
       return TransactionModel(
         id: transactionId,
-        userId: user.id,
+        userIdentification: user.userIdentification,
         paymentIntentId: null,
         clientSecret: clientSecret,
         paymentMethod: method ?? 'card',
         status: 'pending',
         amount: displayAmount,
-        currency: "", // intentionally unused in UI
+        currency: "",
         coinsBase: selectedPackage!.coins,
         coinsBonus: 0,
         coinsFinal: selectedPackage!.coins,
@@ -115,9 +113,6 @@ class RechargeViewModel extends ChangeNotifier {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-    } catch (e) {
-      print("❌ createPaymentIntent error: $e");
-      rethrow;
     } finally {
       isPaymentProcessing = false;
       if (!_disposed) notifyListeners();
@@ -152,8 +147,9 @@ class RechargeViewModel extends ChangeNotifier {
     if (!_disposed) notifyListeners();
 
     try {
-      final topUp =
-      await rechargeService.confirmPayment(transactionId: transactionId);
+      final topUp = await rechargeService.confirmPayment(
+        transactionId: transactionId,
+      );
 
       userProvider.updateCoins(topUp.coinsFinal);
 
@@ -161,9 +157,6 @@ class RechargeViewModel extends ChangeNotifier {
         user.isFirstTimeRecharge = false;
         _hideBonusesIfNotFirstRecharge();
       }
-    } catch (e) {
-      print("❌ confirmPayment failed: $e");
-      rethrow;
     } finally {
       isPaymentProcessing = false;
       if (!_disposed) notifyListeners();
@@ -174,9 +167,6 @@ class RechargeViewModel extends ChangeNotifier {
      HELPERS
   ============================== */
   void _hideBonusesIfNotFirstRecharge() {
-    final user = userProvider.currentUser;
-    if (user == null || user.isFirstTimeRecharge) return;
-
     packages = packages
         .map(
           (pkg) => RechargePackage(
@@ -188,7 +178,6 @@ class RechargeViewModel extends ChangeNotifier {
       ),
     )
         .toList();
-
     if (!_disposed) notifyListeners();
   }
 

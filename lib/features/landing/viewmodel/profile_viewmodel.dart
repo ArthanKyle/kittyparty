@@ -2,12 +2,17 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../../core/services/api/userProfile_service.dart';
 import '../../../core/services/api/social_service.dart';
-import '../../../core/utils/user_provider.dart';
-import '../../landing/model/socials.dart';
-import '../model/userProfile.dart';
 import '../../../core/services/api/invite_service.dart';
+import '../../../core/utils/user_provider.dart';
+
+import '../../landing/model/socials.dart';
+import '../landing_widgets/profile_widgets/inventory_asset_resolver.dart';
+import '../model/userInventory.dart';
+import '../model/userProfile.dart';
+import 'inventory_viewmodel.dart';
 
 class ProfileViewModel extends ChangeNotifier {
   final UserProfileService _profileService = UserProfileService();
@@ -16,13 +21,18 @@ class ProfileViewModel extends ChangeNotifier {
 
   int inviteEarnings = 0;
   bool inviteLoading = false;
+
   UserProfile? userProfile;
   Uint8List? profilePictureBytes;
   Social? userSocial;
+
   bool isLoading = true;
   String? error;
 
   bool _disposed = false;
+
+  String? _avatarFrameAsset;
+  String? get avatarFrameAsset => _avatarFrameAsset;
 
   @override
   void dispose() {
@@ -34,6 +44,50 @@ class ProfileViewModel extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
+  // profile_viewmodel.dart
+  void bindInventory(ItemViewModel itemVM) {
+    // Initial sync
+    syncFromInventory(itemVM.inventory);
+
+    // Listen for future changes
+    itemVM.addListener(() {
+      syncFromInventory(itemVM.inventory);
+    });
+  }
+
+
+  // ===============================
+  // 🔥 INVENTORY → PROFILE SYNC
+  // ===============================
+  void syncFromInventory(List<UserInventoryItem> inventory) {
+    debugPrint("🧩 [ProfileVM] syncFromInventory");
+
+    UserInventoryItem? frame;
+
+    for (final i in inventory) {
+      if (i.equipped && i.sku.toUpperCase().contains('FRAME')) {
+        frame = i;
+        break;
+      }
+    }
+
+    if (frame == null) {
+      _avatarFrameAsset = null;
+      notifyListeners();
+      return;
+    }
+
+    _avatarFrameAsset = InventoryAssetResolver.resolve(
+      category: 'AVATAR',
+      sku: frame.sku,
+    );
+
+    notifyListeners();
+  }
+
+  // ===============================
+  // LOAD PROFILE
+  // ===============================
   Future<void> loadProfile(BuildContext context) async {
     if (_disposed) return;
 
@@ -41,7 +95,7 @@ class ProfileViewModel extends ChangeNotifier {
     safeNotify();
 
     try {
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final userProvider = context.read<UserProvider>();
       final currentUser = userProvider.currentUser;
 
       if (currentUser == null) {
@@ -53,9 +107,8 @@ class ProfileViewModel extends ChangeNotifier {
 
       final id = currentUser.userIdentification;
 
-      // Fetch profile
-      final profile = await _profileService
-          .getProfileByUserIdentification(id);
+      final profile =
+      await _profileService.getProfileByUserIdentification(id);
 
       userProfile = profile ??
           UserProfile(
@@ -64,16 +117,12 @@ class ProfileViewModel extends ChangeNotifier {
             profilePicture: null,
           );
 
-      if (userProfile!.profilePicture != null &&
-          userProfile!.profilePicture!.isNotEmpty) {
+      if (userProfile!.profilePicture?.isNotEmpty == true) {
         profilePictureBytes =
         await _profileService.fetchProfilePicture(id);
       }
 
-
-      // Fetch social (STRING, not int)
       await fetchSocialData(id);
-
     } catch (e) {
       error = "Failed to load profile: $e";
     } finally {
@@ -84,23 +133,22 @@ class ProfileViewModel extends ChangeNotifier {
 
   Future<void> fetchSocialData(String userId) async {
     try {
-      final social = await _socialService.fetchSocialData(userId); // FIXED
+      final social = await _socialService.fetchSocialData(userId);
       if (_disposed) return;
 
       if (social != null) {
         userSocial = social;
         safeNotify();
       }
-    } catch (_) {
-      // ignore errors silently
-    }
+    } catch (_) {}
   }
 
   Future<void> changeProfilePicture(
-      BuildContext context, File imageFile) async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
+      BuildContext context,
+      File imageFile,
+      ) async {
+    final userProvider = context.read<UserProvider>();
     final currentUser = userProvider.currentUser;
-
     if (currentUser == null) return;
 
     try {
@@ -108,26 +156,27 @@ class ProfileViewModel extends ChangeNotifier {
         currentUser.userIdentification,
         imageFile,
       );
-      if (_disposed) return;
 
-      if (updated != null) {
-        userProfile = updated;
+      if (_disposed || updated == null) return;
 
-        profilePictureBytes = await _profileService
-            .fetchProfilePicture(currentUser.userIdentification);
+      userProfile = updated;
+      profilePictureBytes =
+      await _profileService.fetchProfilePicture(
+        currentUser.userIdentification,
+      );
 
-        safeNotify();
-      }
+      safeNotify();
     } catch (e) {
       debugPrint("❌ Failed to update picture: $e");
     }
   }
+
   Future<void> fetchInviteEarnings(BuildContext context) async {
     try {
       inviteLoading = true;
       safeNotify();
 
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final userProvider = context.read<UserProvider>();
       final token = userProvider.token;
 
       if (token == null) {
@@ -137,9 +186,8 @@ class ProfileViewModel extends ChangeNotifier {
         return;
       }
 
-      inviteEarnings = await _inviteService.fetchInviteEarnings(
-        token: token,
-      );
+      inviteEarnings =
+      await _inviteService.fetchInviteEarnings(token: token);
     } catch (_) {
       inviteEarnings = 0;
     } finally {
@@ -147,5 +195,4 @@ class ProfileViewModel extends ChangeNotifier {
       safeNotify();
     }
   }
-
 }

@@ -243,6 +243,7 @@ class _LevelPageState extends State<LevelPage>
       displayName: user.fullName ?? user.username ?? "U",
       radius: 32,
       localBytes: profileVm.profilePictureBytes,
+      frameAsset: profileVm.avatarFrameAsset,
     );
 
     final gradient = isCharm

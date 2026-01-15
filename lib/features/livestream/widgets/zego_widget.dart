@@ -391,7 +391,34 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
                         _MiniBadge(icon: Icons.shield, text: '1', bg: Color(0xFF18B26B)),
                         _MiniBadge(icon: Icons.favorite, text: '1', bg: Color(0xFF34C6C6)),
                       ],
+                      actions: widget.userIdentification == widget.hostId &&
+                          _selectedUserId != widget.userIdentification
+                          ? [
+                        ListTile(
+                          leading: const Icon(Icons.block, color: Colors.red),
+                          title: const Text("Kick from room"),
+                          onTap: () async {
+                            Navigator.of(context).pop(); // close sheet
+
+                            final ok = await widget.viewModel
+                                .kickUserFromCall( // 👈 uses remove()
+                              targetUserId: _selectedUserId!,
+                            );
+
+                            if (!ok && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Failed to kick user"),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                      ]
+                          : null,
                     );
+
 
                     setState(() {
                       _selectedUserId = null;
