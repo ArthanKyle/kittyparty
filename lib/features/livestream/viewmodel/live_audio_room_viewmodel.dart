@@ -42,8 +42,10 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
 
   StreamSubscription<List<ZegoUIKitUser>>? _zegoJoinSubscription;
 
+  // 🔥 SINGLE SOURCE OF TRUTH
   final StreamController<String> _giftController =
   StreamController<String>.broadcast();
+
   Stream<String> get giftStream => _giftController.stream;
 
   RoomIncomeSummary? incomeSummary;
@@ -192,7 +194,6 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
     final token = userProvider.token;
     if (token == null) return;
 
-    // ================= SEND TO BACKEND =================
     final result = await giftService.sendGift(
       token: token,
       roomId: roomId,
@@ -202,79 +203,26 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
       giftCount: giftCount,
     );
 
+    debugPrint("🎁 sendGift response => $result");
+
     if (result["success"] != true) return;
 
-    // ================= REQUIRED RESPONSE FIELDS =================
-    final String assetKey = (result["assetKey"] ?? "").toString(); // 🔥 SVGA KEY
-    final String giftName = (result["giftName"] ?? "").toString(); // display only
+    final String assetKey = (result["assetKey"] ?? "").toString();
+    final String giftName = (result["giftName"] ?? "").toString();
     final String txId = (result["txId"] ?? "").toString();
 
     final int totalCoinsSpent = _asInt(result["totalCoinsSpent"]);
     final int coinsWon = _asInt(result["coinsWon"]);
 
-    // ================= ROOM INCOME =================
-    if (totalCoinsSpent > 0) {
-      final ok = await roomIncomeService.recordIncome(
-        roomId: roomId,
-        eventType: "gift_sent",
-        amountCoins: totalCoinsSpent,
-        senderId: senderId,
-        receiverId: receiverId,
-        externalId: txId.isEmpty ? null : txId,
-        meta: {
-          "giftType": giftType,
-          "giftCount": giftCount,
-          "giftName": giftName,
-          "assetKey": assetKey, // 🔒 PASS THROUGH
-          "txId": txId,
-        },
-      );
-
-      debugPrint(
-        "🟣 recordIncome gift_sent ok=$ok amount=$totalCoinsSpent txId=$txId",
-      );
-    }
-
-    // ================= LUCKY COINBACK =================
-    if (coinsWon > 0) {
-      final ok2 = await roomIncomeService.recordIncome(
-        roomId: roomId,
-        eventType: "lucky_coinback",
-        amountCoins: coinsWon,
-        senderId: senderId,
-        receiverId: senderId,
-        externalId: txId.isEmpty ? null : "coinback:$txId",
-        meta: {
-          "source": "lucky_gift",
-          "giftType": giftType,
-          "giftCount": giftCount,
-          "giftName": giftName,
-          "assetKey": assetKey, // 🔒 PASS THROUGH
-          "txId": txId,
-        },
-      );
-
-      debugPrint(
-        "🟣 recordIncome lucky_coinback ok=$ok2 amount=$coinsWon txId=$txId",
-      );
-    }
-
-    // ================= VERIFY SUMMARY =================
-    final summary = await roomIncomeService.getSummary(roomId);
-    debugPrint(
-      "🟣 summary today=${summary?.contributionTodayCoins} "
-          "total=${summary?.contributionTotalCoins}",
-    );
-
-    // ================= 🎬 PLAY SVGA =================
+    // 🎬 PLAY SVGA (THIS IS THE ONLY REQUIREMENT)
     if (assetKey.isNotEmpty) {
       debugPrint("🎬 Playing SVGA assetKey=$assetKey");
-      _giftController.add(assetKey); // 🔥 THIS TRIGGERS SVGA
+      _giftController.add(assetKey);
     } else {
-      debugPrint("🚫 No assetKey returned — SVGA skipped");
+      debugPrint("🚫 assetKey missing — SVGA skipped");
     }
 
-    // ================= UI FEEDBACK =================
+    // Optional UI feedback
     if (coinsWon > 0 && globalContext != null) {
       ScaffoldMessenger.of(globalContext!).showSnackBar(
         SnackBar(
@@ -284,6 +232,7 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
       );
     }
   }
+
 
   void _safeNotify() {
     if (!_disposed) notifyListeners();

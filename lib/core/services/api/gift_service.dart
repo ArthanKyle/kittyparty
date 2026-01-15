@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -13,45 +14,33 @@ class GiftService {
     required String giftType,
     required int giftCount,
   }) async {
+    final uri = Uri.parse('$baseUrl/gifts/send');
 
-    final url = Uri.parse("$baseUrl/gifts/send");
-
-    final response = await http.post(
-      url,
+    final res = await http.post(
+      uri,
       headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $token",
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
       body: jsonEncode({
-        "room_id": roomId,
-        "sender_id": senderId,
-        "receiver_id": receiverId,
-        "gift_type": giftType,
-        "gift_count": giftCount,
+        'room_id': roomId,
+        'sender_id': senderId,
+        'receiver_id': receiverId,
+        'gift_type': giftType,
+        'gift_count': giftCount,
       }),
     );
 
-    final jsonRes = jsonDecode(response.body);
+    debugPrint("🌐 sendGift STATUS => ${res.statusCode}");
+    debugPrint("🌐 sendGift URL => $uri");
+    debugPrint("🌐 sendGift RAW BODY => ${res.body}");
 
-    // Failure case
-    if (response.statusCode != 200 || jsonRes["success"] != true) {
-      return {
-        "success": false,
-        "message": jsonRes["message"] ?? "Gift failed",
-      };
+    // 🚫 HARD STOP IF NOT JSON
+    if (res.statusCode != 200 || !res.body.trim().startsWith('{')) {
+      throw Exception("sendGift returned non-JSON response");
     }
 
-    // Success case
-    return {
-      "success": true,
-      "giftName": jsonRes["giftName"],
-      "giftID": jsonRes["giftID"],
-      "price": jsonRes["price"],
-      "count": jsonRes["count"],
-      "totalCost": jsonRes["totalCost"],
-      "coinsWon": jsonRes["coinsWon"] ?? 0,
-      "luckyMultiplier": jsonRes["luckyMultiplier"],
-      "senderBalance": jsonRes["senderBalance"],
-    };
+    return jsonDecode(res.body);
   }
 }
