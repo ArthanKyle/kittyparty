@@ -8,6 +8,7 @@ class GiftAssets {
   static const String giftPath   = "assets/image/gift/";
   static const String ridesPath  = "assets/image/rides_mall/";
   static const String avatarPath = "assets/image/avatar_mall/";
+  static const String medalVIPPath = "assets/image/medal/";
 
   /// normalizedName -> full asset path (.svga)
   static final Map<String, String> fileMap = {};
@@ -39,7 +40,8 @@ class GiftAssets {
     return path.endsWith(".svga") &&
         (path.startsWith(giftPath) ||
             path.startsWith(ridesPath) ||
-            path.startsWith(avatarPath));
+            path.startsWith(avatarPath)) ||
+            path.startsWith(medalVIPPath);
   }
 
   static String _normalize(String s) =>
@@ -76,4 +78,7 @@ class GiftAssets {
   /// Avatar frame PNG
   static String avatarPng(String name) =>
       "$avatarPath${name.trim()}.png";
+
+  static String medalPng(String name) =>
+      "$medalVIPPath${name.trim()}.png";
 }

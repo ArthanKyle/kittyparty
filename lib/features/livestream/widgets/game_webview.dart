@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
@@ -41,13 +40,12 @@ class _GameWebViewState extends State<GameWebView> {
   bool isLoading = true;
   bool hasError = false;
   String? errorMessage;
-  bool _eventBound = false;
+
   bool _authInProgress = false;
   bool _authCompleted = false;
-  bool _sstokenIssued = false;
 
   late final String backendBaseUrl;
-  late final int baishunAppId; // ✅ INT64
+  late final int baishunAppId;
   late final String baishunAppKey;
 
   String? _lastSsToken;
@@ -61,10 +59,6 @@ class _GameWebViewState extends State<GameWebView> {
   void initState() {
     super.initState();
 
-    _bsSub = _bsEventChannel
-        .receiveBroadcastStream()
-        .listen(_onNativeEvent);
-
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     backendBaseUrl = _normalizeBaseUrl(dotenv.env['BASE_URL'] ?? '');
@@ -74,6 +68,12 @@ class _GameWebViewState extends State<GameWebView> {
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..enableZoom(false)
+      ..addJavaScriptChannel(
+        'KITTY',
+        onMessageReceived: (msg) {
+          debugPrint("🟣 JS LOG: ${msg.message}");
+        },
+      )
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (_) {
@@ -85,7 +85,12 @@ class _GameWebViewState extends State<GameWebView> {
             });
           },
           onPageFinished: (_) async {
+            // 1️⃣ Inject console.log bridge
+            await controller.runJavaScript(_consoleBridge());
+
+            // 2️⃣ Inject auth hooks
             await controller.runJavaScript(_authHooks());
+
             if (mounted) setState(() => isLoading = false);
           },
           onWebResourceError: (e) => _setFatalError(e.description),
@@ -98,12 +103,43 @@ class _GameWebViewState extends State<GameWebView> {
           .setMediaPlaybackRequiresUserGesture(false);
     }
 
-    if (Platform.isAndroid && !_eventBound) {
-      _eventBound = true;
-      _bsEventChannel
-          .receiveBroadcastStream()
-          .listen(_onNativeEvent);
-    }
+    _bsSub = _bsEventChannel
+        .receiveBroadcastStream()
+        .listen(_onNativeEvent);
+  }
+
+  // ===========================
+  // JS CONSOLE BRIDGE
+  // ===========================
+  String _consoleBridge() {
+    return """
+  (function () {
+    if (window.__KP_CONSOLE_BOUND__) return;
+    window.__KP_CONSOLE_BOUND__ = true;
+  
+    const oldLog = console.log;
+    console.log = function () {
+      try {
+        window.KITTY.postMessage(JSON.stringify({
+          type: 'log',
+          data: Array.from(arguments)
+        }));
+      } catch (e) {}
+      oldLog.apply(console, arguments);
+    };
+  
+    const oldErr = console.error;
+    console.error = function () {
+      try {
+        window.KITTY.postMessage(JSON.stringify({
+          type: 'error',
+          data: Array.from(arguments)
+        }));
+      } catch (e) {}
+      oldErr.apply(console, arguments);
+    };
+  })();
+  """;
   }
 
   // ===========================
@@ -111,35 +147,70 @@ class _GameWebViewState extends State<GameWebView> {
   // ===========================
   String _normalizeBaseUrl(String url) {
     var u = url.trim();
-    while (u.endsWith('/')) u = u.substring(0, u.length - 1);
+    while (u.endsWith('/')) {
+      u = u.substring(0, u.length - 1);
+    }
     return u;
   }
 
   Uri _games(String path) =>
-      Uri.parse('$backendBaseUrl/games/${path.startsWith('/')
-          ? path.substring(1)
-          : path}');
+      Uri.parse('$backendBaseUrl/games/${path.startsWith('/') ? path.substring(1) : path}');
 
   // ===========================
-  // BAISHUN SIGNATURE (CORRECT)
-  // md5(app_id + user_id + game_id + provider_name + timestamp + nonce + app_key)
+  // AUTH HOOKS
   // ===========================
-  int _timestampSeconds() =>
-      DateTime
-          .now()
-          .millisecondsSinceEpoch ~/ 1000;
+  String _authHooks() {
+    final ss = _lastSsToken ?? '';
+    final uid = widget.userId;
+    final host = Uri.parse(backendBaseUrl).host;
 
-  String _randomNonce({int length = 24}) {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final rnd = Random.secure();
-    return List
-        .generate(length, (_) => chars[rnd.nextInt(chars.length)])
-        .join();
+    return """
+(function () {
+  window.__KP_SSTOKEN__ = ${jsonEncode(ss)};
+  window.__KP_USERID__ = ${jsonEncode(uid)};
+
+  function isBackend(url) {
+    try {
+      return new URL(url, location.href).host === "$host";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  const oldFetch = window.fetch;
+  if (oldFetch) {
+    window.fetch = function (input, init) {
+      init = init || {};
+      init.headers = init.headers || {};
+      const url = typeof input === "string" ? input : input.url;
+
+      if (isBackend(url)) {
+        if (window.__KP_SSTOKEN__) {
+          init.headers["ss_token"] = window.__KP_SSTOKEN__;
+          init.headers["sstoken"] = window.__KP_SSTOKEN__;
+        }
+        init.headers["user_id"] = window.__KP_USERID__;
+      }
+      return oldFetch.call(this, input, init);
+    };
+  }
+})();
+""";
   }
 
   // ===========================
   // BACKEND CALLS
   // ===========================
+  int _timestampSeconds() =>
+      DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+  String _randomNonce({int length = 24}) {
+    const chars =
+        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final rnd = Random.secure();
+    return List.generate(length, (_) => chars[rnd.nextInt(chars.length)]).join();
+  }
+
   Future<Map<String, dynamic>> _generateOtpAndBalance() async {
     final resp = await http.post(
       _games('generate_code_and_get_balance'),
@@ -160,96 +231,28 @@ class _GameWebViewState extends State<GameWebView> {
     required String otp,
     required String userId,
   }) async {
-    final int ts = _timestampSeconds();
-    final String nonce = _randomNonce();
+    final ts = _timestampSeconds();
+    final nonce = _randomNonce();
+    final raw = '$nonce$baishunAppKey$ts';
+    final signature = md5.convert(utf8.encode(raw)).toString();
 
-    // Signature = md5(signature_nonce + appKey + timestamp)
-    final String raw = '$nonce$baishunAppKey$ts';
-    final String signature =
-    md5.convert(utf8.encode(raw)).toString();
-
-    final Uri endpoint = _games('v1/api/get_sstoken');
-
-    final payload = <String, dynamic>{
-      'app_id': baishunAppId,     // validated only
-      'user_id': userId,
-      'code': otp,
-      'timestamp': ts,
-      'signature_nonce': nonce,
-      'signature': signature,
-    };
-
-    debugPrint("🟡 get_sstoken RAW = $raw");
-    debugPrint("🟡 get_sstoken MD5 = $signature");
-    debugPrint("🟡 get_sstoken PAYLOAD = ${jsonEncode(payload)}");
-
-    final resp = await http
-        .post(
-      endpoint,
+    final resp = await http.post(
+      _games('v1/api/get_sstoken'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(payload),
-    )
-        .timeout(const Duration(seconds: 12));
-
-    debugPrint("🟢 get_sstoken status = ${resp.statusCode}");
-    debugPrint("🟢 get_sstoken body = ${resp.body}");
-
-    if (resp.statusCode != 200) {
-      throw Exception('get_sstoken failed (HTTP ${resp.statusCode})');
-    }
+      body: jsonEncode({
+        'app_id': baishunAppId,
+        'user_id': userId,
+        'code': otp,
+        'timestamp': ts,
+        'signature_nonce': nonce,
+        'signature': signature,
+      }),
+    );
 
     final body = jsonDecode(resp.body);
-    if (body['code'] != 0) {
-      throw Exception(body['message'] ?? 'get_sstoken error');
-    }
+    if (body['code'] != 0) throw Exception(body['message']);
 
-    final ssToken = (body['data']?['ss_token'] ?? '').toString();
-    if (ssToken.isEmpty) {
-      throw Exception('ss_token missing');
-    }
-
-    return ssToken;
-  }
-
-  // ===========================
-  // JS INJECTION
-  // ===========================
-  String _authHooks() {
-    final ss = _lastSsToken ?? '';
-    final uid = widget.userId;
-    final host = Uri
-        .parse(backendBaseUrl)
-        .host;
-
-    return """
-  (function () {
-    window.__KP_SSTOKEN__ = ${jsonEncode(ss)};
-    window.__KP_USERID__ = ${jsonEncode(uid)};
-  
-    function isBackend(url) {
-      try { return new URL(url, location.href).host === "$host"; }
-      catch (e) { return false; }
-    }
-  
-    const oldFetch = window.fetch;
-    if (oldFetch) {
-      window.fetch = function(input, init) {
-        init = init || {};
-        init.headers = init.headers || {};
-        const url = typeof input === "string" ? input : input.url;
-  
-        if (isBackend(url)) {
-          if (window.__KP_SSTOKEN__) {
-            init.headers["ss_token"] = window.__KP_SSTOKEN__;
-            init.headers["sstoken"] = window.__KP_SSTOKEN__;
-          }
-          init.headers["user_id"] = window.__KP_USERID__;
-        }
-        return oldFetch.call(this, input, init);
-      };
-    }
-  })();
-  """;
+    return body['data']['ss_token'];
   }
 
   Future<void> _pushAuth(String token) async {
@@ -261,11 +264,7 @@ class _GameWebViewState extends State<GameWebView> {
   // NATIVE EVENTS
   // ===========================
   void _onNativeEvent(dynamic event) async {
-    // 🔒 HARD GUARD — FIRST LINE
-    if (_authInProgress || _authCompleted) {
-      debugPrint("⚠️ get_sstoken skipped (already handled)");
-      return;
-    }
+    if (_authInProgress || _authCompleted) return;
 
     _authInProgress = true;
 
@@ -274,11 +273,8 @@ class _GameWebViewState extends State<GameWebView> {
       final jsCallback = obj['jsCallback'] ?? 'onGetConfig';
 
       final gen = await _generateOtpAndBalance();
-      final otp = gen['otp'];
-      final balance = gen['balance'];
-
       final ssToken = await _exchangeOtpToSsToken(
-        otp: otp,
+        otp: gen['otp'],
         userId: widget.userId,
       );
 
@@ -292,8 +288,8 @@ class _GameWebViewState extends State<GameWebView> {
         language: '2',
         gsp: 101,
         roomId: widget.roomId,
-        code: otp,
-        balance: balance,
+        code: gen['otp'],
+        balance: gen['balance'],
         gameConfig: GameConfig(sceneMode: 0, currencyIcon: ''),
       );
 
@@ -301,11 +297,9 @@ class _GameWebViewState extends State<GameWebView> {
         '$jsCallback(${jsonEncode(config.toJson())});',
       );
 
-      // ✅ MARK SUCCESS ONLY AT THE END
       _authCompleted = true;
       debugPrint("✅ ss_token issued and config sent");
     } catch (e) {
-      debugPrint("❌ auth flow failed: $e");
       _authInProgress = false;
       _setFatalError(e.toString());
     }
@@ -332,36 +326,13 @@ class _GameWebViewState extends State<GameWebView> {
 
   @override
   Widget build(BuildContext context) {
-    // ---- DEBUG LOGS (VALID LOCATION) ----
-    debugPrint(
-      "🧱 [BUILD] hasError=$hasError | isLoading=$isLoading | errorMessage=$errorMessage",
-    );
-
-    if (!hasError) {
-      debugPrint("🧱 [BUILD] WebView should be visible");
-    }
-
-    if (isLoading && !hasError) {
-      debugPrint("🧱 [BUILD] Loading spinner visible");
-    }
-
-    if (hasError) {
-      debugPrint("🧱 [BUILD] Error UI visible → $errorMessage");
-    }
-
-    // ---- UI ----
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.gameName),
-      ),
+      appBar: AppBar(title: Text(widget.gameName)),
       body: Stack(
         children: [
-          if (!hasError)
-            WebViewWidget(controller: controller),
-
+          if (!hasError) WebViewWidget(controller: controller),
           if (isLoading && !hasError)
             const Center(child: CircularProgressIndicator()),
-
           if (hasError)
             Center(
               child: Text(

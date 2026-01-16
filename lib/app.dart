@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kittyparty/features/auth/view/login_selection.dart';
+import 'package:kittyparty/features/landing/view/event_pages/honor_ranking_page.dart';
 import 'package:kittyparty/features/livestream/view/live_audio_room.dart';
 import 'package:kittyparty/features/profile/profile_pages/agency/create_agency.dart';
 import 'package:kittyparty/features/profile/profile_pages/agency_room.dart';
@@ -21,6 +22,10 @@ import 'features/auth/view/register.dart';
 import 'features/auth/widgets/auth_module.dart';
 // Navigation / Pages
 import 'features/auth/viewmodel/register_viewmodel.dart';
+import 'features/landing/view/event_pages/cp_ranking_page.dart';
+import 'features/landing/view/event_pages/treasure_hunt_page.dart';
+import 'features/landing/view/event_pages/wealth_reward_page.dart';
+import 'features/landing/view/event_pages/weekly_star.dart';
 import 'features/landing/view/landing_page.dart';
 import 'features/landing/view/messages_page.dart';
 import 'features/navigation/page_handler.dart';
@@ -115,8 +120,33 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute(builder: (_) => const ConvertCoinsPage());
           case AppRoutes.transactions:
             return MaterialPageRoute(builder: (_) => const TransactionPage());
+          case AppRoutes.honorRanking:
+            return MaterialPageRoute(builder: (_) => const HonorRankingPage());
 
-          // ✅ Profile subpages
+        // ================= EVENT PAGES =================
+
+          case AppRoutes.treasureHunt:
+            return MaterialPageRoute(
+              builder: (_) => const TreasureHuntPage(),
+            );
+
+          case AppRoutes.wealthReward:
+            return MaterialPageRoute(
+              builder: (_) => const WealthRewardPage(),
+            );
+
+          case AppRoutes.weeklyStar:
+            return MaterialPageRoute(
+              builder: (_) => const WeeklyStar(),
+            );
+
+          case AppRoutes.cpRanking:
+            return MaterialPageRoute(
+              builder: (_) => const CPRankingPage(),
+            );
+
+
+        // ✅ Profile subpages
           case AppRoutes.vip:
             return MaterialPageRoute(builder: (_) => const VipPage());
           case AppRoutes.collection:
@@ -190,9 +220,14 @@ abstract class AppRoutes {
   static const mall = "/profile/mall";
   static const invite = "/profile/invite";
   static const tasks = "/profile/tasks";
-  static const monthlyRecharge = "/profile/monthly-recharge";
   static const vip = "/profile/vip";
   static const agency = "/agency";
   static const diamond = "/recharge/convert";
   static const transactions = "/profile/transactions";
+  static const String treasureHunt = '/event/treasure';
+  static const String monthlyRecharge = '/event/monthly-recharge';
+  static const String wealthReward = '/event/wealth';
+  static const String weeklyStar = '/event/weekly-star';
+  static const String cpRanking = '/event/cp-ranking';
+  static const String honorRanking ='/honor-ranking';
 }

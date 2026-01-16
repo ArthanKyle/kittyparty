@@ -28,17 +28,39 @@ class _BannerCarouselState extends State<BannerCarousel> {
 
 
   late final Map<String, String> bannerRouteByImage = {
-    'assets/image/banner/treasure-gold-coins-banner.jpg': AppRoutes.mall,
-    'assets/image/banner/win-coin-back-banner.jpg': AppRoutes.wallet,
-    'assets/image/banner/couple-event-banner.jpg': AppRoutes.posts,
-    'assets/image/banner/invite-banner.jpg': AppRoutes.invite,
-    'assets/image/banner/monthly-recharge-banner.jpg': AppRoutes.monthlyRecharge,
-    'assets/image/banner/pretty-id-banner.jpg': AppRoutes.profile,
-    'assets/image/banner/wealth-level-reward-banner.jpg': AppRoutes.level,
-    'assets/image/banner/weekly-star-banner.jpg': AppRoutes.tasks,
-    'assets/image/banner/ad-event-banner.jpg': AppRoutes.landing,
-    'assets/image/banner/task-center-banner.jpg' : AppRoutes.tasks,
+    // EVENTS
+    'assets/image/banner/treasure-gold-coins-banner.jpg':
+    AppRoutes.treasureHunt,
+
+    'assets/image/banner/monthly-recharge-banner.jpg':
+    AppRoutes.monthlyRecharge,
+
+    'assets/image/banner/wealth-level-reward-banner.jpg':
+    AppRoutes.wealthReward,
+
+    'assets/image/banner/weekly-star-banner.jpg':
+    AppRoutes.weeklyStar,
+
+    'assets/image/banner/couple-event-banner.jpg':
+    AppRoutes.cpRanking,
+
+    // NON-EVENT / EXISTING
+    'assets/image/banner/win-coin-back-banner.jpg':
+    AppRoutes.wallet,
+
+    'assets/image/banner/invite-banner.jpg':
+    AppRoutes.invite,
+
+    'assets/image/banner/pretty-id-banner.jpg':
+    AppRoutes.setting,
+
+    'assets/image/banner/task-center-banner.jpg':
+    AppRoutes.tasks,
+
+    'assets/image/banner/ad-event-banner.jpg':
+    AppRoutes.landing,
   };
+
 
   int _currentIndex = 0;
 

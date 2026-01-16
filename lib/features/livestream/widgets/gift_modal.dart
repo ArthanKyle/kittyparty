@@ -33,7 +33,7 @@ class _GiftModalState extends State<GiftModal>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
   }
 
   @override
@@ -102,27 +102,72 @@ class _GiftModalState extends State<GiftModal>
     _gift("5009", "Neon Phantom", 25000, lucky: true),
     _gift("5010", "Gilded Phantom", 55000, lucky: true),
 
-  // ================= AVATAR FRAMES (LUCKY) =================
-      _gift("6001", "Luxury car lion shadow avatar frame", 55000, lucky: true),
-      _gift("6002", "Heart-fluttering 520 profile picture frame", 10000, lucky: true),
-      _gift("6003", "520 Flower Profile Picture Frame", 20000, lucky: true),
-      _gift("6004", "Black Rose Avatar Frame", 15000, lucky: true),
-      _gift("6005", "Green Rose Avatar Frame", 15000, lucky: true),
-      _gift("6006", "Crystal Crown - Silver", 3000, lucky: true),
-      _gift("6007", "Springtime Vitality - Profile Picture Frame", 4000, lucky: true),
-      _gift("6008", "Let's get married profile picture frame", 10000, lucky: true),
-      _gift("6009", "Eternal Love Avatar Frame", 10000, lucky: true),
-      _gift("6010", "CP Cat - Female", 5000, lucky: true),
-      _gift("6011", "CP Cat - Male", 8000, lucky: true),
-      _gift("6012", "Purple Rose Avatar Frame", 12000, lucky: true),
-      _gift("6013", "Blue Rose Avatar Frame", 15000, lucky: true),
-      _gift("6014", "Pink Rose Avatar Frame", 10000, lucky: true),
-    ];
+    // ================= AVATAR FRAMES (LUCKY) =================
+    _gift("6001", "Luxury car lion shadow avatar frame", 55000, lucky: true),
+    _gift("6002", "Heart-fluttering 520 profile picture frame", 10000, lucky: true),
+    _gift("6003", "520 Flower Profile Picture Frame", 20000, lucky: true),
+    _gift("6004", "Black Rose Avatar Frame", 15000, lucky: true),
+    _gift("6005", "Green Rose Avatar Frame", 15000, lucky: true),
+    _gift("6006", "Crystal Crown - Silver", 3000, lucky: true),
+    _gift("6007", "Springtime Vitality - Profile Picture Frame", 4000, lucky: true),
+    _gift("6008", "Let's get married profile picture frame", 10000, lucky: true),
+    _gift("6009", "Eternal Love Avatar Frame", 10000, lucky: true),
+    _gift("6010", "CP Cat - Female", 5000, lucky: true),
+    _gift("6011", "CP Cat - Male", 8000, lucky: true),
+    _gift("6012", "Purple Rose Avatar Frame", 12000, lucky: true),
+    _gift("6013", "Blue Rose Avatar Frame", 15000, lucky: true),
+    _gift("6014", "Pink Rose Avatar Frame", 10000, lucky: true),
+
+    // ================= MEDALS (VIP) =================
+    _gift("7001", "Medal Level 1", 0, lucky: true),
+    _gift("7002", "Medal Level 2", 0, lucky: true),
+    _gift("7003", "Medal Level 3", 0, lucky: true),
+    _gift("7004", "Medal Level 4", 0, lucky: true),
+    _gift("7005", "Medal Level 5", 0, lucky: true),
+    _gift("7006", "Medal Level 6", 0, lucky: true),
+    _gift("7007", "Medal Level 7", 0, lucky: true),
+
+  ];
 
 
-  List<GiftItem> get _general => _gifts.where((g) => !g.isLucky && !g.isCouple).toList();
-  List<GiftItem> get _lucky => _gifts.where((g) => g.isLucky).toList();
-  List<GiftItem> get _couple => _gifts.where((g) => g.isCouple).toList();
+
+  /// ================= FILTERED LISTS =================
+
+  List<GiftItem> get _general =>
+      _gifts.where((g) =>
+      !g.isLucky &&
+          !g.isCouple &&
+          !g.id.startsWith('5') &&
+          !g.id.startsWith('6')
+      ).toList();
+
+  /// Lucky tab → ONLY 3xxx gifts
+  List<GiftItem> get _lucky =>
+      _gifts.where((g) =>
+      g.isLucky &&
+          g.id.startsWith('3')
+      ).toList();
+
+  /// Rides tab → 5xxx (even though they are lucky)
+  List<GiftItem> get _rides =>
+      _gifts.where((g) =>
+          g.id.startsWith('5')
+      ).toList();
+
+  /// Frame tab → 6xxx (even though they are lucky)
+  List<GiftItem> get _frames =>
+      _gifts.where((g) =>
+          g.id.startsWith('6')
+      ).toList();
+
+  /// Couple tab → unchanged
+  List<GiftItem> get _couple =>
+      _gifts.where((g) => g.isCouple).toList();
+
+  /// VIP tab → future-proof (7xxx medals, etc.)
+  List<GiftItem> get _vip =>
+      _gifts.where((g) => g.id.startsWith('7')).toList();
+
 
   /// ================== UI ==================
   @override
@@ -149,11 +194,15 @@ class _GiftModalState extends State<GiftModal>
               controller: _tabController,
               children: [
                 _grid(_general),
+                _grid(_rides),
                 _grid(_lucky),
-                _grid(_couple),   // FIXED — no crash anymore
+                _grid(_frames),
+                _grid(_couple),
+                _grid(_vip),
               ],
             ),
           ),
+
         ],
       ),
     );
@@ -206,17 +255,22 @@ class _GiftModalState extends State<GiftModal>
     ),
   );
 
-  Widget _tabs()=>TabBar(
-    controller:_tabController,
-    labelColor:Colors.white,
-    unselectedLabelColor:Colors.white54,
-    indicatorColor:Colors.pinkAccent,
+  Widget _tabs() => TabBar(
+    controller: _tabController,
+    isScrollable: true,
+    labelColor: Colors.white,
+    unselectedLabelColor: Colors.white54,
+    indicatorColor: Colors.pinkAccent,
     tabs: const [
-      Tab(text:"General"),
-      Tab(text:"Lucky"),
-      Tab(text:"Couple"),
+      Tab(text: "General"),
+      Tab(text: "Rides"),
+      Tab(text: "Lucky"),
+      Tab(text: "Frame"),
+      Tab(text: "Couple"),
+      Tab(text: "VIP"),
     ],
   );
+
 
   Widget _grid(List<GiftItem> list)=>GridView.builder(
     padding:const EdgeInsets.all(12),
@@ -333,6 +387,11 @@ class GiftItem {
     // 6xxx → avatar frames
     if (prefix == '6') {
       return GiftAssets.avatarPng(baseName);
+    }
+
+    // 7xxx → medals (VIP)
+    if (prefix == '7') {
+      return GiftAssets.medalPng(baseName);
     }
 
     // default → gifts

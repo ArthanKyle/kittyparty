@@ -124,7 +124,7 @@ class _MonthlyRechargePageState extends State<MonthlyRechargePage> {
                 child: Image.asset(
                   height: 250,
                   width: 90,
-                  'assets/image/avatar/520 Flower Profile Picture Frame.png',
+                  'assets/image/avatar_mall/520 Flower Profile Picture Frame.png',
                 ),
               ),
               Column(
@@ -139,7 +139,7 @@ class _MonthlyRechargePageState extends State<MonthlyRechargePage> {
                     child: Image.asset(
                       height: 90,
                       width: 90,
-                      'assets/image/avatar/520 Flower Profile Picture Frame.png',
+                      'assets/image/avatar_mall/520 Flower Profile Picture Frame.png',
                     ),
                   ),
                   Container(
@@ -151,7 +151,7 @@ class _MonthlyRechargePageState extends State<MonthlyRechargePage> {
                     child: Image.asset(
                       height: 90,
                       width: 90,
-                      'assets/image/avatar/520 Flower Profile Picture Frame.png',
+                      'assets/image/avatar_mall/520 Flower Profile Picture Frame.png',
                     ),
                   ),
                 ],

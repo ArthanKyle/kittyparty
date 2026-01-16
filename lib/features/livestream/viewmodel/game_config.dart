@@ -1,5 +1,3 @@
-// game_webview.dart or a separate data model file
-
 class GameConfig {
   final int sceneMode;
   final String currencyIcon;

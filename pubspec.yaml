@@ -118,9 +118,8 @@ flutter:
     - assets/image/banner/
     - assets/icons/
     - assets/icons/item/
-    - assets/image/
-    - assets/image/
-    - assets/icons/
+    - assets/image/recharge_badge/
+    - assets/image/rides_ranking/
     - .env
 
   # An image asset can refer to one or more resolution-specific "variants", see

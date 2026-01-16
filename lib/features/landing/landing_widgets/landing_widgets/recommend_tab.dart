@@ -4,6 +4,7 @@ import 'package:kittyparty/features/landing/landing_widgets/landing_widgets/room
 import 'package:kittyparty/features/livestream/view/live_audio_room.dart';
 import 'package:kittyparty/core/services/api/room_service.dart';
 import 'package:kittyparty/core/utils/user_provider.dart';
+import '../../../../app.dart';
 import '../../../../core/constants/strings.dart';
 import '../../viewmodel/recommend_tab_viewmodel.dart';
 import 'banner_carousel.dart';
@@ -268,17 +269,21 @@ class _RecommendTabState extends State<RecommendTab> {
 
                   // ✅ core parts kept (kept your 110 heights)
                   Row(
-                    children: const [
+                    children: [
                       Expanded(
                         child: ModeCard(
                           title: 'RANKING',
                           height: 110,
-                          gradient: [Color(0xFFFDBA74), Color(0xFFF59E0B)],
+                          gradient: const [Color(0xFFFDBA74), Color(0xFFF59E0B)],
                           icon: Icons.emoji_events_rounded,
+                          onTap: () {
+                            Navigator.pushNamed(context, AppRoutes.honorRanking);
+                          },
                         ),
                       ),
-                      SizedBox(width: 12),
-                      Expanded(
+
+                      const SizedBox(width: 12),
+                      const Expanded(
                         child: ModeCard(
                           title: 'EVENT CENTER',
                           height: 110,

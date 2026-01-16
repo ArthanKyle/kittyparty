@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -45,8 +46,11 @@ class RechargeService {
   Future<TransactionModel> confirmPayment({
     required String transactionId,
   }) async {
-    final url =
-    Uri.parse("$baseUrl/recharge/confirm-payment");
+    final url = Uri.parse("$baseUrl/recharge/confirm-payment");
+
+    // 🔍 LOG: request
+    debugPrint("🔵 [CONFIRM PAYMENT] URL: $url");
+    debugPrint("🔵 [CONFIRM PAYMENT] Payload: { transactionId: $transactionId }");
 
     final response = await http.post(
       url,
@@ -54,10 +58,22 @@ class RechargeService {
       body: jsonEncode({"transactionId": transactionId}),
     );
 
+    // 🔍 LOG: raw response
+    debugPrint("🟡 [CONFIRM PAYMENT] Status Code: ${response.statusCode}");
+    debugPrint("🟡 [CONFIRM PAYMENT] Raw Body: ${response.body}");
+
     final data = jsonDecode(response.body);
+
+    // 🔍 LOG: decoded response
+    debugPrint("🟢 [CONFIRM PAYMENT] Decoded JSON: $data");
+
     if (data['success'] != true) {
+      debugPrint("🔴 [CONFIRM PAYMENT] Error: ${data['error']}");
       throw Exception(data['error'] ?? "Payment confirmation failed");
     }
+
+    // 🔍 LOG: success payload
+    debugPrint("✅ [CONFIRM PAYMENT] TopUp Data: ${data['topUp']}");
 
     return TransactionModel.fromJson(data['topUp']);
   }

@@ -27,129 +27,134 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
   @override
   Widget build(BuildContext context) {
     final walletVM = context.watch<WalletViewModel>();
-    final userProvider = context.read<UserProvider>();
-
     final int currentCoins = walletVM.coins;
 
     return Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            const ConvertDiamondsAppBar(),
-            const SizedBox(height: 10),
+      backgroundColor: Colors.white,
+      body: Column(
+        children: [
+          /// ✅ FIXED APP BAR (non-scrollable)
+          const ConvertDiamondsAppBar(),
 
-            DiamondCard(
-              balance: walletVM.diamonds,
-              onConvert: () {},
-            ),
+          /// ✅ SCROLLABLE CONTENT
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  DiamondCard(
+                    balance: walletVM.diamonds,
+                    onConvert: () {},
+                  ),
 
-            const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "My Coins: $currentCoins",
-                style: const TextStyle(fontSize: 16),
-              ),
-            ),
-            const SizedBox(height: 10),
+                  Text(
+                    "My Coins: $currentCoins",
+                    style: const TextStyle(fontSize: 16),
+                  ),
 
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade100,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: TextField(
-                controller: _coinController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  hintText: "Enter coins...",
+                  const SizedBox(height: 10),
+
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: TextField(
+                      controller: _coinController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        hintText: "Enter coins...",
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          coinsToConvert = int.tryParse(value) ?? 0;
+                          diamonds = coinsToConvert * coinToDiamondRate;
+                        });
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Text(
+                      "$diamonds diamonds",
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.blue,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+              Center(
+                  child: ElevatedButton(
+                    onPressed: (coinsToConvert > 0 &&
+                        coinsToConvert <= currentCoins)
+                        ? () async {
+                      DialogLoading(subtext: "Processing").build(context);
+
+                      try {
+                        await walletVM
+                            .convertCoinsToDiamonds(coinsToConvert);
+
+                        Navigator.of(context).pop();
+
+                        _coinController.clear();
+                        setState(() {
+                          coinsToConvert = 0;
+                          diamonds = 0;
+                        });
+
+                        DialogInfo(
+                          headerText: "Conversion Successful",
+                          subText:
+                          "Your diamonds are now ${walletVM.diamonds}.",
+                          confirmText: "OK",
+                          onConfirm: () => Navigator.pop(context),
+                          onCancel: () => Navigator.pop(context),
+                        ).build(context);
+                      } catch (_) {
+                        Navigator.of(context).pop();
+
+                        DialogInfo(
+                          headerText: "Conversion Failed",
+                          subText:
+                          "Unable to complete the exchange. Please try again.",
+                          confirmText: "OK",
+                          onConfirm: () => Navigator.pop(context),
+                          onCancel: () => Navigator.pop(context),
+                        ).build(context);
+                      }
+                    }
+                        : null,
+                    child: const Text(
+                      "Confirm Exchange",
+                      style: TextStyle(color: AppColors.accentWhite),
+                    ),
+                  ),
                 ),
-                onChanged: (value) {
-                  setState(() {
-                    coinsToConvert = int.tryParse(value) ?? 0;
-                    diamonds = coinsToConvert * coinToDiamondRate;
-                  });
-                },
+                ],
               ),
             ),
-
-            const SizedBox(height: 20),
-
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
-              ),
-              child: Text(
-                "$diamonds diamonds",
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.blue,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            ElevatedButton(
-              onPressed: (coinsToConvert > 0 &&
-                  coinsToConvert <= currentCoins)
-                  ? () async {
-                DialogLoading(subtext: "Processing").build(context);
-
-                try {
-                  await walletVM.convertCoinsToDiamonds(coinsToConvert);
-
-                  if (Navigator.of(context).canPop()) {
-                    Navigator.of(context).pop();
-                  }
-
-                  _coinController.clear();
-                  setState(() {
-                    coinsToConvert = 0;
-                    diamonds = 0;
-                  });
-
-                  DialogInfo(
-                    headerText: "Conversion Successful",
-                    subText:
-                    "Your diamonds are now ${walletVM.diamonds}.",
-                    confirmText: "OK",
-                    onConfirm: () => Navigator.pop(context),
-                    onCancel: () => Navigator.pop(context),
-                  ).build(context);
-                } catch (_) {
-                  if (Navigator.of(context).canPop()) {
-                    Navigator.of(context).pop();
-                  }
-
-                  DialogInfo(
-                    headerText: "Conversion Failed",
-                    subText:
-                    "Unable to complete the exchange. Please try again.",
-                    confirmText: "OK",
-                    onConfirm: () => Navigator.pop(context),
-                    onCancel: () => Navigator.pop(context),
-                  ).build(context);
-                }
-              }
-                  : null,
-              child: const Text("Confirm Exchange",
-                style: TextStyle(
-                    color: AppColors.accentWhite
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
