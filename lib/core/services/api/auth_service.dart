@@ -172,6 +172,32 @@ class AuthService {
     }
   }
 
+  /// 🔐 Auto Login after Register (ID-based, no password)
+  Future<Map<String, dynamic>> autoLoginById({
+    required String userIdentification,
+  }) async {
+    final uri = Uri.parse('$baseUrl/auth/login');
+
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        "identifier": userIdentification,
+        "LoginMethod": "ID",
+        "autoLogin": true, // ✅ critical flag
+      }),
+    );
+
+    final data = _decodeResponse(response);
+
+    if (response.statusCode == 200) {
+      return data;
+    } else {
+      throw HttpException(data['error'] ?? 'Auto login failed');
+    }
+  }
+
+
   /// 🚪 Logout (client-side clear)
   Future<Map<String, dynamic>> logout(String token) async {
     final uri = Uri.parse('$baseUrl/auth/logout');

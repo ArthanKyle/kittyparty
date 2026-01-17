@@ -35,195 +35,196 @@ class GameWebView extends StatefulWidget {
 
 class _GameWebViewState extends State<GameWebView> {
   late final WebViewController controller;
-  late StreamSubscription _bsSub;
+  late final StreamSubscription _bsSub;
 
-  bool isLoading = true;
-  bool hasError = false;
-  String? errorMessage;
+  bool _loading = true;
+  bool _fatalError = false;
+  String? _error;
 
-  bool _authInProgress = false;
-  bool _authCompleted = false;
+  bool _configSent = false;
 
   late final String backendBaseUrl;
   late final int baishunAppId;
   late final String baishunAppKey;
 
-  String? _lastSsToken;
+  static const EventChannel _baishunChannel =
+  EventChannel('kitty');
 
-  static const EventChannel _bsEventChannel = EventChannel('kitty');
-
-  // ===========================
+  // =========================
   // INIT
-  // ===========================
+  // =========================
   @override
   void initState() {
     super.initState();
 
+    debugPrint('🟢 [GameWebView] initState');
+
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-    backendBaseUrl = _normalizeBaseUrl(dotenv.env['BASE_URL'] ?? '');
+    backendBaseUrl = _normalize(dotenv.env['BASE_URL'] ?? '');
     baishunAppId = int.parse(dotenv.env['BAISHUN_APP_ID']!);
     baishunAppKey = dotenv.env['BAISHUN_APP_KEY']!;
 
+    debugPrint('🧩 Config → baseUrl=$backendBaseUrl appId=$baishunAppId');
+
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..enableZoom(false)
-      ..addJavaScriptChannel(
-        'KITTY',
-        onMessageReceived: (msg) {
-          debugPrint("🟣 JS LOG: ${msg.message}");
-        },
-      )
+      ..setBackgroundColor(const Color(0x00000000))
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageStarted: (_) {
-            if (!mounted) return;
-            setState(() {
-              isLoading = true;
-              hasError = false;
-              errorMessage = null;
-            });
+          onPageStarted: (url) {
+            debugPrint('🌐 WebView onPageStarted → $url');
+            setState(() => _loading = true);
           },
-          onPageFinished: (_) async {
-            // 1️⃣ Inject console.log bridge
-            await controller.runJavaScript(_consoleBridge());
-
-            // 2️⃣ Inject auth hooks
-            await controller.runJavaScript(_authHooks());
-
-            if (mounted) setState(() => isLoading = false);
+          onPageFinished: (url) {
+            debugPrint('🌐 WebView onPageFinished → $url');
+            setState(() => _loading = false);
           },
-          onWebResourceError: (e) => _setFatalError(e.description),
+          onWebResourceError: (e) {
+            debugPrint('❌ WebView error → ${e.description}');
+            _setFatal(e.description);
+          },
         ),
       )
       ..loadRequest(Uri.parse(widget.url));
 
     if (controller.platform is AndroidWebViewController) {
+      debugPrint('🤖 AndroidWebViewController detected');
       (controller.platform as AndroidWebViewController)
           .setMediaPlaybackRequiresUserGesture(false);
     }
 
-    _bsSub = _bsEventChannel
+    debugPrint('📡 Subscribing to EventChannel');
+    _bsSub = _baishunChannel
         .receiveBroadcastStream()
-        .listen(_onNativeEvent);
+        .listen(
+      _onNativeEvent,
+      onError: (e) {
+        debugPrint('❌ EventChannel error → $e');
+      },
+    );
   }
 
-  // ===========================
-  // JS CONSOLE BRIDGE
-  // ===========================
-  String _consoleBridge() {
-    return """
-  (function () {
-    if (window.__KP_CONSOLE_BOUND__) return;
-    window.__KP_CONSOLE_BOUND__ = true;
-  
-    const oldLog = console.log;
-    console.log = function () {
-      try {
-        window.KITTY.postMessage(JSON.stringify({
-          type: 'log',
-          data: Array.from(arguments)
-        }));
-      } catch (e) {}
-      oldLog.apply(console, arguments);
-    };
-  
-    const oldErr = console.error;
-    console.error = function () {
-      try {
-        window.KITTY.postMessage(JSON.stringify({
-          type: 'error',
-          data: Array.from(arguments)
-        }));
-      } catch (e) {}
-      oldErr.apply(console, arguments);
-    };
-  })();
-  """;
-  }
+  // =========================
+  // NATIVE → FLUTTER EVENTS
+  // =========================
+  Future<void> _onNativeEvent(dynamic event) async {
+    debugPrint('📥 Native event received → $event');
 
-  // ===========================
-  // URL HELPERS
-  // ===========================
-  String _normalizeBaseUrl(String url) {
-    var u = url.trim();
-    while (u.endsWith('/')) {
-      u = u.substring(0, u.length - 1);
+    if (_fatalError) {
+      debugPrint('⚠️ Ignored event due to fatal error');
+      return;
     }
-    return u;
-  }
 
-  Uri _games(String path) =>
-      Uri.parse('$backendBaseUrl/games/${path.startsWith('/') ? path.substring(1) : path}');
-
-  // ===========================
-  // AUTH HOOKS
-  // ===========================
-  String _authHooks() {
-    final ss = _lastSsToken ?? '';
-    final uid = widget.userId;
-    final host = Uri.parse(backendBaseUrl).host;
-
-    return """
-(function () {
-  window.__KP_SSTOKEN__ = ${jsonEncode(ss)};
-  window.__KP_USERID__ = ${jsonEncode(uid)};
-
-  function isBackend(url) {
     try {
-      return new URL(url, location.href).host === "$host";
-    } catch (e) {
-      return false;
+      final obj = jsonDecode(event as String);
+      final jsCallback = obj['jsCallback'] as String;
+
+      debugPrint('🔔 JS Callback → $jsCallback');
+
+      if (jsCallback.contains('getConfig')) {
+        if (_configSent) {
+          debugPrint('⚠️ getConfig ignored (already sent)');
+          return;
+        }
+
+        debugPrint('▶️ Handling getConfig');
+        await _handleGetConfig(jsCallback);
+        _configSent = true;
+        debugPrint('✅ getConfig completed');
+      }
+
+      else if (jsCallback.contains('destroy')) {
+        debugPrint('🧹 destroy called');
+        controller.loadRequest(Uri.parse('about:blank'));
+        if (mounted) Navigator.of(context).pop();
+      }
+
+      else if (jsCallback.contains('gameRecharge')) {
+        debugPrint('💰 gameRecharge called');
+        // TODO: open payment mall
+      }
+
+      else if (jsCallback.contains('gameLoaded')) {
+        debugPrint('🎮 gameLoaded event');
+      }
+    } catch (e, s) {
+      debugPrint('❌ Native event handling error → $e');
+      debugPrint(s.toString());
+      _setFatal(e.toString());
     }
   }
 
-  const oldFetch = window.fetch;
-  if (oldFetch) {
-    window.fetch = function (input, init) {
-      init = init || {};
-      init.headers = init.headers || {};
-      const url = typeof input === "string" ? input : input.url;
+  // =========================
+  // GET CONFIG FLOW
+  // =========================
+  Future<void> _handleGetConfig(String jsCallback) async {
+    debugPrint('🔐 Generating OTP');
 
-      if (isBackend(url)) {
-        if (window.__KP_SSTOKEN__) {
-          init.headers["ss_token"] = window.__KP_SSTOKEN__;
-          init.headers["sstoken"] = window.__KP_SSTOKEN__;
-        }
-        init.headers["user_id"] = window.__KP_USERID__;
-      }
-      return oldFetch.call(this, input, init);
-    };
-  }
-})();
-""";
+    final gen = await _generateOtp();
+
+    debugPrint('🔐 OTP received → ${gen['otp']}');
+    debugPrint('💰 Balance → ${gen['balance']}');
+
+    debugPrint('🔁 Exchanging OTP for ss_token');
+    final ssToken = await _exchangeOtpToSsToken(
+      otp: gen['otp'],
+      userId: widget.userId,
+    );
+
+    debugPrint('🔑 ss_token issued (length=${ssToken.length})');
+
+    final config = GetConfigData(
+      appChannel: 'kitty',
+      appId: baishunAppId,
+      userId: widget.userId,
+      gameMode: '3',
+      language: '2',
+      gsp: 101,
+      roomId: widget.roomId,
+      code: gen['otp'],
+      balance: gen['balance'],
+      gameConfig: GameConfig(sceneMode: 0, currencyIcon: ''),
+    );
+
+    final js = '$jsCallback(${jsonEncode(config.toJson())});';
+    debugPrint('📤 Sending config to JS → $js');
+
+    await controller.runJavaScript(js);
   }
 
-  // ===========================
+  // =========================
   // BACKEND CALLS
-  // ===========================
-  int _timestampSeconds() =>
-      DateTime.now().millisecondsSinceEpoch ~/ 1000;
+  // =========================
+  Uri _api(String path) =>
+      Uri.parse('$backendBaseUrl/$path');
 
-  String _randomNonce({int length = 24}) {
+  int _ts() => DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+  String _nonce({int len = 24}) {
     const chars =
         'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final rnd = Random.secure();
-    return List.generate(length, (_) => chars[rnd.nextInt(chars.length)]).join();
+    final r = Random.secure();
+    return List.generate(len, (_) => chars[r.nextInt(chars.length)]).join();
   }
 
-  Future<Map<String, dynamic>> _generateOtpAndBalance() async {
-    final resp = await http.post(
-      _games('generate_code_and_get_balance'),
+  Future<Map<String, dynamic>> _generateOtp() async {
+    debugPrint('🌐 POST generate_code_and_get_balance');
+
+    final r = await http.post(
+      _api('games/generate_code_and_get_balance'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'user_id': widget.userId}),
     );
 
-    final body = jsonDecode(resp.body);
-    if (body['code'] != 0) throw Exception(body['message']);
+    debugPrint('🌐 OTP response → ${r.body}');
+
+    final b = jsonDecode(r.body);
+    if (b['code'] != 0) throw Exception(b['message']);
 
     return {
-      'otp': body['otp'],
-      'balance': (body['balance'] as num).toDouble(),
+      'otp': b['otp'],
+      'balance': (b['balance'] as num).toDouble(),
     };
   }
 
@@ -231,13 +232,15 @@ class _GameWebViewState extends State<GameWebView> {
     required String otp,
     required String userId,
   }) async {
-    final ts = _timestampSeconds();
-    final nonce = _randomNonce();
+    final ts = _ts();
+    final nonce = _nonce();
     final raw = '$nonce$baishunAppKey$ts';
-    final signature = md5.convert(utf8.encode(raw)).toString();
+    final sign = md5.convert(utf8.encode(raw)).toString();
 
-    final resp = await http.post(
-      _games('v1/api/get_sstoken'),
+    debugPrint('🌐 POST get_sstoken ts=$ts nonce=$nonce');
+
+    final r = await http.post(
+      _api('games/v1/api/get_sstoken'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'app_id': baishunAppId,
@@ -245,98 +248,65 @@ class _GameWebViewState extends State<GameWebView> {
         'code': otp,
         'timestamp': ts,
         'signature_nonce': nonce,
-        'signature': signature,
+        'signature': sign,
       }),
     );
 
-    final body = jsonDecode(resp.body);
-    if (body['code'] != 0) throw Exception(body['message']);
+    debugPrint('🌐 get_sstoken response → ${r.body}');
 
-    return body['data']['ss_token'];
+    final b = jsonDecode(r.body);
+    if (b['code'] != 0) throw Exception(b['message']);
+
+    return b['data']['ss_token'];
   }
 
-  Future<void> _pushAuth(String token) async {
-    _lastSsToken = token;
-    await controller.runJavaScript(_authHooks());
-  }
-
-  // ===========================
-  // NATIVE EVENTS
-  // ===========================
-  void _onNativeEvent(dynamic event) async {
-    if (_authInProgress || _authCompleted) return;
-
-    _authInProgress = true;
-
-    try {
-      final obj = jsonDecode(event as String);
-      final jsCallback = obj['jsCallback'] ?? 'onGetConfig';
-
-      final gen = await _generateOtpAndBalance();
-      final ssToken = await _exchangeOtpToSsToken(
-        otp: gen['otp'],
-        userId: widget.userId,
-      );
-
-      await _pushAuth(ssToken);
-
-      final config = GetConfigData(
-        appChannel: 'kitty',
-        appId: baishunAppId,
-        userId: widget.userId,
-        gameMode: '3',
-        language: '2',
-        gsp: 101,
-        roomId: widget.roomId,
-        code: gen['otp'],
-        balance: gen['balance'],
-        gameConfig: GameConfig(sceneMode: 0, currencyIcon: ''),
-      );
-
-      await controller.runJavaScript(
-        '$jsCallback(${jsonEncode(config.toJson())});',
-      );
-
-      _authCompleted = true;
-      debugPrint("✅ ss_token issued and config sent");
-    } catch (e) {
-      _authInProgress = false;
-      _setFatalError(e.toString());
+  // =========================
+  // HELPERS
+  // =========================
+  String _normalize(String u) {
+    var s = u.trim();
+    while (s.endsWith('/')) {
+      s = s.substring(0, s.length - 1);
     }
+    return s;
   }
 
-  // ===========================
-  // UI
-  // ===========================
-  void _setFatalError(String msg) {
-    if (!mounted) return;
+  void _setFatal(String msg) {
+    debugPrint('💥 FATAL ERROR → $msg');
     setState(() {
-      hasError = true;
-      isLoading = false;
-      errorMessage = msg;
+      _fatalError = true;
+      _loading = false;
+      _error = msg;
     });
   }
 
+  // =========================
+  // DISPOSE
+  // =========================
   @override
   void dispose() {
+    debugPrint('🧹 GameWebView dispose');
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _bsSub.cancel();
     super.dispose();
   }
 
+  // =========================
+  // UI
+  // =========================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.gameName)),
       body: Stack(
         children: [
-          if (!hasError) WebViewWidget(controller: controller),
-          if (isLoading && !hasError)
+          if (!_fatalError) WebViewWidget(controller: controller),
+          if (_loading && !_fatalError)
             const Center(child: CircularProgressIndicator()),
-          if (hasError)
+          if (_fatalError)
             Center(
               child: Text(
-                errorMessage ?? 'Error',
+                _error ?? 'Error',
                 style: const TextStyle(color: Colors.red),
               ),
             ),

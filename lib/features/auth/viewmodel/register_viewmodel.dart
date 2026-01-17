@@ -152,13 +152,24 @@ class RegisterViewModel extends ChangeNotifier {
       return;
     }
 
-    /* ================= AUTO LOGIN ================= */
+//* ================= AUTO LOGIN ================= */
 
-    final authResponse = AuthResponse.fromJson(response);
+    final String userIdentification = response['userIdentification'];
+
+    DialogLoading(subtext: "Signing you in...").build(context);
+
+    final loginResponse = await _authService.autoLoginById(
+      userIdentification: userIdentification,
+    );
+
+    Navigator.of(context, rootNavigator: true).pop();
+
+    final authResponse = AuthResponse.fromJson(loginResponse);
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     await userProvider.setUser(authResponse);
 
     Navigator.pushNamedAndRemoveUntil(context, "/", (_) => false);
+
   }
 
   /* ================= HELPERS ================= */
