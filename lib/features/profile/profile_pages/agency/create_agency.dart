@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:kittyparty/core/utils/user_provider.dart';
 import '../../../landing/viewmodel/agency_viewmodel.dart';
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 class AgencyRegistrationApplicationPage extends StatefulWidget {
   final String title;
@@ -424,7 +427,7 @@ class _PhoneRow extends StatelessWidget {
   }
 }
 
-class _ImagePickerBox extends StatelessWidget {
+class _ImagePickerBox extends StatefulWidget {
   final String label;
   final TextEditingController controller;
   final bool requiredField;
@@ -436,10 +439,64 @@ class _ImagePickerBox extends StatelessWidget {
   });
 
   @override
+  State<_ImagePickerBox> createState() => _ImagePickerBoxState();
+}
+
+class _ImagePickerBoxState extends State<_ImagePickerBox> {
+  File? _imageFile;
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImage() async {
+    final XFile? picked = await showModalBottomSheet<XFile?>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text("Take Photo"),
+                onTap: () async {
+                  final img =
+                  await _picker.pickImage(source: ImageSource.camera);
+                  Navigator.pop(context, img);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text("Choose from Gallery"),
+                onTap: () async {
+                  final img =
+                  await _picker.pickImage(source: ImageSource.gallery);
+                  Navigator.pop(context, img);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (picked == null) return;
+
+    setState(() {
+      _imageFile = File(picked.path);
+      widget.controller.text = picked.path; // ✅ stored
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -447,34 +504,67 @@ class _ImagePickerBox extends StatelessWidget {
             text: TextSpan(
               style: const TextStyle(color: Colors.black, fontSize: 14),
               children: [
-                TextSpan(text: label.replaceAll("*", "")),
-                if (requiredField) const TextSpan(text: "*", style: TextStyle(color: Colors.red)),
+                TextSpan(text: widget.label.replaceAll("*", "")),
+                if (widget.requiredField)
+                  const TextSpan(
+                    text: " *",
+                    style: TextStyle(color: Colors.red),
+                  ),
               ],
             ),
           ),
           const SizedBox(height: 12),
-          Center(
+
+          /// 📷 TAPPABLE IMAGE PICKER
+          GestureDetector(
+            onTap: _pickImage,
             child: Container(
-              width: 140,
-              height: 140,
+              width: double.infinity,
+              height: 160,
               decoration: BoxDecoration(
                 color: const Color(0xFFF3F3F3),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFD6D6D6), style: BorderStyle.solid),
+                border: Border.all(color: const Color(0xFFD6D6D6)),
               ),
-              child: const Icon(Icons.camera_alt_outlined, color: Colors.black45, size: 36),
+              child: _imageFile != null
+                  ? ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.file(
+                  _imageFile!,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                ),
+              )
+                  : const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.camera_alt_outlined,
+                      size: 36, color: Colors.black45),
+                  SizedBox(height: 8),
+                  Text(
+                    "Tap to upload",
+                    style: TextStyle(color: Colors.black45),
+                  ),
+                ],
+              ),
             ),
           ),
+
           const SizedBox(height: 10),
+
+          /// HIDDEN / OPTIONAL PATH FIELD (for debugging or manual paste)
           TextFormField(
-            controller: controller,
+            controller: widget.controller,
+            readOnly: true,
             decoration: const InputDecoration(
-              hintText: "Paste uploaded image URL here",
+              hintText: "Image path",
               hintStyle: TextStyle(color: Colors.black38),
             ),
             validator: (v) {
-              if (!requiredField) return null;
-              if ((v ?? "").trim().isEmpty) return "Required";
+              if (!widget.requiredField) return null;
+              if ((v ?? "")
+                  .trim()
+                  .isEmpty) return "Required";
               return null;
             },
           ),

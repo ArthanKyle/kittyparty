@@ -1,3 +1,4 @@
+// lib/features/landing/viewmodel/agency_viewmodel.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -41,9 +42,7 @@ class AgencyViewModel extends ChangeNotifier {
 
   void bindUser(BuildContext context) {
     _userProvider = context.read<UserProvider>();
-    _userIdentification =
-        _userProvider.currentUser?.userIdentification;
-
+    _userIdentification = _userProvider.currentUser?.userIdentification;
     _log("bindUser() user=$_userIdentification");
   }
 
@@ -88,32 +87,17 @@ class AgencyViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 1️⃣ Load my agency (membership + role)
-      final me = await service.fetchMyAgency(
-        userIdentification: uid,
-      );
+      // 1) Load my agency (membership + role)
+      final me = await service.fetchMyAgency(userIdentification: uid);
 
-      myAgency = me.agency;
-      myRole = me.myRole;
-
-// agency == null is VALID
-      if (myAgency == null) {
-        agencies = await service.fetchAgencies(
-          userIdentification: uid,
-        );
-      }
-
-
-      myAgency = me.agency;
+      myAgency = me.agency; // agency == null is VALID
       myRole = me.myRole;
 
       _log("myAgency=${myAgency?.agencyCode}, role=$myRole");
 
-      // 2️⃣ Only fetch agencies if user is free
+      // 2) Only fetch agencies if user is free
       if (myAgency == null) {
-        agencies = await service.fetchAgencies(
-          userIdentification: uid,
-        );
+        agencies = await service.fetchAgencies(userIdentification: uid);
         _log("Fetched agencies count=${agencies.length}");
       } else {
         agencies = [];
@@ -139,7 +123,6 @@ class AgencyViewModel extends ChangeNotifier {
     required String agencyCode,
   }) async {
     final uid = _uid;
-
     _log("viewAgencyByCode() code=$agencyCode user=$uid");
 
     isLoading = true;
@@ -147,20 +130,12 @@ class AgencyViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      viewingAgency = await service.fetchAgencyByCode(
-        agencyCode,
-      );
+      viewingAgency = await service.fetchAgencyByCode(agencyCode);
 
-      await loadMembers(
-        agencyCode: agencyCode,
-        notify: false,
-      );
+      await loadMembers(agencyCode: agencyCode, notify: false);
 
       if (isOwner) {
-        await loadJoinRequests(
-          agencyCode: agencyCode,
-          notify: false,
-        );
+        await loadJoinRequests(agencyCode: agencyCode, notify: false);
       } else {
         joinRequests = [];
       }
@@ -184,11 +159,9 @@ class AgencyViewModel extends ChangeNotifier {
     if (notify) notifyListeners();
 
     try {
-      membersResult = await service.fetchMembers(
-        agencyCode,
-      );
+      membersResult = await service.fetchMembers(agencyCode);
 
-      if (viewingAgency?.agencyCode == agencyCode) {
+      if (viewingAgency?.agencyCode == agencyCode && viewingAgency != null) {
         viewingAgency = _copyAgencyWithCounts(
           viewingAgency!,
           membersCount: membersResult!.membersCount,
@@ -196,7 +169,7 @@ class AgencyViewModel extends ChangeNotifier {
         );
       }
 
-      if (myAgency?.agencyCode == agencyCode) {
+      if (myAgency?.agencyCode == agencyCode && myAgency != null) {
         myAgency = _copyAgencyWithCounts(
           myAgency!,
           membersCount: membersResult!.membersCount,
@@ -241,6 +214,7 @@ class AgencyViewModel extends ChangeNotifier {
     required String name,
     String description = "",
     String? logoUrl,
+    AgencyLogoUpload? logo, // ✅ NEW (GridFS upload)
   }) async {
     final uid = _uid;
 
@@ -254,21 +228,15 @@ class AgencyViewModel extends ChangeNotifier {
         name: name,
         description: description,
         logoUrl: logoUrl,
+        logo: logo,
       );
 
       myAgency = agency;
       myRole = "owner";
       viewingAgency = agency;
 
-      await loadMembers(
-        agencyCode: agency.agencyCode,
-        notify: false,
-      );
-
-      await loadJoinRequests(
-        agencyCode: agency.agencyCode,
-        notify: false,
-      );
+      await loadMembers(agencyCode: agency.agencyCode, notify: false);
+      await loadJoinRequests(agencyCode: agency.agencyCode, notify: false);
 
       return true;
     } catch (e) {
@@ -330,6 +298,7 @@ class AgencyViewModel extends ChangeNotifier {
     String? name,
     String? description,
     String? logoUrl,
+    AgencyLogoUpload? logo, // ✅ NEW (GridFS upload)
   }) async {
     final uid = _uid;
 
@@ -344,16 +313,11 @@ class AgencyViewModel extends ChangeNotifier {
         name: name,
         description: description,
         logoUrl: logoUrl,
+        logo: logo,
       );
 
-      // update local copies
-      if (viewingAgency?.agencyCode == agencyCode) {
-        viewingAgency = updated;
-      }
-
-      if (myAgency?.agencyCode == agencyCode) {
-        myAgency = updated;
-      }
+      if (viewingAgency?.agencyCode == agencyCode) viewingAgency = updated;
+      if (myAgency?.agencyCode == agencyCode) myAgency = updated;
 
       return true;
     } catch (e) {
@@ -382,15 +346,8 @@ class AgencyViewModel extends ChangeNotifier {
         requestId: requestId,
       );
 
-      await loadJoinRequests(
-        agencyCode: agencyCode,
-        notify: false,
-      );
-
-      await loadMembers(
-        agencyCode: agencyCode,
-        notify: false,
-      );
+      await loadJoinRequests(agencyCode: agencyCode, notify: false);
+      await loadMembers(agencyCode: agencyCode, notify: false);
 
       return true;
     } catch (e) {
@@ -421,10 +378,7 @@ class AgencyViewModel extends ChangeNotifier {
         reason: reason,
       );
 
-      await loadJoinRequests(
-        agencyCode: agencyCode,
-        notify: false,
-      );
+      await loadJoinRequests(agencyCode: agencyCode, notify: false);
 
       return true;
     } catch (e) {

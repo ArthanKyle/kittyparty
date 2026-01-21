@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:kittyparty/core/utils/user_provider.dart';
 
+import '../../../../core/constants/colors.dart';
 import '../../../landing/model/agency.dart';
 import '../../../landing/viewmodel/agency_viewmodel.dart';
 import 'create_agency.dart';
@@ -211,7 +212,10 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(context, false),
+        child: const Text("Cancel",style: TextStyle(color: AppColors.accentWhite),
+           ),
+          ),
           ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text("Save")),
         ],
       ),
@@ -307,7 +311,9 @@ class _InfoTabDto extends StatelessWidget {
         _InfoRow(title: "Owner", value: agency.ownerUserIdentification),
         const SizedBox(height: 18),
         if (isOwner && onEdit != null)
-          SizedBox(height: 44, child: ElevatedButton(onPressed: onEdit, child: const Text("Edit Agency"))),
+          SizedBox(height: 44, child: ElevatedButton(onPressed: onEdit, child: const Text("Edit Agency",style: TextStyle(
+            color: AppColors.accentWhite
+          ),))),
         if (!isOwner && onApply != null)
           SizedBox(
             height: 44,

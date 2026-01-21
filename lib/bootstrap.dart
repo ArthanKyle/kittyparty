@@ -27,6 +27,7 @@ import 'core/utils/index_provider.dart';
 // ViewModels
 import 'features/landing/viewmodel/agency_viewmodel.dart';
 import 'features/landing/viewmodel/dailyTask_viewmodel.dart';
+import 'features/landing/viewmodel/event_ranking_viewmodel.dart';
 import 'features/landing/viewmodel/inventory_viewmodel.dart';
 import 'features/landing/viewmodel/landing_viewmodel.dart';
 import 'features/landing/viewmodel/mall_viewmodel.dart';
@@ -120,6 +121,11 @@ Future<void> bootstrap() async {
               service: AgencyService(), // ✅ uses dotenv.env['BASE_URL']
             ),
         ),
+
+        ChangeNotifierProvider(
+          create: (_) => EventRankingViewModel(),
+        ),
+
 
         ChangeNotifierProvider(create: (_) => MallViewModel()),
 

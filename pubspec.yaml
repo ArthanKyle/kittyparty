@@ -75,6 +75,7 @@ dependencies:
   chewie: ^1.13.0
   flutter_image_compress: ^2.4.0
   image: ^4.1.0
+  http_parser: ^4.0.2
 
 dependency_overrides:
   webview_flutter_android:

@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
+
 import '../../../../app.dart';
 import '../../../../core/services/api/room_service.dart';
 import '../../../../core/utils/user_provider.dart';
+
 import '../../../landing/model/room.dart';
+import '../../../landing/viewmodel/agency_viewmodel.dart';
+import '../../../profile/profile_pages/agency/agency_details.dart';
+
 
 class ProfileMenu extends StatelessWidget {
   ProfileMenu({super.key});
@@ -20,14 +25,14 @@ class ProfileMenu extends StatelessWidget {
     {'label': 'Mall', 'icon': FontAwesomeIcons.shirt, 'route': AppRoutes.mall},
     {'label': 'My Item', 'icon': FontAwesomeIcons.cube, 'route': AppRoutes.item},
     {'label': 'Setting', 'icon': FontAwesomeIcons.gear, 'route': AppRoutes.setting},
-    {'label': 'Transactions', 'icon': FontAwesomeIcons.moneyBill1Wave, 'route': AppRoutes.transactions}
+    {'label': 'Transactions', 'icon': FontAwesomeIcons.moneyBill1Wave, 'route': AppRoutes.transactions},
   ];
 
   final RoomService _roomService = RoomService();
 
   @override
   Widget build(BuildContext context) {
-    final userProvider = Provider.of<UserProvider>(context);
+    final userProvider = context.watch<UserProvider>();
 
     return Container(
       margin: const EdgeInsets.only(top: 10),
@@ -56,7 +61,10 @@ class ProfileMenu extends StatelessWidget {
                   ),
                   Text(
                     item['label'],
-                    style: const TextStyle(fontSize: 16, color: Colors.black87),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.black87,
+                    ),
                   ),
                 ],
               ),
@@ -75,6 +83,9 @@ class ProfileMenu extends StatelessWidget {
     final String route = item['route'];
     final user = userProvider.currentUser;
 
+    /// =========================
+    /// MY ROOM
+    /// =========================
     if (route == AppRoutes.room) {
       if (user == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -86,7 +97,6 @@ class ProfileMenu extends StatelessWidget {
         return;
       }
 
-      // Show loading while checking room
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Checking your room..."),
@@ -94,11 +104,9 @@ class ProfileMenu extends StatelessWidget {
         ),
       );
 
-      // Fetch user's room(s)
       final rooms = await _roomService.getRoomsByHostId(
-        user.userIdentification, // MUST match HostID
+        user.userIdentification,
       );
-
 
       if (rooms.isNotEmpty) {
         final Room userRoom = rooms.first;
@@ -108,11 +116,11 @@ class ProfileMenu extends StatelessWidget {
           AppRoutes.room,
           arguments: {
             'roomId': userRoom.id,
-            'hostId': user.userIdentification, // ✅ MATCHES LandingViewModel + backend
+            'hostId': user.userIdentification,
             'roomName': userRoom.roomName,
           },
         );
-    } else {
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text("You don't have a room yet!"),
@@ -120,8 +128,40 @@ class ProfileMenu extends StatelessWidget {
           ),
         );
       }
-    } else {
-      Navigator.pushNamed(context, route);
+
+      return;
     }
+
+    /// =========================
+    /// AGENCY (AUTO ROUTE)
+    /// =========================
+    if (route == AppRoutes.agency) {
+      if (user == null) return;
+
+      final agencyVm = context.read<AgencyViewModel>();
+      agencyVm.bindUser(context);
+
+      await agencyVm.load();
+
+      if (agencyVm.myAgency != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AgencyDetailPage(
+              agencyCode: agencyVm.myAgency!.agencyCode,
+            ),
+          ),
+        );
+      } else {
+        Navigator.pushNamed(context, AppRoutes.agency);
+      }
+
+      return;
+    }
+
+    /// =========================
+    /// DEFAULT ROUTE
+    /// =========================
+    Navigator.pushNamed(context, route);
   }
 }
