@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:provider/provider.dart';
+import '../../../../core/utils/profile_picture_helper.dart';
 import '../../landing_widgets/landing_widgets/event_widgets/event_header.dart';
+import '../../viewmodel/event_ranking_viewmodel.dart';
 
 class WeeklyStar extends StatefulWidget {
   const WeeklyStar({super.key});
@@ -35,15 +38,16 @@ class _WeeklyStarState extends State<WeeklyStar> {
 
   DateTime _nextReset() {
     final now = DateTime.now();
-    final monday =
-    DateTime(now.year, now.month, now.day).add(Duration(days: (8 - now.weekday) % 7));
-    return monday;
+    return DateTime(now.year, now.month, now.day)
+        .add(Duration(days: (8 - now.weekday) % 7));
   }
 
   String _two(int n) => n.toString().padLeft(2, '0');
 
   @override
   Widget build(BuildContext context) {
+    final vm = context.watch<EventRankingViewModel>();
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(
@@ -68,7 +72,6 @@ class _WeeklyStarState extends State<WeeklyStar> {
               ),
             ),
 
-            /// COUNTDOWN
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Row(
@@ -81,24 +84,30 @@ class _WeeklyStarState extends State<WeeklyStar> {
               ),
             ),
 
-            /// LAST WEEK TOP
-            const _SectionTitle(title: 'Last Week TOP'),
-            const SizedBox(height: 8),
-            const _TopThree(),
-
-            /// THIS WEEK
-            const SizedBox(height: 16),
             const _SectionTitle(title: 'This Week'),
-            const SizedBox(height: 8),
 
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: 8,
-                itemBuilder: (_, i) => _RankRow(
-                  rank: i + 4,
-                  coins: '${(200000 - i * 9000) ~/ 1000}K',
+              child: vm.loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : vm.weeklyStar.isEmpty
+                  ? const Center(
+                child: Text(
+                  'No weekly stars yet',
+                  style: TextStyle(color: Colors.white70),
                 ),
+              )
+                  : ListView.builder(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: vm.weeklyStar.length,
+                itemBuilder: (_, i) {
+                  final r = vm.weeklyStar[i];
+                  return _RankRow(
+                    rank: r.rank,
+                    userId: r.userId,
+                    coins: r.value,
+                  );
+                },
               ),
             ),
           ],
@@ -108,12 +117,63 @@ class _WeeklyStarState extends State<WeeklyStar> {
   }
 }
 
-/* ================= TIME BOX ================= */
+/* ================= RANK ROW ================= */
+
+class _RankRow extends StatelessWidget {
+  final int rank;
+  final String userId;
+  final int coins;
+
+  const _RankRow({
+    required this.rank,
+    required this.userId,
+    required this.coins,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black26,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.amber),
+      ),
+      child: Row(
+        children: [
+          Text('$rank', style: const TextStyle(color: Colors.white)),
+          const SizedBox(width: 12),
+          UserAvatarHelper.circleAvatar(
+            userIdentification: userId,
+            displayName: userId,
+            radius: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              userId,
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+          Text(
+            '$coins',
+            style: const TextStyle(
+              color: Colors.amber,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/* ================= UI HELPERS ================= */
 
 class _TimeBox extends StatelessWidget {
   final String label;
   final String value;
-
   const _TimeBox({required this.label, required this.value});
 
   @override
@@ -148,18 +208,16 @@ class _TimeBox extends StatelessWidget {
   }
 }
 
-/* ================= SECTION TITLE ================= */
-
 class _SectionTitle extends StatelessWidget {
   final String title;
-
   const _SectionTitle({required this.title});
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
+        padding:
+        const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
         decoration: BoxDecoration(
           color: Colors.black38,
           borderRadius: BorderRadius.circular(20),
@@ -172,117 +230,6 @@ class _SectionTitle extends StatelessWidget {
             fontWeight: FontWeight.bold,
           ),
         ),
-      ),
-    );
-  }
-}
-
-/* ================= TOP 3 ================= */
-
-class _TopThree extends StatelessWidget {
-  const _TopThree();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: const [
-        Expanded(child: _TopCard(rank: 'TOP 2', coins: '1.98M')),
-        Expanded(child: _TopCard(rank: 'TOP 1', coins: '7.71M', big: true)),
-        Expanded(child: _TopCard(rank: 'TOP 3', coins: '1.57M')),
-      ],
-    );
-  }
-}
-
-class _TopCard extends StatelessWidget {
-  final String rank;
-  final String coins;
-  final bool big;
-
-  const _TopCard({
-    required this.rank,
-    required this.coins,
-    this.big = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(6),
-      child: Container(
-        height: big ? 150 : 120,
-        decoration: BoxDecoration(
-          color: Colors.black38,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.amber),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(rank, style: const TextStyle(color: Colors.white)),
-            const SizedBox(height: 6),
-            const CircleAvatar(
-              radius: 26,
-              backgroundImage: AssetImage('assets/avatar.png'),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              coins,
-              style: const TextStyle(
-                color: Colors.amber,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/* ================= RANK ROW ================= */
-
-class _RankRow extends StatelessWidget {
-  final int rank;
-  final String coins;
-
-  const _RankRow({
-    required this.rank,
-    required this.coins,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.black26,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.amber),
-      ),
-      child: Row(
-        children: [
-          Text('$rank', style: const TextStyle(color: Colors.white)),
-          const SizedBox(width: 12),
-          const CircleAvatar(
-            backgroundImage: AssetImage('assets/avatar.png'),
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Text(
-              'User Name',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-          Text(
-            coins,
-            style: const TextStyle(
-              color: Colors.amber,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
       ),
     );
   }

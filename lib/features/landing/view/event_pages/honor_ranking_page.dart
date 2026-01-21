@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../../core/utils/profile_picture_helper.dart';
+import '../../viewmodel/event_ranking_viewmodel.dart';
+
 
 class HonorRankingPage extends StatefulWidget {
   const HonorRankingPage({super.key});
@@ -11,32 +15,15 @@ class _HonorRankingPageState extends State<HonorRankingPage> {
   int _categoryIndex = 0;
   int _periodIndex = 1; // Weekly default
 
+  // ⚠️ Only Wealth & Charm are active
   final categories = ['Wealth', 'Charm', 'Room', 'Family'];
   final periods = ['Daily', 'Weekly', 'Monthly'];
 
-  /* ================= THEMES ================= */
-
   final Map<String, List<Color>> categoryGradients = {
-    'Wealth': [
-      Color(0xFF5B0F1F),
-      Color(0xFF3A1433),
-      Color(0xFF1E0B24),
-    ],
-    'Charm': [
-      Color(0xFF6A1B9A),
-      Color(0xFF4A148C),
-      Color(0xFF2A0845),
-    ],
-    'Room': [
-      Color(0xFF0F4C5C),
-      Color(0xFF083344),
-      Color(0xFF041E2C),
-    ],
-    'Family': [
-      Color(0xFF7C2D12),
-      Color(0xFF4E1D09),
-      Color(0xFF2A0E05),
-    ],
+    'Wealth': [Color(0xFF5B0F1F), Color(0xFF3A1433), Color(0xFF1E0B24)],
+    'Charm': [Color(0xFF6A1B9A), Color(0xFF4A148C), Color(0xFF2A0845)],
+    'Room': [Color(0xFF0F4C5C), Color(0xFF083344), Color(0xFF041E2C)],
+    'Family': [Color(0xFF7C2D12), Color(0xFF4E1D09), Color(0xFF2A0E05)],
   };
 
   final Map<String, Color> accentColors = {
@@ -49,22 +36,19 @@ class _HonorRankingPageState extends State<HonorRankingPage> {
   List<Color> get _bg => categoryGradients[categories[_categoryIndex]]!;
   Color get _accent => accentColors[categories[_categoryIndex]]!;
 
-  /// ✅ smart text color for active period
-  Color get _activePeriodTextColor {
-    final category = categories[_categoryIndex];
-
-    if (category == 'Wealth') {
-      return Colors.brown; // gold theme
-    }
-
-    // Charm / Room / Family
-    return Colors.white;
-  }
-
-  /* ================= BUILD ================= */
+  bool get _categorySupported =>
+      _categoryIndex == 0 || _categoryIndex == 1;
 
   @override
   Widget build(BuildContext context) {
+    final vm = context.watch<EventRankingViewModel>();
+
+    final data = !_categorySupported
+        ? const []
+        : _categoryIndex == 0
+        ? vm.honorWealth
+        : vm.honorCharm;
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(
@@ -84,9 +68,41 @@ class _HonorRankingPageState extends State<HonorRankingPage> {
               const SizedBox(height: 12),
               _periodTabs(),
               const SizedBox(height: 16),
-              _topPodium(),
-              const SizedBox(height: 14),
-              Expanded(child: _rankingList()),
+
+              if (!_categorySupported)
+                const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'Coming Soon',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                )
+              else if (vm.loading)
+                const Expanded(
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (data.isEmpty)
+                  const Expanded(
+                    child: Center(
+                      child: Text(
+                        'No ranking data',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      itemCount: data.length,
+                      itemBuilder: (_, i) => _RankRow(
+                        rank: data[i].rank,
+                        userId: data[i].userId,
+                        value: data[i].value,
+                        accent: _accent,
+                      ),
+                    ),
+                  ),
             ],
           ),
         ),
@@ -112,7 +128,6 @@ class _HonorRankingPageState extends State<HonorRankingPage> {
               color: Colors.white,
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
             ),
           ),
           const Spacer(),
@@ -143,16 +158,11 @@ class _HonorRankingPageState extends State<HonorRankingPage> {
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
                 color: active ? _accent.withOpacity(0.6) : Colors.transparent,
-                width: 1,
               ),
             ),
             child: Text(
               categories[i],
-              style: TextStyle(
-                color: active ? Colors.white : Colors.white70,
-                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                letterSpacing: 0.3,
-              ),
+              style: const TextStyle(color: Colors.white),
             ),
           ),
         );
@@ -173,7 +183,6 @@ class _HonorRankingPageState extends State<HonorRankingPage> {
         mainAxisSize: MainAxisSize.min,
         children: List.generate(periods.length, (i) {
           final active = _periodIndex == i;
-
           return GestureDetector(
             onTap: () => setState(() => _periodIndex = i),
             child: AnimatedContainer(
@@ -194,8 +203,7 @@ class _HonorRankingPageState extends State<HonorRankingPage> {
               child: Text(
                 periods[i],
                 style: TextStyle(
-                  color:
-                  active ? _activePeriodTextColor : Colors.white70,
+                  color: active ? Colors.white : Colors.white70,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -205,142 +213,22 @@ class _HonorRankingPageState extends State<HonorRankingPage> {
       ),
     );
   }
-
-  /* ================= PODIUM ================= */
-
-  Widget _topPodium() {
-    return Column(
-      children: [
-        _top1(),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(child: _TopMini(rank: 'TOP 2', accent: _accent,)),
-            const SizedBox(width: 12),
-            Expanded(child: _TopMini(rank: 'TOP 3', accent: _accent,)),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _top1() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: LinearGradient(
-          colors: [
-            _accent.withOpacity(0.9),
-            Colors.white.withOpacity(0.85),
-          ],
-        ),
-      ),
-      child: Column(
-        children: const [
-          Icon(Icons.emoji_events, size: 46, color: Colors.white),
-          SizedBox(height: 8),
-          CircleAvatar(
-            radius: 38,
-            backgroundColor: Colors.white,
-            child: Icon(Icons.person, size: 42),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'MIDNIGHT HAUZ AGENCY',
-            style: TextStyle(
-              color: Colors.brown,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /* ================= LIST ================= */
-
-  Widget _rankingList() {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      itemCount: 15,
-      itemBuilder: (_, i) => _RankRow(
-        rank: i + 4,
-        accent: _accent,
-      ),
-    );
-  }
 }
-
-/* ================= MINI PODIUM ================= */
-
-class _TopMini extends StatelessWidget {
-  final String rank;
-  final Color accent;
-
-  const _TopMini({
-    required this.rank,
-    required this.accent,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            accent.withOpacity(0.75),
-            accent.withOpacity(0.35),
-          ],
-        ),
-        border: Border.all(
-          color: accent.withOpacity(0.6),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          Text(
-            rank,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.4,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const CircleAvatar(
-            radius: 26,
-            backgroundColor: Colors.white,
-            child: Icon(Icons.person, color: Colors.black54),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Behind ★ 1.2M',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 
 /* ================= RANK ROW ================= */
 
 class _RankRow extends StatelessWidget {
   final int rank;
+  final String userId;
+  final int value;
   final Color accent;
 
-  const _RankRow({required this.rank, required this.accent});
+  const _RankRow({
+    required this.rank,
+    required this.userId,
+    required this.value,
+    required this.accent,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -375,21 +263,21 @@ class _RankRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          const CircleAvatar(
+          UserAvatarHelper.circleAvatar(
+            userIdentification: userId,
+            displayName: userId,
             radius: 20,
-            backgroundColor: Colors.white,
-            child: Icon(Icons.person),
           ),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Username',
-              style: TextStyle(color: Colors.white),
+              userId,
+              style: const TextStyle(color: Colors.white),
             ),
           ),
-          const Text(
-            'Behind ★ 120K',
-            style: TextStyle(
+          Text(
+            '$value',
+            style: const TextStyle(
               color: Colors.amber,
               fontWeight: FontWeight.bold,
             ),
