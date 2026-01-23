@@ -15,11 +15,13 @@ class InviteService {
   };
 
   Future<int> fetchInviteEarnings({
-    required String token,
+    required String userIdentification,
   }) async {
-    final url = Uri.parse("$baseUrl/invites/summary");
+    final url = Uri.parse(
+      "$baseUrl/invites/summary?UserIdentification=$userIdentification",
+    );
 
-    final res = await http.get(url, headers: _headers(token));
+    final res = await http.get(url);
 
     if (res.statusCode != 200) {
       throw Exception("Failed to fetch invite earnings");
@@ -28,4 +30,5 @@ class InviteService {
     final data = jsonDecode(res.body);
     return (data['earnedCoins'] ?? 0) as int;
   }
+
 }

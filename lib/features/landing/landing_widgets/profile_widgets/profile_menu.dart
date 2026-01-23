@@ -24,8 +24,9 @@ class ProfileMenu extends StatelessWidget {
     {'label': 'My Level', 'icon': FontAwesomeIcons.arrowTrendUp, 'route': AppRoutes.level},
     {'label': 'Mall', 'icon': FontAwesomeIcons.shirt, 'route': AppRoutes.mall},
     {'label': 'My Item', 'icon': FontAwesomeIcons.cube, 'route': AppRoutes.item},
-    {'label': 'Setting', 'icon': FontAwesomeIcons.gear, 'route': AppRoutes.setting},
     {'label': 'Transactions', 'icon': FontAwesomeIcons.moneyBill1Wave, 'route': AppRoutes.transactions},
+    {'label': 'Setting', 'icon': FontAwesomeIcons.gear, 'route': AppRoutes.setting},
+
   ];
 
   final RoomService _roomService = RoomService();

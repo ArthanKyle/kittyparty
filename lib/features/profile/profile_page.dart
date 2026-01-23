@@ -1,3 +1,4 @@
+// profile_page.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -28,6 +29,9 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   bool _initialized = false;
 
+  // ✅ keep a reference so we can remove it in dispose
+  VoidCallback? _itemListener;
+
   UserGender _mapGender(dynamic raw) {
     if (raw == null) return UserGender.female;
     final v = raw.toString().trim().toLowerCase();
@@ -43,6 +47,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     /// 🔥 SINGLE post-frame init (order matters)
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
       if (_initialized) return;
       _initialized = true;
 
@@ -52,17 +57,33 @@ class _ProfilePageState extends State<ProfilePage> {
       /// 1️⃣ Ensure inventory is bound & loaded FIRST
       itemVM.ensureBound(context);
 
-      /// 2️⃣ Load profile
+      /// 2️⃣ Attach inventory->profile listener ONCE (remove any existing)
+      if (_itemListener != null) {
+        itemVM.removeListener(_itemListener!);
+      }
+      _itemListener = () {
+        profileVM.syncFromInventory(itemVM.inventory);
+      };
+      itemVM.addListener(_itemListener!);
+
+      /// 3️⃣ Load profile (this now clears stale cached bytes internally)
       await profileVM.loadProfile(context);
 
-      /// 3️⃣ Initial inventory → profile sync
+      /// 4️⃣ Initial inventory → profile sync
       profileVM.syncFromInventory(itemVM.inventory);
-
-      /// 4️⃣ React to future inventory updates
-      itemVM.addListener(() {
-        profileVM.syncFromInventory(itemVM.inventory);
-      });
     });
+  }
+
+  @override
+  void dispose() {
+    // remove listener to avoid leaks / duplicated sync across sessions
+    try {
+      final itemVM = context.read<ItemViewModel>();
+      if (_itemListener != null) {
+        itemVM.removeListener(_itemListener!);
+      }
+    } catch (_) {}
+    super.dispose();
   }
 
   @override
@@ -142,7 +163,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             displayName: displayName,
                             radius: 40,
                             localBytes: vm.profilePictureBytes,
-                            frameAsset: vm.avatarFrameAsset, // ✅ FIXED
+                            frameAsset: vm.avatarFrameAsset, // ✅ frame sync-safe
                           ),
                         ),
 
@@ -249,8 +270,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           children: [
                             StatItem(
                               label: "Following",
-                              value:
-                              (vm.userSocial?.following ?? 0).toString(),
+                              value: (vm.userSocial?.following ?? 0).toString(),
                             ),
                             StatItem(
                               label: "Fans",
@@ -258,13 +278,11 @@ class _ProfilePageState extends State<ProfilePage> {
                             ),
                             StatItem(
                               label: "Friends",
-                              value:
-                              (vm.userSocial?.friends ?? 0).toString(),
+                              value: (vm.userSocial?.friends ?? 0).toString(),
                             ),
                             StatItem(
                               label: "Visitors",
-                              value:
-                              (vm.userSocial?.visitors ?? 0).toString(),
+                              value: (vm.userSocial?.visitors ?? 0).toString(),
                             ),
                           ],
                         ),

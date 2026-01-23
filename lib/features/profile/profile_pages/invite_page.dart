@@ -20,29 +20,23 @@ class _InvitePageState extends State<InvitePage> {
   void initState() {
     super.initState();
 
-    // Load invite earnings ONCE
+    /// 🔑 ALWAYS fetch on page open
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProfileViewModel>().fetchInviteEarnings(context);
     });
   }
 
   void _copyCodeToClipboard(BuildContext context, String code) {
-    if (code == 'N/A' || code.isEmpty) {
+    if (code.isEmpty || code == 'N/A') {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error: No invitation code available.'),
-          duration: Duration(seconds: 1),
-        ),
+        const SnackBar(content: Text('No invitation code available')),
       );
       return;
     }
 
     Clipboard.setData(ClipboardData(text: code));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Invitation code copied!'),
-        duration: Duration(seconds: 1),
-      ),
+      const SnackBar(content: Text('Invitation code copied!')),
     );
   }
 
@@ -54,7 +48,7 @@ class _InvitePageState extends State<InvitePage> {
           final user = userProvider.currentUser;
           final invitationCode = user?.myInvitationCode ?? 'N/A';
 
-          if (userProvider.isLoading || user == null || vm.isLoading) {
+          if (userProvider.isLoading || vm.isLoading || user == null) {
             return const Scaffold(
               backgroundColor: Colors.transparent,
               body: Center(
@@ -63,7 +57,7 @@ class _InvitePageState extends State<InvitePage> {
             );
           }
 
-          final profilePictureWidget = UserAvatarHelper.circleAvatar(
+          final avatar = UserAvatarHelper.circleAvatar(
             userIdentification: user.userIdentification,
             displayName: user.fullName ?? user.username ?? "U",
             radius: 28,
@@ -76,32 +70,36 @@ class _InvitePageState extends State<InvitePage> {
             body: SafeArea(
               child: Stack(
                 children: [
-                  SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        Image.asset(
-                          'assets/image/GetCoins.png',
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
+                  RefreshIndicator(
+                    onRefresh: () async {
+                      await context
+                          .read<ProfileViewModel>()
+                          .fetchInviteEarnings(context);
+                    },
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Column(
+                        children: [
+                          Image.asset(
+                            'assets/image/GetCoins.png',
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
 
-                        const SizedBox(height: 10),
+                          const SizedBox(height: 10),
 
-                        // ───────── My Code Card ─────────
-                        _codeCard(
-                          profilePictureWidget,
-                          invitationCode,
-                        ),
+                          _codeCard(avatar, invitationCode),
 
-                        // ───────── Earnings ─────────
-                        _earningsCard(vm.inviteEarnings),
+                          /// ✅ Earnings reflects rewardCoins correctly
+                          _earningsCard(vm.inviteEarnings),
 
-                        // ───────── Rules / Account Buttons ─────────
-                        _rulesButtons(),
+                          _rulesButtons(context),
 
-                        // ───────── Invite Rules ─────────
-                        inviteRulesCard(),
-                      ],
+                          inviteRulesCard(),
+
+                          const SizedBox(height: 30),
+                        ],
+                      ),
                     ),
                   ),
 
@@ -121,7 +119,7 @@ class _InvitePageState extends State<InvitePage> {
     );
   }
 
-  // ================= UI PARTS =================
+  // ================= UI =================
 
   Widget _codeCard(Widget avatar, String invitationCode) {
     return Container(
@@ -187,10 +185,14 @@ class _InvitePageState extends State<InvitePage> {
                         coins.toString(),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Image.asset('assets/icons/KPcoin.png', height: 24),
+                      Image.asset(
+                        'assets/icons/KPcoin.png',
+                        height: 22,
+                      ),
                     ],
                   ),
                 ],
@@ -202,16 +204,28 @@ class _InvitePageState extends State<InvitePage> {
     );
   }
 
-  Widget _rulesButtons() {
+  Widget _rulesButtons(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(12),
       decoration: _goldCardDecoration(),
       child: Row(
         children: [
-          Expanded(child: _purpleTag("Rules")),
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                Navigator.pushNamed(context, '/invite-rules');
+              },
+              child: _purpleTag("Rules"),
+            ),
+          ),
           const SizedBox(width: 8),
-          _goldTag("Account"),
+          GestureDetector(
+            onTap: () {
+              Navigator.pushNamed(context, '/invite-account');
+            },
+            child: _goldTag("Account"),
+          ),
         ],
       ),
     );
@@ -266,7 +280,7 @@ class _InvitePageState extends State<InvitePage> {
       end: Alignment.bottomCenter,
     ),
     borderRadius: BorderRadius.circular(12),
-    border: Border.all(color: const Color(0xFFFFD700), width: 3),
+    border: Border.all(color: Color(0xFFFFD700), width: 3),
   );
 
   Widget _goldButton(String text) => Container(
@@ -295,10 +309,7 @@ class _InvitePageState extends State<InvitePage> {
       ),
       borderRadius: BorderRadius.circular(8),
     ),
-    child: Text(
-      text,
-      style: const TextStyle(color: Colors.white),
-    ),
+    child: Text(text, style: const TextStyle(color: Colors.white)),
   );
 
   Widget _goldTag(String text) => Container(
@@ -309,9 +320,6 @@ class _InvitePageState extends State<InvitePage> {
       ),
       borderRadius: BorderRadius.circular(10),
     ),
-    child: Text(
-      text,
-      style: const TextStyle(color: Colors.white),
-    ),
+    child: Text(text, style: const TextStyle(color: Colors.white)),
   );
 }

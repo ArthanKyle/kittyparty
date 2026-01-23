@@ -1,3 +1,4 @@
+// profile_viewmodel.dart
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -44,17 +45,30 @@ class ProfileViewModel extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
-  // profile_viewmodel.dart
+  // ===============================
+  // RESET (call on logout OR before switching user)
+  // ===============================
+  void reset() {
+    userProfile = null;
+    profilePictureBytes = null;
+    userSocial = null;
+    _avatarFrameAsset = null;
+
+    isLoading = true;
+    error = null;
+
+    safeNotify();
+  }
+
+  // Optional helper (do not use if you already attach listeners in the page)
   void bindInventory(ItemViewModel itemVM) {
-    // Initial sync
     syncFromInventory(itemVM.inventory);
 
-    // Listen for future changes
+    // NOTE: If you use this, ensure you don't also attach a listener in ProfilePage
     itemVM.addListener(() {
       syncFromInventory(itemVM.inventory);
     });
   }
-
 
   // ===============================
   // 🔥 INVENTORY → PROFILE SYNC
@@ -73,7 +87,7 @@ class ProfileViewModel extends ChangeNotifier {
 
     if (frame == null) {
       _avatarFrameAsset = null;
-      notifyListeners();
+      safeNotify();
       return;
     }
 
@@ -82,7 +96,7 @@ class ProfileViewModel extends ChangeNotifier {
       sku: frame.sku,
     );
 
-    notifyListeners();
+    safeNotify();
   }
 
   // ===============================
@@ -92,6 +106,14 @@ class ProfileViewModel extends ChangeNotifier {
     if (_disposed) return;
 
     isLoading = true;
+    error = null;
+
+    // ✅ critical: clear previous user's cached state immediately
+    userProfile = null;
+    profilePictureBytes = null;
+    userSocial = null;
+    _avatarFrameAsset = null;
+
     safeNotify();
 
     try {
@@ -117,9 +139,9 @@ class ProfileViewModel extends ChangeNotifier {
             profilePicture: null,
           );
 
+      // ✅ if user has no picture, keep bytes null (prevents old user photo leak)
       if (userProfile!.profilePicture?.isNotEmpty == true) {
-        profilePictureBytes =
-        await _profileService.fetchProfilePicture(id);
+        profilePictureBytes = await _profileService.fetchProfilePicture(id);
       }
 
       await fetchSocialData(id);
@@ -160,8 +182,7 @@ class ProfileViewModel extends ChangeNotifier {
       if (_disposed || updated == null) return;
 
       userProfile = updated;
-      profilePictureBytes =
-      await _profileService.fetchProfilePicture(
+      profilePictureBytes = await _profileService.fetchProfilePicture(
         currentUser.userIdentification,
       );
 
@@ -171,23 +192,28 @@ class ProfileViewModel extends ChangeNotifier {
     }
   }
 
+  // ===============================
+  // 🔑 INVITE EARNINGS (FIXED)
+  // ===============================
   Future<void> fetchInviteEarnings(BuildContext context) async {
-    try {
-      inviteLoading = true;
-      safeNotify();
+    if (_disposed) return;
 
+    inviteLoading = true;
+    safeNotify();
+
+    try {
       final userProvider = context.read<UserProvider>();
       final token = userProvider.token;
 
       if (token == null) {
         inviteEarnings = 0;
-        inviteLoading = false;
-        safeNotify();
         return;
       }
 
-      inviteEarnings =
-      await _inviteService.fetchInviteEarnings(token: token);
+      final earned =
+      await _inviteService.fetchInviteEarnings(userIdentification: userProvider.currentUser!.userIdentification,);
+
+      inviteEarnings = earned;
     } catch (_) {
       inviteEarnings = 0;
     } finally {

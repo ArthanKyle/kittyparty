@@ -1,3 +1,5 @@
+import 'dart:developer' as dev;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 
@@ -39,6 +41,7 @@ class RechargeViewModel extends ChangeNotifier {
     try {
       packages = await rechargeService.fetchPackages(
         user.userIdentification,
+        countryCode: user.countryCode,
       );
 
       if (!user.isFirstTimeRecharge) {
@@ -65,8 +68,8 @@ class RechargeViewModel extends ChangeNotifier {
   }
 
   /* =============================
-     CREATE PAYMENT INTENT
-  ============================== */
+   CREATE PAYMENT INTENT
+============================== */
   Future<TransactionModel?> createPaymentIntent({String? method}) async {
     final user = userProvider.currentUser;
     if (user == null || selectedPackage == null) {
@@ -76,21 +79,63 @@ class RechargeViewModel extends ChangeNotifier {
     isPaymentProcessing = true;
     if (!_disposed) notifyListeners();
 
+    // 🔍 LOG: input state
+    dev.log(
+      "🟡 [Recharge] Creating PaymentIntent",
+      name: "Recharge",
+      error: {
+        "userIdentification": user.userIdentification,
+        "countryCode": user.countryCode,
+        "coins": selectedPackage!.coins,
+        "method": method ?? "card",
+        "displayAmount": displayAmount,
+        "displaySymbol": displaySymbol,
+      },
+    );
+
     try {
+      // 🔍 LOG: before API call
+      dev.log(
+        "📡 [Recharge] Calling createPaymentIntent API",
+        name: "Recharge",
+      );
+
       final json = await rechargeService.createPaymentIntent(
         userIdentification: user.userIdentification,
-        amount: selectedPackage!.price,
-        countryCode:
-        user.countryCode.isNotEmpty ? user.countryCode : "PH",
+        countryCode: user.countryCode.isNotEmpty ? user.countryCode : "PH",
         method: method,
         coins: selectedPackage!.coins,
+      );
+
+      // 🔍 LOG: raw backend response
+      dev.log(
+        "🟢 [Recharge] PaymentIntent API response",
+        name: "Recharge",
+        error: json,
       );
 
       final clientSecret = json['clientSecret'] as String?;
       final transactionId = json['transactionId'] as String?;
       final display = json['display'] as Map<String, dynamic>?;
 
-      if (clientSecret == null || transactionId == null) return null;
+      // 🔍 LOG: parsed values
+      dev.log(
+        "🔐 [Recharge] Parsed PaymentIntent values",
+        name: "Recharge",
+        error: {
+          "clientSecret": clientSecret != null ? "RECEIVED" : "NULL",
+          "transactionId": transactionId,
+          "display": display,
+        },
+      );
+
+      if (clientSecret == null || transactionId == null) {
+        dev.log(
+          "❌ [Recharge] Missing clientSecret or transactionId",
+          name: "Recharge",
+        );
+        return null;
+      }
 
       displayAmount =
           (display?['amount'] as num?)?.toDouble() ?? displayAmount;
@@ -113,11 +158,21 @@ class RechargeViewModel extends ChangeNotifier {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
+    } catch (e, stack) {
+      // 🔥 LOG: exception
+      dev.log(
+        "🔥 [Recharge] createPaymentIntent FAILED",
+        name: "Recharge",
+        error: e,
+        stackTrace: stack,
+      );
+      rethrow;
     } finally {
       isPaymentProcessing = false;
       if (!_disposed) notifyListeners();
     }
   }
+
 
   /* =============================
      STRIPE PAYMENT SHEET
@@ -130,11 +185,19 @@ class RechargeViewModel extends ChangeNotifier {
         paymentIntentClientSecret: clientSecret,
         merchantDisplayName: 'Kittyparty',
         style: ThemeMode.light,
+
+        // 🔑 GOOGLE PAY CONFIG
+        googlePay: const PaymentSheetGooglePay(
+          merchantCountryCode: "US", // IMPORTANT
+          currencyCode: "USD",       // MUST MATCH STRIPE
+          testEnv: true,             // false in production
+        ),
       ),
     );
 
     await Stripe.instance.presentPaymentSheet();
   }
+
 
   /* =============================
      CONFIRM PAYMENT

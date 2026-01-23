@@ -213,8 +213,7 @@ class AgencyViewModel extends ChangeNotifier {
   Future<bool> createAgency({
     required String name,
     String description = "",
-    String? logoUrl,
-    AgencyLogoUpload? logo, // ✅ NEW (GridFS upload)
+    AgencyLogoUpload? logo,
   }) async {
     final uid = _uid;
 
@@ -227,7 +226,6 @@ class AgencyViewModel extends ChangeNotifier {
         userIdentification: uid,
         name: name,
         description: description,
-        logoUrl: logoUrl,
         logo: logo,
       );
 
@@ -279,6 +277,23 @@ class AgencyViewModel extends ChangeNotifier {
         inviterPicUrl: inviterPicUrl,
       );
 
+      // ✅ MARK VIEWING AGENCY AS "PENDING"
+      if (viewingAgency != null &&
+          viewingAgency!.agencyCode == agencyCode) {
+        final a = viewingAgency!;
+        viewingAgency = AgencyDto(
+          id: a.id,
+          agencyCode: a.agencyCode,
+          name: a.name,
+          description: a.description,
+          media: a.media,
+          ownerUserIdentification: a.ownerUserIdentification,
+          maxMembers: a.maxMembers,
+          membersCount: a.membersCount,
+          hasPendingRequest: true,
+        );
+      }
+
       return true;
     } catch (e) {
       error = e.toString();
@@ -297,8 +312,7 @@ class AgencyViewModel extends ChangeNotifier {
     required String agencyCode,
     String? name,
     String? description,
-    String? logoUrl,
-    AgencyLogoUpload? logo, // ✅ NEW (GridFS upload)
+    AgencyLogoUpload? logo,
   }) async {
     final uid = _uid;
 
@@ -312,12 +326,15 @@ class AgencyViewModel extends ChangeNotifier {
         agencyCode: agencyCode,
         name: name,
         description: description,
-        logoUrl: logoUrl,
         logo: logo,
       );
 
-      if (viewingAgency?.agencyCode == agencyCode) viewingAgency = updated;
-      if (myAgency?.agencyCode == agencyCode) myAgency = updated;
+      if (viewingAgency?.agencyCode == agencyCode) {
+        viewingAgency = updated;
+      }
+      if (myAgency?.agencyCode == agencyCode) {
+        myAgency = updated;
+      }
 
       return true;
     } catch (e) {
@@ -409,9 +426,8 @@ class AgencyViewModel extends ChangeNotifier {
       agencyCode: a.agencyCode,
       name: a.name,
       description: a.description,
-      logoUrl: a.logoUrl,
+      media: a.media,
       ownerUserIdentification: a.ownerUserIdentification,
-      status: a.status,
       maxMembers: maxMembers,
       membersCount: membersCount,
     );

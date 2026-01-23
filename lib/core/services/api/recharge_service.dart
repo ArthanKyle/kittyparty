@@ -17,10 +17,9 @@ class RechargeService {
   ============================== */
   Future<Map<String, dynamic>> createPaymentIntent({
     required String userIdentification,
-    required double amount,
     required String countryCode,
-    String? method,
     required int coins,
+    String? method,
   }) async {
     final url =
     Uri.parse("$baseUrl/recharge/create-payment-intent");
@@ -30,7 +29,6 @@ class RechargeService {
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "userIdentification": userIdentification,
-        "amount": amount,
         "countryCode": countryCode,
         "method": method ?? "card",
         "coins": coins,
@@ -109,9 +107,13 @@ class RechargeService {
      STEP 5: FETCH PACKAGES
   ============================== */
   Future<List<RechargePackage>> fetchPackages(
-      String userIdentification,) async {
+      String userIdentification, {
+        required String countryCode,
+      }) async {
     final url = Uri.parse(
-      "$baseUrl/package/packages?userIdentification=$userIdentification",
+      "$baseUrl/package/packages"
+          "?userIdentification=$userIdentification"
+          "&countryCode=$countryCode",
     );
 
     final response = await http.get(url);
@@ -123,6 +125,9 @@ class RechargeService {
     }
 
     final List data = jsonDecode(response.body);
-    return data.map((e) => RechargePackage.fromJson(e)).toList();
+    return data
+        .map((e) => RechargePackage.fromJson(e))
+        .toList();
   }
+
 }

@@ -12,6 +12,10 @@ class Room {
   final String? roomIdentification;   // <-- NEW FIELD
   final DateTime createdAt;
   final String? hostProfilePic;
+  final int onlineCount;
+  final int audienceCount;
+  final int usersCount;
+
 
   Room({
     this.id,
@@ -21,6 +25,9 @@ class Room {
     this.type = "public",
     this.maxParticipants = 8,
     this.participantsCount = 1,
+    this.onlineCount = 0,
+    this.audienceCount = 0,
+    this.usersCount = 0,
     required this.country,
     this.isActive = true,
     this.zegoRoomId,
@@ -35,6 +42,9 @@ class Room {
     roomName: json['RoomName'] as String,
     topic: json['Topic'] ?? "",
     type: json['Type'] ?? "public",
+    onlineCount: json['onlineCount'] ?? 0,
+    audienceCount: json['audienceCount'] ?? 0,
+    usersCount: json['usersCount'] ?? 0,
     maxParticipants: json['MaxParticipants'] ?? 8,
     participantsCount: json['ParticipantsCount'] ?? 1,
     country: json['Country'] ?? "",
@@ -53,6 +63,9 @@ class Room {
     'RoomName': roomName,
     'Topic': topic,
     'Type': type,
+    'onlineCount': onlineCount,
+    'audienceCount': audienceCount,
+    'usersCount': usersCount,
     'MaxParticipants': maxParticipants,
     'ParticipantsCount': participantsCount,
     'Country': country,

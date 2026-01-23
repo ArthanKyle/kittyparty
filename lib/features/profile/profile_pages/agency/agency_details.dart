@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:kittyparty/core/utils/user_provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'dart:typed_data';
+import 'package:image_picker/image_picker.dart';
 
-import '../../../../core/constants/colors.dart';
+import 'package:kittyparty/core/constants/colors.dart';
+import 'package:kittyparty/core/utils/user_provider.dart';
+import '../../../../core/services/api/agency_service.dart';
+
+import '../../../../core/utils/profile_picture_helper.dart';
 import '../../../landing/model/agency.dart';
 import '../../../landing/viewmodel/agency_viewmodel.dart';
 import 'create_agency.dart';
@@ -27,7 +33,7 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -49,20 +55,12 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await vm.load();
-      await vm.viewAgencyByCode(
-        agencyCode: widget.agencyCode,
-      );
-
+      await vm.viewAgencyByCode(agencyCode: widget.agencyCode);
       _rebuildTabs(vm);
-
       _didInit = true;
       if (mounted) setState(() {});
     });
   }
-
-  /* =========================
-   * OWNERSHIP
-   * ========================= */
 
   bool _isOwnerOfThisAgency(AgencyViewModel vm) {
     final uid =
@@ -77,18 +75,15 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
 
   void _rebuildTabs(AgencyViewModel vm) {
     final isOwner = _isOwnerOfThisAgency(vm);
-    final desiredLength = isOwner ? 3 : 2;
+    final desiredLength = isOwner ? 4 : 3;
 
     if (_tabController.length == desiredLength) return;
 
     _tabController.dispose();
-    _tabController =
-        TabController(length: desiredLength, vsync: this);
+    _tabController = TabController(length: desiredLength, vsync: this);
 
     if (isOwner) {
-      vm.loadJoinRequests(
-        agencyCode: widget.agencyCode,
-      );
+      vm.loadJoinRequests(agencyCode: widget.agencyCode);
     }
   }
 
@@ -96,9 +91,9 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
   Widget build(BuildContext context) {
     return Consumer<AgencyViewModel>(
       builder: (context, vm, _) {
-        final a = vm.viewingAgency;
+        final agency = vm.viewingAgency;
 
-        if (a != null) {
+        if (agency != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
             _rebuildTabs(vm);
@@ -106,27 +101,26 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
         }
 
         final isOwner = _isOwnerOfThisAgency(vm);
-
         final tabs = isOwner
-            ? const ["Info", "Members", "Approvals"]
-            : const ["Info", "Members"];
+            ? const ["Info", "Members", "Approvals", "Withdraw"]
+            : const ["Info", "Members", "Withdraw"];
 
         final membersCount =
-            a?.membersCount ?? vm.membersResult?.membersCount ?? 0;
+            agency?.membersCount ?? vm.membersResult?.membersCount ?? 0;
         final maxMembers =
-            a?.maxMembers ?? vm.membersResult?.maxMembers ?? 10;
+            agency?.maxMembers ?? vm.membersResult?.maxMembers ?? 10;
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(a?.name ?? "Agency"),
+            title: Text(agency?.name ?? "Agency"),
             bottom: TabBar(
               controller: _tabController,
               tabs: tabs.map((t) => Tab(text: t)).toList(),
             ),
           ),
-          body: (vm.isLoading && a == null)
+          body: (vm.isLoading && agency == null)
               ? const Center(child: CircularProgressIndicator())
-              : (a == null
+              : (agency == null
               ? _ErrorBox(
             message: vm.error ?? "Agency not found.",
             onRetry: () async {
@@ -141,7 +135,7 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
             controller: _tabController,
             children: [
               _InfoTabDto(
-                agency: a,
+                agency: agency,
                 membersCount: membersCount,
                 maxMembers: maxMembers,
                 isOwner: isOwner,
@@ -163,15 +157,13 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
                 _ApprovalsTabDto(
                   loading: vm.isLoading,
                   requests: vm.joinRequests,
-                  onRefresh: () =>
-                      vm.loadJoinRequests(
-                        agencyCode: widget.agencyCode,
-                      ),
-                  onApprove: (id) =>
-                      vm.approveRequest(
-                        agencyCode: widget.agencyCode,
-                        requestId: id,
-                      ),
+                  onRefresh: () => vm.loadJoinRequests(
+                    agencyCode: widget.agencyCode,
+                  ),
+                  onApprove: (id) => vm.approveRequest(
+                    agencyCode: widget.agencyCode,
+                    requestId: id,
+                  ),
                   onReject: (id) async {
                     final reason =
                     await _askReason(context);
@@ -189,34 +181,67 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
     );
   }
 
-  /* =========================
-   * ACTIONS
-   * ========================= */
-
   Future<void> _editAgency(AgencyViewModel vm) async {
-    final a = vm.viewingAgency!;
-    final name = TextEditingController(text: a.name);
-    final desc = TextEditingController(text: a.description);
-    final logo = TextEditingController(text: a.logoUrl ?? "");
+    final agency = vm.viewingAgency!;
+    final name = TextEditingController(text: agency.name);
+    final desc = TextEditingController(text: agency.description);
+
+    Uint8List? pickedLogoBytes;
+    String? pickedLogoName;
+    String? pickedLogoMime;
 
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text("Edit Agency"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: name, decoration: const InputDecoration(labelText: "Name")),
-            TextField(controller: desc, decoration: const InputDecoration(labelText: "Description")),
-            TextField(controller: logo, decoration: const InputDecoration(labelText: "Logo URL")),
-          ],
+        content: StatefulBuilder(
+          builder: (context, setLocalState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: name,
+                  decoration:
+                  const InputDecoration(labelText: "Name"),
+                ),
+                TextField(
+                  controller: desc,
+                  decoration:
+                  const InputDecoration(labelText: "Description"),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.image),
+                  label: const Text("Change Logo"),
+                  onPressed: () async {
+                    final picker = ImagePicker();
+                    final file = await picker.pickImage(
+                      source: ImageSource.gallery,
+                      imageQuality: 85,
+                    );
+
+                    if (file != null) {
+                      pickedLogoBytes = await file.readAsBytes();
+                      pickedLogoName = file.name;
+                      pickedLogoMime =
+                          file.mimeType ?? "image/jpeg";
+                      setLocalState(() {});
+                    }
+                  },
+                ),
+              ],
+            );
+          },
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false),
-        child: const Text("Cancel",style: TextStyle(color: AppColors.accentWhite),
-           ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
           ),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text("Save")),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Save"),
+          ),
         ],
       ),
     );
@@ -226,7 +251,13 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
         agencyCode: widget.agencyCode,
         name: name.text.trim(),
         description: desc.text.trim(),
-        logoUrl: logo.text.trim().isEmpty ? null : logo.text.trim(),
+        logo: pickedLogoBytes == null
+            ? null
+            : AgencyLogoUpload(
+          bytes: pickedLogoBytes!,
+          filename: pickedLogoName ?? "agency_logo.jpg",
+          mimeType: pickedLogoMime ?? "image/jpeg",
+        ),
       );
     }
   }
@@ -248,9 +279,7 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
     );
 
     if (ok == true && mounted) {
-      await vm.viewAgencyByCode(
-        agencyCode: widget.agencyCode,
-      );
+      await vm.viewAgencyByCode(agencyCode: widget.agencyCode);
       _rebuildTabs(vm);
     }
   }
@@ -263,8 +292,13 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
         title: const Text("Reject reason (optional)"),
         content: TextField(controller: c),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, null), child: const Text("Skip")),
-          ElevatedButton(onPressed: () => Navigator.pop(context, c.text.trim()), child: const Text("Submit")),
+          TextButton(
+              onPressed: () => Navigator.pop(context, null),
+              child: const Text("Skip")),
+          ElevatedButton(
+              onPressed: () =>
+                  Navigator.pop(context, c.text.trim()),
+              child: const Text("Submit")),
         ],
       ),
     );
@@ -404,29 +438,55 @@ class _ApprovalsTabDto extends StatelessWidget {
             return Card(
               child: Padding(
                 padding: const EdgeInsets.all(12),
-                child: Column(
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Applicant: $applicant", style: const TextStyle(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 6),
-                    Text("Contact: $contact ($contactType)"),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () => onApprove(id),
-                            child: const Text("Approve"),
+                    // 👤 USER AVATAR (LEFT)
+                    UserAvatarHelper.circleAvatar(
+                      userIdentification: applicant,
+                      displayName: applicant,
+                      localBytes: null,
+                      radius: 26,
+                      frameAsset: null,
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    // 📄 CONTENT (RIGHT)
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Applicant: $applicant",
+                            style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => onReject(id),
-                            child: const Text("Reject"),
+                          const SizedBox(height: 6),
+                          Text("Contact: $contact ($contactType)"),
+                          const SizedBox(height: 12),
+
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () => onApprove(id),
+                                  child: const Text(
+                                    "Approve",
+                                    style: TextStyle(color: AppColors.accentWhite),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () => onReject(id),
+                                  child: const Text("Reject"),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -460,7 +520,15 @@ class _HeaderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        leading: CircleAvatar(child: Text(name.isNotEmpty ? name[0].toUpperCase() : "A")),
+        leading: CircleAvatar(
+          backgroundImage:
+          logoUrl != null && logoUrl!.isNotEmpty
+              ? NetworkImage(logoUrl!)
+              : null,
+          child: (logoUrl == null || logoUrl!.isEmpty)
+              ? Text(name.isNotEmpty ? name[0].toUpperCase() : "A")
+              : null,
+        ),
         title: Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
         subtitle: Text("Code: $code\n$subtitle"),
         isThreeLine: true,
