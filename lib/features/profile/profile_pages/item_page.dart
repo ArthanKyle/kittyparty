@@ -6,7 +6,6 @@ import '../../../core/utils/user_provider.dart';
 import '../../landing/landing_widgets/profile_widgets/inventory_asset_resolver.dart';
 import '../../landing/viewmodel/inventory_viewmodel.dart';
 import '../../landing/viewmodel/profile_viewmodel.dart';
-import '../../landing/model/userInventory.dart';
 
 class ItemPage extends StatefulWidget {
   const ItemPage({super.key});
@@ -19,75 +18,25 @@ class _ItemPageState extends State<ItemPage> {
   int selectedIndex = 0;
 
   final List<Map<String, dynamic>> categories = const [
-    {'icon': 'assets/icons/item/Mount.png', 'label': 'Mount'},
-    {'icon': 'assets/icons/item/Avatar.png', 'label': 'Avatar'},
-    {'icon': 'assets/icons/item/Nameplate.png', 'label': 'Nameplate'},
-    {'icon': 'assets/icons/item/Profile_card.png', 'label': 'Profile Card'},
-    {'icon': 'assets/icons/item/Chat_bubble.png', 'label': 'Chat Bubble'},
+    {'icon': 'assets/icons/item/Mount.png', 'label': 'Mount', 'type': 'mount'},
+    {'icon': 'assets/icons/item/Avatar.png', 'label': 'Avatar', 'type': 'avatar'},
+    {'icon': 'assets/icons/item/Nameplate.png', 'label': 'Nameplate', 'type': 'nameplate'},
+    {'icon': 'assets/icons/item/Profile_card.png', 'label': 'Profile Card', 'type': 'profile_card'},
+    {'icon': 'assets/icons/item/Chat_bubble.png', 'label': 'Chat Bubble', 'type': 'chat_bubble'},
   ];
 
   @override
   void initState() {
     super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ItemViewModel>().ensureBound(context);
+    });
   }
 
-  // ================= CATEGORY HELPERS =================
-
-  String deriveCategoryFromSku(String sku) {
-    final s = sku.toUpperCase();
-    if (s.startsWith('MOUNT')) return 'MOUNT';
-    if (s.contains('FRAME') || s.contains('AVATAR')) return 'AVATAR';
-    if (s.contains('NAMEPLATE')) return 'NAMEPLATE';
-    if (s.contains('PROFILE')) return 'PROFILECARD';
-    if (s.contains('CHAT')) return 'CHATBUBBLE';
-    return 'UNKNOWN';
-  }
-
-  bool isAvatarFrame(String sku) {
-    return sku.toUpperCase().contains('FRAME');
-  }
-
-  List<String> _allowedCategoriesFor(String label) {
-    switch (label) {
-      case 'Mount':
-        return ['MOUNT'];
-      case 'Avatar':
-        return ['AVATAR'];
-      case 'Nameplate':
-        return ['NAMEPLATE'];
-      case 'Profile Card':
-        return ['PROFILECARD'];
-      case 'Chat Bubble':
-        return ['CHATBUBBLE'];
-      default:
-        return [];
-    }
-  }
-
-  // ================= EQUIP / UNEQUIP =================
-
-  Future<void> _handleEquip(BuildContext context, UserInventoryItem inv) async {
-    final itemVM = context.read<ItemViewModel>();
-    final profileVM = context.read<ProfileViewModel>();
-
-    if (itemVM.isEquipping) return;
-
-    await itemVM.equip(inv);
-
-    // ✅ FORCE PROFILE SYNC AFTER EQUIP
-    profileVM.syncFromInventory(itemVM.inventory);
-  }
-
-  Future<void> _handleUnequip(BuildContext context, UserInventoryItem inv) async {
-    final itemVM = context.read<ItemViewModel>();
-    final profileVM = context.read<ProfileViewModel>();
-
-    if (itemVM.isEquipping) return;
-
-    await itemVM.unequip(inv);
-
-    // ✅ FORCE PROFILE SYNC AFTER UNEQUIP
-    profileVM.syncFromInventory(itemVM.inventory);
+  Future<void> _onRefresh(BuildContext context) async {
+    final vm = context.read<ItemViewModel>();
+    await vm.loadInventory();
   }
 
   @override
@@ -106,16 +55,15 @@ class _ItemPageState extends State<ItemPage> {
           frameAsset: profileVM.avatarFrameAsset,
         );
 
-        final selectedLabel = categories[selectedIndex]['label'];
-        final allowed = _allowedCategoriesFor(selectedLabel);
+        final selectedType = categories[selectedIndex]['type'];
 
         final items = itemVM.inventory
-            .where((i) => allowed.contains(deriveCategoryFromSku(i.sku)))
+            .where((i) => i.assetType == selectedType)
             .toList()
           ..sort((a, b) {
             if (a.equipped && !b.equipped) return -1;
             if (!a.equipped && b.equipped) return 1;
-            return a.sku.compareTo(b.sku);
+            return (a.assetKey ?? '').compareTo(b.assetKey ?? '');
           });
 
         return Scaffold(
@@ -125,16 +73,11 @@ class _ItemPageState extends State<ItemPage> {
               children: [
                 // ================= HEADER =================
                 Padding(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   child: Row(
                     children: [
                       IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back_ios,
-                          color: Colors.white,
-                          size: 18,
-                        ),
+                        icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 18),
                         onPressed: () => Navigator.pop(context),
                       ),
                       const Expanded(
@@ -149,7 +92,7 @@ class _ItemPageState extends State<ItemPage> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 40), // balance back button
+                      const SizedBox(width: 40),
                     ],
                   ),
                 ),
@@ -182,11 +125,7 @@ class _ItemPageState extends State<ItemPage> {
                             children: [
                               Image.asset(c['icon'], width: 45),
                               const SizedBox(height: 6),
-                              Text(
-                                c['label'],
-                                style:
-                                const TextStyle(color: Colors.white),
-                              ),
+                              Text(c['label'], style: const TextStyle(color: Colors.white)),
                             ],
                           ),
                         ),
@@ -197,65 +136,72 @@ class _ItemPageState extends State<ItemPage> {
 
                 const SizedBox(height: 40),
 
-                // ================= INVENTORY =================
+                // ================= INVENTORY (WITH PULL TO REFRESH) =================
                 Expanded(
-                  child: items.isEmpty
-                      ? const Center(
-                    child: Text(
-                      'No items',
-                      style:
-                      TextStyle(color: Colors.white70),
+                  child: RefreshIndicator(
+                    color: Colors.white,
+                    backgroundColor: const Color(0xFF1B2440),
+                    onRefresh: () => _onRefresh(context),
+                    child: itemVM.isLoading && items.isEmpty
+                        ? const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    )
+                        : items.isEmpty
+                        ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: const [
+                        SizedBox(height: 120),
+                        Center(
+                          child: Text(
+                            'No items',
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                        ),
+                      ],
+                    )
+                        : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: items.length,
+                      itemBuilder: (_, i) {
+                        final inv = items[i];
+
+                        final asset = (inv.assetKey != null)
+                            ? InventoryAssetResolver.fromKey(
+                          assetType: inv.assetType,
+                          assetKey: inv.assetKey!,
+                        )
+                            : null;
+
+                        return ListTile(
+                          leading: asset != null
+                              ? Image.asset(asset, width: 48)
+                              : const Icon(Icons.inventory_2, color: Colors.white54),
+                          title: Text(
+                            inv.assetKey ?? inv.sku,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          subtitle: Text(
+                            inv.assetType,
+                            style: const TextStyle(color: Colors.white54),
+                          ),
+                          trailing: itemVM.isEquipping
+                              ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                              : inv.equipped
+                              ? TextButton(
+                            onPressed: () => itemVM.unequip(inv),
+                            child: const Text('Unequip'),
+                          )
+                              : TextButton(
+                            onPressed: () => itemVM.equip(inv),
+                            child: const Text('Equip'),
+                          ),
+                        );
+                      },
                     ),
-                  )
-                      : ListView.builder(
-                    itemCount: items.length,
-                    itemBuilder: (_, i) {
-                      final inv = items[i];
-                      final category =
-                      deriveCategoryFromSku(inv.sku);
-
-                      final asset =
-                      InventoryAssetResolver.resolve(
-                        category: category,
-                        sku: inv.sku,
-                      );
-
-                      return ListTile(
-                        leading: asset != null
-                            ? Image.asset(asset, width: 48)
-                            : const Icon(
-                          Icons.inventory_2,
-                          color: Colors.white54,
-                        ),
-                        title: Text(
-                          inv.sku,
-                          style: const TextStyle(
-                            color: Colors.white,
-                          ),
-                        ),
-                        subtitle: Text(
-                          category,
-                          style: const TextStyle(
-                            color: Colors.white54,
-                          ),
-                        ),
-                        trailing: itemVM.isEquipping
-                            ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                            : inv.equipped
-                            ? TextButton(
-                          onPressed: () => _handleUnequip(context, inv),
-                          child: const Text('Unequip'),
-                        )
-                            : TextButton(
-                          onPressed: () => _handleEquip(context, inv),
-                          child: const Text('Equip'),
-                        ),
-                      );
-                    },
                   ),
                 ),
               ],

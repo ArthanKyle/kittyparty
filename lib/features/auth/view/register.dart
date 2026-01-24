@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import '../../../core/constants/colors.dart';
 import '../../../core/global_widgets/buttons/gradient_button.dart';
 import '../../../core/global_widgets/gradient_background/gradient_background.dart';
 import '../../../core/utils/validators.dart';
+
 import '../viewmodel/register_viewmodel.dart';
 import '../widgets/arrow_back.dart';
 import '../widgets/country_dropdown.dart';
@@ -44,7 +46,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    final vm = Provider.of<RegisterViewModel>(context);
+    final vm = context.watch<RegisterViewModel>();
 
     return GradientBackground(
       child: Scaffold(
@@ -63,6 +65,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     children: [
                       ArrowBack(onTap: () => Navigator.pop(context)),
                       const SizedBox(height: 8),
+
                       const Text(
                         "Complete information",
                         style: TextStyle(
@@ -71,18 +74,24 @@ class _RegisterPageState extends State<RegisterPage> {
                           color: AppColors.accentWhite,
                         ),
                       ),
+
                       const SizedBox(height: 20),
                       const Text(
                         "Please select your gender",
-                        style:
-                        TextStyle(fontSize: 14, color: AppColors.accentWhite),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.accentWhite,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       const Text(
                         "(Gender cannot be modified later~)",
-                        style:
-                        TextStyle(fontSize: 10, color: AppColors.accentWhite),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppColors.accentWhite,
+                        ),
                       ),
+
                       const SizedBox(height: 20),
 
                       Row(
@@ -112,12 +121,14 @@ class _RegisterPageState extends State<RegisterPage> {
                         labelText: 'Name',
                         controller: vm.nameController,
                         hintText: 'Please enter your Full Name.',
-                        validator: (value) => value == null || value.trim().isEmpty
+                        validator: (value) =>
+                        value == null || value.trim().isEmpty
                             ? "Name is required"
                             : null,
                         inputFormatters: [
                           FilteringTextInputFormatter.allow(
-                              RegExp(r"[a-zA-ZÀ-ÿ\s\-]"))
+                            RegExp(r"[a-zA-ZÀ-ÿ\s\-]"),
+                          ),
                         ],
                       ),
 
@@ -125,15 +136,16 @@ class _RegisterPageState extends State<RegisterPage> {
                         labelText: 'UserName',
                         controller: vm.usernameController,
                         hintText: 'Please enter your User Name.',
-                        validator: (value) => value == null || value.trim().isEmpty
+                        validator: (value) =>
+                        value == null || value.trim().isEmpty
                             ? "UserName is required"
                             : null,
                       ),
 
                       BasicTextField(
                         labelText: 'Email',
-                        hintText: 'Please enter your email.',
                         controller: vm.emailController,
+                        hintText: 'Please enter your email.',
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return 'Enter your email.';
@@ -141,36 +153,65 @@ class _RegisterPageState extends State<RegisterPage> {
                           if (!Validators.isValidEmail(value)) {
                             return 'Enter a valid email address.';
                           }
-                          if (!Validators.isAllowedEmailDomain(value,
-                              companyDomains: ['mycompany.com'])) {
+                          if (!Validators.isAllowedEmailDomain(
+                            value,
+                            companyDomains: ['mycompany.com'],
+                          )) {
                             return 'Email domain is not allowed.';
                           }
                           return null;
                         },
                       ),
 
-                      BasicTextField(
-                        labelText: 'Phone Number',
-                        hintText: 'Please enter your phone number.',
-                        controller: vm.phoneController,
-                        validator: Validators.phoneValidator,
-                        inputType: TextInputType.phone,
+                      const SizedBox(height: 16),
+
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: 90,
+                            child: CountryDropdown(
+                              selectedCountry: vm.selectedCountry,
+                              onChanged: (code) {
+                                vm.setCountry(code);
+                                vm.phoneController.clear();
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: BasicTextField(
+                              labelText: 'Phone Number',
+                              hintText: 'Enter phone number',
+                              controller: vm.phoneController,
+                              inputType: TextInputType.phone,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(
+                                  Validators.maxLength(vm.selectedCountry),
+                                ),
+                              ],
+                              validator: (value) => Validators.validate(
+                                value,
+                                vm.selectedCountry,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
+
+                      const SizedBox(height: 16),
 
                       BasicTextField(
                         labelText: 'Invitational Code',
                         controller: vm.inviteController,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) return null;
-                          return Validators.inviteCodeValidator(value);
-                        },
-                        hintText: "Please enter invitation code (Optional)",
+                        hintText:
+                        "Please enter invitation code (Optional)",
+                        validator: (value) =>
+                            Validators.inviteCodeValidator(value),
                       ),
 
-                      CountryDropdown(
-                        selectedCountry: vm.selectedCountry,
-                        onChanged: vm.setCountry,
-                      ),
+                      const SizedBox(height: 24),
 
                       GradientButton(
                         text: "Register account",

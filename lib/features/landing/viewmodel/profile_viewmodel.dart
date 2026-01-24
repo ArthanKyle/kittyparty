@@ -1,4 +1,3 @@
-// profile_viewmodel.dart
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -91,10 +90,12 @@ class ProfileViewModel extends ChangeNotifier {
       return;
     }
 
-    _avatarFrameAsset = InventoryAssetResolver.resolve(
-      category: 'AVATAR',
-      sku: frame.sku,
-    );
+    _avatarFrameAsset = (frame.assetType != null && frame.assetKey != null)
+        ? InventoryAssetResolver.fromKey(
+      assetType: frame.assetType,
+      assetKey: frame.assetKey!,
+    )
+        : null;
 
     safeNotify();
   }

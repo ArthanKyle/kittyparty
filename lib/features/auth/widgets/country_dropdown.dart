@@ -18,17 +18,18 @@ class CountryDropdown extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         DropdownButtonFormField<String>(
+          isExpanded: true,
           value: selectedCountry,
           decoration: InputDecoration(
             counterText: "",
             contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 18.5),
             filled: true,
             fillColor: AppColors.accentWhite,
-            hintText: "Select your nationality",
+            hintText: "Select country",
             hintStyle: const TextStyle(
               color: AppColors.gray,
               fontFamily: "Poppins",
-              fontSize: 11.5,
+              fontSize: 9,
               fontWeight: FontWeight.w300,
             ),
             errorStyle: const TextStyle(

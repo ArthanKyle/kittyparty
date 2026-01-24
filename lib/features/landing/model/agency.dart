@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AgencyDto {
@@ -60,26 +62,35 @@ class AgencyDto {
 class AgencyMemberDto {
   final String userIdentification;
   final String role;
-  final DateTime? joinedAt;
+  final String? username;
+  final String? fullName;
 
   AgencyMemberDto({
     required this.userIdentification,
     required this.role,
-    required this.joinedAt,
+    this.username,
+    this.fullName,
   });
 
-  factory AgencyMemberDto.fromJson(Map<String, dynamic> j) {
+  factory AgencyMemberDto.fromJson(Map<String, dynamic> json) {
     return AgencyMemberDto(
-      userIdentification: (j["userIdentification"] ?? "").toString(),
-      role: (j["role"] ?? "member").toString(),
-      joinedAt: j["joinedAt"] == null ? null : DateTime.tryParse(j["joinedAt"].toString()),
+      userIdentification: json['userIdentification'] ?? '',
+      role: json['role'] ?? '',
+      username: json['username'],
+      fullName: json['fullName'],
     );
   }
 }
 
+
 class AgencyJoinRequestDto {
   final String id;
   final String applicantUserIdentification;
+
+  // ✅ NEW FIELDS
+  final String? applicantUsername;
+  final String? applicantFullName;
+
   final String status;
   final String agentContactValue;
   final String contactType;
@@ -89,6 +100,8 @@ class AgencyJoinRequestDto {
   AgencyJoinRequestDto({
     required this.id,
     required this.applicantUserIdentification,
+    required this.applicantUsername,
+    required this.applicantFullName,
     required this.status,
     required this.agentContactValue,
     required this.contactType,
@@ -99,12 +112,20 @@ class AgencyJoinRequestDto {
   factory AgencyJoinRequestDto.fromJson(Map<String, dynamic> j) {
     return AgencyJoinRequestDto(
       id: (j["_id"] ?? j["id"] ?? "").toString(),
-      applicantUserIdentification: (j["applicantUserIdentification"] ?? "").toString(),
+      applicantUserIdentification:
+      (j["applicantUserIdentification"] ?? "").toString(),
+
+      // ✅ MAP NEW FIELDS
+      applicantUsername: j["applicantUsername"]?.toString(),
+      applicantFullName: j["applicantFullName"]?.toString(),
+
       status: (j["status"] ?? "").toString(),
       agentContactValue: (j["agentContactValue"] ?? "").toString(),
       contactType: (j["contactType"] ?? "").toString(),
       agentIdCardUrl: j["agentIdCardUrl"]?.toString(),
-      createdAt: j["createdAt"] == null ? null : DateTime.tryParse(j["createdAt"].toString()),
+      createdAt: j["createdAt"] == null
+          ? null
+          : DateTime.tryParse(j["createdAt"].toString()),
     );
   }
 }

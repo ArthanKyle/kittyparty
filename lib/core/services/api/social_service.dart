@@ -20,22 +20,9 @@ class SocialService {
         return Social.fromJson(jsonDecode(response.body));
       }
 
-      // fallback empty
-      return Social(
-        user: userId,
-        following: 0,
-        fans: 0,
-        friends: 0,
-        visitors: 0,
-      );
+      return _emptySocial(userId);
     } catch (_) {
-      return Social(
-        user: userId,
-        following: 0,
-        fans: 0,
-        friends: 0,
-        visitors: 0,
-      );
+      return _emptySocial(userId);
     }
   }
 
@@ -84,6 +71,22 @@ class SocialService {
     );
   }
 
+  /// 🔥 CHECK FOLLOW RELATION (TRUTH)
+  Future<bool> isFollowing({
+    required String userId,
+    required String targetId,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/socials/is-following/$userId/$targetId'),
+    );
+
+    if (response.statusCode != 200) return false;
+
+    final data = jsonDecode(response.body);
+    return data['isFollowing'] == true;
+  }
+
+  /// Unfriend
   Future<void> unfriendUser({
     required String userId,
     required String targetId,
@@ -98,4 +101,14 @@ class SocialService {
     );
   }
 
+  // ---------------- helper ----------------
+  Social _emptySocial(String userId) {
+    return Social(
+      user: userId,
+      following: 0,
+      fans: 0,
+      friends: 0,
+      visitors: 0,
+    );
+  }
 }

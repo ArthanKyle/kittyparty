@@ -34,10 +34,9 @@ class AgencyListCard extends StatelessWidget {
     if (media.isNotEmpty && media.first is Map<String, dynamic>) {
       final id = media.first['id']?.toString();
       if (id != null && id.isNotEmpty) {
-        imageUrl = "$base/api/agencies/media/$id";
+        imageUrl = "$base/media/$id";
       }
     }
-
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),

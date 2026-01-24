@@ -1,5 +1,3 @@
-// lib/features/landing/model/userInventory.dart
-
 class UserInventoryItem {
   final String id;
   final String sku;
@@ -8,8 +6,9 @@ class UserInventoryItem {
   final DateTime acquiredAt;
   final DateTime? expiresAt;
 
-  final String? assetKey;
-  final String? category;
+  // 🔥 SNAPSHOT FIELDS (NON-NULL)
+  final String assetType;
+  final String assetKey;
 
   UserInventoryItem({
     required this.id,
@@ -17,29 +16,32 @@ class UserInventoryItem {
     required this.source,
     required this.equipped,
     required this.acquiredAt,
+    required this.assetType,
+    required this.assetKey,
     this.expiresAt,
-    this.assetKey,
-    this.category,
   });
 
   factory UserInventoryItem.fromJson(Map<String, dynamic> json) {
-    final item = json['itemId'];
-
     return UserInventoryItem(
       id: json['_id'],
       sku: json['sku'],
-      source: json['source'],
+      source: json['source'] ?? 'mall',
       equipped: json['equipped'] == true,
       acquiredAt: DateTime.parse(json['acquiredAt']),
-      expiresAt:
-      json['expiresAt'] != null ? DateTime.parse(json['expiresAt']) : null,
-      assetKey: item?['assetKey'],
-      category: item?['category'],
+      expiresAt: json['expiresAt'] != null
+          ? DateTime.parse(json['expiresAt'])
+          : null,
+
+      // 🔒 HARD GUARANTEE (API PROVIDES THESE)
+      assetType: json['assetType'],
+      assetKey: json['assetKey'],
     );
   }
 
   /// ✅ REQUIRED BY VIEWMODEL
-  UserInventoryItem copyWith({bool? equipped}) {
+  UserInventoryItem copyWith({
+    bool? equipped,
+  }) {
     return UserInventoryItem(
       id: id,
       sku: sku,
@@ -47,21 +49,8 @@ class UserInventoryItem {
       equipped: equipped ?? this.equipped,
       acquiredAt: acquiredAt,
       expiresAt: expiresAt,
+      assetType: assetType,
       assetKey: assetKey,
-      category: category,
     );
-  }
-
-  /// ✅ SINGLE SOURCE OF TRUTH FOR IMAGE
-  String? get assetPath {
-    if (assetKey == null || category == null) return null;
-
-    switch (category!.toLowerCase()) {
-      case 'avatar':
-        return 'assets/image/avatar/$assetKey.png';
-      case 'mount':
-      default:
-        return 'assets/image/rides/$assetKey.png';
-    }
   }
 }

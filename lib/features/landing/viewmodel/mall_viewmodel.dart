@@ -52,10 +52,18 @@ class MallViewModel extends ChangeNotifier {
   // ============================
   // LOOKUPS
   // ============================
+  String _normalizeKey(String v) =>
+      v.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+
   MallItem? findByAssetKey(String assetKey) {
     _log("findByAssetKey: $assetKey");
+
+    final needle = _normalizeKey(assetKey);
+
     try {
-      final item = items.firstWhere((i) => i.assetKey == assetKey);
+      final item = items.firstWhere(
+            (i) => _normalizeKey(i.assetKey) == needle,
+      );
       _log("Item found: ${item.name}");
       return item;
     } catch (_) {
@@ -63,6 +71,7 @@ class MallViewModel extends ChangeNotifier {
       return null;
     }
   }
+
 
   void select(MallItem item) {
     _log("select(): ${item.name}");

@@ -26,8 +26,10 @@ class SocialViewModel extends ChangeNotifier {
 
     // TEMP inference (backend has no relationship endpoint yet)
     isFriend = (social?.friends ?? 0) > 0;
-    isFollowing = false;
-
+    isFollowing = await _service.isFollowing(
+      userId: _currentUserId,
+      targetId: _targetUserId,
+    );
     notifyListeners();
   }
 

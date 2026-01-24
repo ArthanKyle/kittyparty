@@ -44,7 +44,6 @@ class _GameListModalState extends State<GameListModal> {
     }
   }
 
-
   void _openGame(Map<String, dynamic> game) {
     final userProvider = context.read<UserProvider>();
     final userId = userProvider.currentUser!.userIdentification;

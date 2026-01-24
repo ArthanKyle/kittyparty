@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart';
 import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 
@@ -33,7 +33,7 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -56,6 +56,7 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await vm.load();
       await vm.viewAgencyByCode(agencyCode: widget.agencyCode);
+      await vm.loadMembers(agencyCode: widget.agencyCode);
       _rebuildTabs(vm);
       _didInit = true;
       if (mounted) setState(() {});
@@ -75,7 +76,7 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
 
   void _rebuildTabs(AgencyViewModel vm) {
     final isOwner = _isOwnerOfThisAgency(vm);
-    final desiredLength = isOwner ? 4 : 3;
+    final desiredLength = isOwner ? 3 : 2;
 
     if (_tabController.length == desiredLength) return;
 
@@ -84,6 +85,16 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
 
     if (isOwner) {
       vm.loadJoinRequests(agencyCode: widget.agencyCode);
+    }
+  }
+
+  /// ✅ SWIPE-DOWN REFRESH (GLOBAL)
+  Future<void> _refreshAll(AgencyViewModel vm) async {
+    await vm.viewAgencyByCode(agencyCode: widget.agencyCode);
+    await vm.loadMembers(agencyCode: widget.agencyCode);
+
+    if (_isOwnerOfThisAgency(vm)) {
+      await vm.loadJoinRequests(agencyCode: widget.agencyCode);
     }
   }
 
@@ -102,13 +113,26 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
 
         final isOwner = _isOwnerOfThisAgency(vm);
         final tabs = isOwner
-            ? const ["Info", "Members", "Approvals", "Withdraw"]
-            : const ["Info", "Members", "Withdraw"];
+            ? const ["Info", "Members", "Approvals"]
+            : const ["Info", "Members"];
 
         final membersCount =
             agency?.membersCount ?? vm.membersResult?.membersCount ?? 0;
         final maxMembers =
             agency?.maxMembers ?? vm.membersResult?.maxMembers ?? 10;
+
+        final ownerMember = vm.membersResult?.members
+            .where((m) => m.role == "owner")
+            .cast<AgencyMemberDto?>()
+            .firstWhere(
+              (m) => m != null,
+          orElse: () => null,
+        );
+
+        final ownerName = ownerMember?.username?.isNotEmpty == true
+            ? ownerMember!.username!
+            : ownerMember?.userIdentification ?? "-";
+
 
         return Scaffold(
           appBar: AppBar(
@@ -131,55 +155,59 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
               _rebuildTabs(vm);
             },
           )
-              : TabBarView(
-            controller: _tabController,
-            children: [
-              _InfoTabDto(
-                agency: agency,
-                membersCount: membersCount,
-                maxMembers: maxMembers,
-                isOwner: isOwner,
-                onEdit:
-                isOwner ? () => _editAgency(vm) : null,
-                onApply:
-                isOwner ? null : () => _applyToJoin(vm),
-                isFull: membersCount >= maxMembers,
-              ),
-              _MembersTabDto(
-                loading: vm.isLoading &&
-                    vm.membersResult == null,
-                members:
-                vm.membersResult?.members ?? const [],
-                membersCount: membersCount,
-                maxMembers: maxMembers,
-              ),
-              if (isOwner)
-                _ApprovalsTabDto(
-                  loading: vm.isLoading,
-                  requests: vm.joinRequests,
-                  onRefresh: () => vm.loadJoinRequests(
-                    agencyCode: widget.agencyCode,
-                  ),
-                  onApprove: (id) => vm.approveRequest(
-                    agencyCode: widget.agencyCode,
-                    requestId: id,
-                  ),
-                  onReject: (id) async {
-                    final reason =
-                    await _askReason(context);
-                    await vm.rejectRequest(
+              : RefreshIndicator(
+            onRefresh: () => _refreshAll(vm),
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _InfoTabDto(
+                  agency: agency,
+                  membersCount: membersCount,
+                  maxMembers: maxMembers,
+                  isOwner: isOwner,
+                  onEdit: isOwner ? () => _editAgency(vm) : null,
+                  onApply: isOwner ? null : () => _applyToJoin(vm),
+                  isFull: membersCount >= maxMembers,
+                  ownerName: ownerName, // ✅ NOW DEFINED
+                ),
+                _MembersTabDto(
+                  loading: vm.isLoading &&
+                      vm.membersResult == null,
+                  members:
+                  vm.membersResult?.members ?? const [],
+                  membersCount: membersCount,
+                  maxMembers: maxMembers,
+                ),
+                if (isOwner)
+                  _ApprovalsTabDto(
+                    loading: vm.isLoading,
+                    requests: vm.joinRequests,
+                    onRefresh: () => vm.loadJoinRequests(
+                      agencyCode: widget.agencyCode,
+                    ),
+                    onApprove: (id) => vm.approveRequest(
                       agencyCode: widget.agencyCode,
                       requestId: id,
-                      reason: reason ?? "",
-                    );
-                  },
-                ),
-            ],
+                    ),
+                    onReject: (id) async {
+                      final reason =
+                      await _askReason(context);
+                      await vm.rejectRequest(
+                        agencyCode: widget.agencyCode,
+                        requestId: id,
+                        reason: reason ?? "",
+                      );
+                    },
+                  ),
+              ],
+            ),
           )),
         );
       },
     );
   }
+
+  /* ================= ACTIONS ================= */
 
   Future<void> _editAgency(AgencyViewModel vm) async {
     final agency = vm.viewingAgency!;
@@ -293,18 +321,19 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
         content: TextField(controller: c),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, null),
-              child: const Text("Skip")),
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text("Skip"),
+          ),
           ElevatedButton(
-              onPressed: () =>
-                  Navigator.pop(context, c.text.trim()),
-              child: const Text("Submit")),
+            onPressed: () =>
+                Navigator.pop(context, c.text.trim()),
+            child: const Text("Submit"),
+          ),
         ],
       ),
     );
   }
 }
-
 
 /* =========================
  * TABS
@@ -318,6 +347,7 @@ class _InfoTabDto extends StatelessWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onApply;
   final bool isFull;
+  final String ownerName;
 
   const _InfoTabDto({
     required this.agency,
@@ -327,27 +357,36 @@ class _InfoTabDto extends StatelessWidget {
     required this.onEdit,
     required this.onApply,
     required this.isFull,
+    required this.ownerName,
   });
 
   @override
   Widget build(BuildContext context) {
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(14),
       children: [
         _HeaderCard(
           name: agency.name,
           code: agency.agencyCode,
-          logoUrl: agency.logoUrl,
+          media: agency.media ?? const [],
           subtitle: "$membersCount/$maxMembers members",
         ),
         const SizedBox(height: 12),
         _InfoRow(title: "Description", value: agency.description),
-        _InfoRow(title: "Owner", value: agency.ownerUserIdentification),
+        _InfoRow(title: "Owner", value: ownerName),
         const SizedBox(height: 18),
         if (isOwner && onEdit != null)
-          SizedBox(height: 44, child: ElevatedButton(onPressed: onEdit, child: const Text("Edit Agency",style: TextStyle(
-            color: AppColors.accentWhite
-          ),))),
+          SizedBox(
+            height: 44,
+            child: ElevatedButton(
+              onPressed: onEdit,
+              child: const Text(
+                "Edit Agency",
+                style: TextStyle(color: AppColors.accentWhite),
+              ),
+            ),
+          ),
         if (!isOwner && onApply != null)
           SizedBox(
             height: 44,
@@ -376,20 +415,42 @@ class _MembersTabDto extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return const Center(child: CircularProgressIndicator());
+    if (loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(14),
       children: [
-        Text("$membersCount/$maxMembers members", style: const TextStyle(fontWeight: FontWeight.w600)),
+        Text(
+          "$membersCount/$maxMembers members",
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
         const SizedBox(height: 10),
         ...members.map((m) {
-          final role = m.role;
-          final id = m.userIdentification;
+          final displayName =
+          m.username?.isNotEmpty == true
+              ? m.username!
+              : m.userIdentification;
+
           return Card(
             child: ListTile(
-              leading: CircleAvatar(child: Text(id.isNotEmpty ? id[0] : "U")),
-              title: Text("User: $id"),
-              subtitle: Text("Role: $role"),
+              leading: UserAvatarHelper.circleAvatar(
+                userIdentification: m.userIdentification,
+                displayName: displayName,
+                localBytes: null,
+                radius: 22,
+                frameAsset: null,
+              ),
+              title: Text(
+                displayName,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text(
+                "Role: ${m.role}",
+                style: const TextStyle(color: Colors.black54),
+              ),
             ),
           );
         }),
@@ -422,6 +483,7 @@ class _ApprovalsTabDto extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(14),
         children: [
           if (requests.isEmpty)
@@ -429,9 +491,18 @@ class _ApprovalsTabDto extends StatelessWidget {
               padding: EdgeInsets.only(top: 40),
               child: Center(child: Text("No pending applications.")),
             ),
+
           ...requests.map((r) {
             final id = r.id;
-            final applicant = r.applicantUserIdentification;
+
+            // ✅ DISPLAY NAME RESOLUTION (IMPORTANT)
+            final displayName =
+            (r.applicantUsername?.isNotEmpty == true)
+                ? r.applicantUsername!
+                : (r.applicantFullName?.isNotEmpty == true)
+                ? r.applicantFullName!
+                : r.applicantUserIdentification;
+
             final contact = r.agentContactValue;
             final contactType = r.contactType;
 
@@ -441,30 +512,27 @@ class _ApprovalsTabDto extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 👤 USER AVATAR (LEFT)
                     UserAvatarHelper.circleAvatar(
-                      userIdentification: applicant,
-                      displayName: applicant,
+                      userIdentification: r.applicantUserIdentification,
+                      displayName: displayName, // ✅ FIXED
                       localBytes: null,
                       radius: 26,
                       frameAsset: null,
                     ),
-
                     const SizedBox(width: 12),
-
-                    // 📄 CONTENT (RIGHT)
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "Applicant: $applicant",
-                            style: const TextStyle(fontWeight: FontWeight.w600),
+                            "Applicant: $displayName", // ✅ FIXED
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           const SizedBox(height: 6),
                           Text("Contact: $contact ($contactType)"),
                           const SizedBox(height: 12),
-
                           Row(
                             children: [
                               Expanded(
@@ -472,7 +540,9 @@ class _ApprovalsTabDto extends StatelessWidget {
                                   onPressed: () => onApprove(id),
                                   child: const Text(
                                     "Approve",
-                                    style: TextStyle(color: AppColors.accentWhite),
+                                    style: TextStyle(
+                                      color: AppColors.accentWhite,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -498,7 +568,6 @@ class _ApprovalsTabDto extends StatelessWidget {
     );
   }
 }
-
 /* =========================
  * SMALL UI PARTS
  * ========================= */
@@ -506,32 +575,70 @@ class _ApprovalsTabDto extends StatelessWidget {
 class _HeaderCard extends StatelessWidget {
   final String name;
   final String code;
-  final String? logoUrl;
+  final List<dynamic> media;
   final String subtitle;
 
   const _HeaderCard({
     required this.name,
     required this.code,
-    required this.logoUrl,
+    required this.media,
     required this.subtitle,
   });
 
   @override
   Widget build(BuildContext context) {
+    final base = dotenv.env['BASE_URL'] ?? "";
+
+    String? imageUrl;
+    if (media.isNotEmpty && media.first is Map<String, dynamic>) {
+      final id = media.first['id']?.toString();
+      if (id != null && id.isNotEmpty) {
+        imageUrl = "$base/media/$id";
+      }
+    }
+
     return Card(
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundImage:
-          logoUrl != null && logoUrl!.isNotEmpty
-              ? NetworkImage(logoUrl!)
-              : null,
-          child: (logoUrl == null || logoUrl!.isEmpty)
-              ? Text(name.isNotEmpty ? name[0].toUpperCase() : "A")
-              : null,
+        leading: Container(
+          width: 64,
+          height: 64, // ✅ perfect square
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(4), // 🔥 almost square
+            border: Border.all(
+              color: Colors.grey.shade300,
+              width: 1,
+            ),
+          ),
+          clipBehavior: Clip.hardEdge,
+          child: imageUrl != null
+              ? Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _fallbackAvatar(),
+          )
+              : _fallbackAvatar(),
         ),
-        title: Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
+        title: Text(
+          name,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
         subtitle: Text("Code: $code\n$subtitle"),
         isThreeLine: true,
+      ),
+    );
+  }
+
+  Widget _fallbackAvatar() {
+    return Container(
+      color: Colors.grey.shade300,
+      alignment: Alignment.center,
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : "A",
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
@@ -547,7 +654,8 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        title:
+        Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(value.isEmpty ? "-" : value),
       ),
     );
@@ -570,7 +678,10 @@ class _ErrorBox extends StatelessWidget {
           children: [
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 12),
-            ElevatedButton(onPressed: onRetry, child: const Text("Retry")),
+            ElevatedButton(
+              onPressed: onRetry,
+              child: const Text("Retry"),
+            ),
           ],
         ),
       ),

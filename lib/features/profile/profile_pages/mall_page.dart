@@ -28,13 +28,15 @@ class _MallPageState extends State<MallPage> {
   @override
   void initState() {
     super.initState();
+
     _assetsFuture = AssetCatalog.listByFolder(
       folders: const [_ridesFolder, _avatarFolder],
     );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<MallViewModel>().bindUser(context);
-      context.read<MallViewModel>().loadMall();
+      final vm = context.read<MallViewModel>();
+      vm.bindUser(context);
+      vm.loadMall();
     });
   }
 
@@ -62,6 +64,10 @@ class _MallPageState extends State<MallPage> {
     );
   }
 
+  Future<void> _refresh() async {
+    await context.read<MallViewModel>().loadMall();
+  }
+
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<MallViewModel>();
@@ -73,7 +79,7 @@ class _MallPageState extends State<MallPage> {
           children: [
             const SizedBox(height: 12),
 
-            /// CATEGORY BAR (FIXED)
+            /// CATEGORY BAR
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(categories.length, (i) {
@@ -85,8 +91,8 @@ class _MallPageState extends State<MallPage> {
                   borderRadius: BorderRadius.circular(14),
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 8),
-                    padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
                       color: isSelected
                           ? const Color(0xFF2A144A)
@@ -116,158 +122,171 @@ class _MallPageState extends State<MallPage> {
 
             const SizedBox(height: 16),
 
-            /// GRID
+            /// GRID + PULL TO REFRESH
             Expanded(
-              child: FutureBuilder<Map<String, List<String>>>(
-                future: _assetsFuture,
-                builder: (_, snap) {
-                  if (!snap.hasData) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFFFFD700),
+              child: RefreshIndicator(
+                color: const Color(0xFFFFD700),
+                onRefresh: _refresh,
+                child: FutureBuilder<Map<String, List<String>>>(
+                  future: _assetsFuture,
+                  builder: (_, snap) {
+                    if (!snap.hasData) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFFFFD700),
+                        ),
+                      );
+                    }
+
+                    final assets =
+                        snap.data![_currentFolder()] ?? const <String>[];
+
+                    return GridView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 14,
+                        mainAxisSpacing: 14,
+                        childAspectRatio: .75,
                       ),
-                    );
-                  }
+                      itemCount: assets.length,
+                      itemBuilder: (_, i) {
+                        final assetPath = assets[i];
+                        final key = assetKeyFromPath(assetPath);
+                        final item = vm.findByAssetKey(key);
+                        final isSelected =
+                            vm.selectedItem?.assetKey == item?.assetKey;
 
-                  final assets =
-                      snap.data![_currentFolder()] ?? const <String>[];
-
-                  return GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 14,
-                      mainAxisSpacing: 14,
-                      childAspectRatio: .75,
-                    ),
-                    itemCount: assets.length,
-                    itemBuilder: (_, i) {
-                      final assetPath = assets[i];
-                      final key = assetKeyFromPath(assetPath);
-                      final item = vm.findByAssetKey(key);
-                      final isSelected =
-                          vm.selectedItem?.assetKey == key;
-
-                      return InkWell(
-                        onTap: item == null ? null : () => vm.select(item),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? const Color(0xFF2A144A)
-                                : const Color(0xFF11203E),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
+                        return InkWell(
+                          onTap:
+                          item == null ? null : () => vm.select(item),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            decoration: BoxDecoration(
                               color: isSelected
-                                  ? const Color(0xFFFFD700)
-                                  : const Color(0xFF546AA2),
-                              width: isSelected ? 1.4 : 0.7,
+                                  ? const Color(0xFF2A144A)
+                                  : const Color(0xFF11203E),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isSelected
+                                    ? const Color(0xFFFFD700)
+                                    : const Color(0xFF546AA2),
+                                width: isSelected ? 1.4 : 0.7,
+                              ),
                             ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Stack(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: const BorderRadius.vertical(
-                                        top: Radius.circular(12)),
-                                    child: Image.asset(
-                                      assetPath,
-                                      height: 130,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Stack(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius:
+                                      const BorderRadius.vertical(
+                                          top: Radius.circular(12)),
+                                      child: Image.asset(
+                                        assetPath,
+                                        height: 130,
+                                        width: double.infinity,
+                                        fit: BoxFit.cover,
+                                      ),
                                     ),
-                                  ),
-                                  Positioned(
-                                    right: 8,
-                                    bottom: 8,
-                                    child: GestureDetector(
-                                      onTap: () => _openSvga(key),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(6),
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withOpacity(0.65),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(
-                                          Icons.play_arrow,
-                                          color: Colors.white,
-                                          size: 20,
+                                    Positioned(
+                                      right: 8,
+                                      bottom: 8,
+                                      child: GestureDetector(
+                                        onTap: () => _openSvga(key),
+                                        child: Container(
+                                          padding:
+                                          const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black
+                                                .withOpacity(0.65),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.play_arrow,
+                                            color: Colors.white,
+                                            size: 20,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
+                                  ],
+                                ),
 
-                              Padding(
-                                padding: const EdgeInsets.all(10),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item?.name ?? key,
-                                      style: const TextStyle(
-                                          color: Colors.white),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 6),
+                                Padding(
+                                  padding: const EdgeInsets.all(10),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item?.name ?? key,
+                                        style: const TextStyle(
+                                            color: Colors.white),
+                                        maxLines: 1,
+                                        overflow:
+                                        TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 6),
 
-                                    Row(
-                                      children: [
-                                        Image.asset(
-                                            'assets/icons/KPcoin.png',
-                                            width: 16),
-                                        const SizedBox(width: 6),
+                                      Row(
+                                        children: [
+                                          Image.asset(
+                                              'assets/icons/KPcoin.png',
+                                              width: 16),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            item == null
+                                                ? '—'
+                                                : vm
+                                                .displayPrice(item)
+                                                .toString(),
+                                            style: const TextStyle(
+                                              color:
+                                              Color(0xFFFFD700),
+                                              fontWeight:
+                                              FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'VIP 5 • 95% OFF',
+                                        style: TextStyle(
+                                          color: vm.isVip5
+                                              ? Colors.greenAccent
+                                              : Colors.white38,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+
+                                      if (item?.durationDays != null &&
+                                          item!.durationDays! > 0) ...[
+                                        const SizedBox(height: 4),
                                         Text(
-                                          item == null
-                                              ? '—'
-                                              : vm
-                                              .displayPrice(item)
-                                              .toString(),
+                                          'Valid ${item.durationDays} day(s)',
                                           style: const TextStyle(
-                                            color: Color(0xFFFFD700),
-                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white70,
+                                            fontSize: 12,
                                           ),
                                         ),
                                       ],
-                                    ),
-
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'VIP 5 • 95% OFF',
-                                      style: TextStyle(
-                                        color: vm.isVip5
-                                            ? Colors.greenAccent
-                                            : Colors.white38,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-
-                                    if (item?.durationDays != null &&
-                                        item!.durationDays! > 0) ...[
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Valid ${item.durationDays} day(s)',
-                                        style: const TextStyle(
-                                          color: Colors.white70,
-                                          fontSize: 12,
-                                        ),
-                                      ),
                                     ],
-                                  ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  );
-                },
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
             ),
 
@@ -280,7 +299,8 @@ class _MallPageState extends State<MallPage> {
                 children: [
                   Row(
                     children: [
-                      Image.asset('assets/icons/KPcoin.png', width: 22),
+                      Image.asset('assets/icons/KPcoin.png',
+                          width: 22),
                       const SizedBox(width: 8),
                       Text(
                         vm.selectedItem == null
@@ -309,8 +329,8 @@ class _MallPageState extends State<MallPage> {
                       const SizedBox(width: 10),
                       _actionButton(
                         label: 'Buy',
-                        enabled:
-                        vm.selectedItem != null && !vm.isBuying,
+                        enabled: vm.selectedItem != null &&
+                            !vm.isBuying,
                         onTap: () => vm.buySelected(context),
                       ),
                     ],
@@ -336,8 +356,9 @@ class _MallPageState extends State<MallPage> {
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF4B3200),
           foregroundColor: const Color(0xFFFFD700),
-          shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
         ),
         child: Text(label),
       ),

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 
 import 'package:kittyparty/core/utils/user_provider.dart';
@@ -10,7 +11,6 @@ import '../../../core/global_widgets/dialogs/dialog_info.dart';
 import '../../../core/global_widgets/dialogs/dialog_loading.dart';
 import '../../landing/landing_widgets/profile_widgets/agency_widgets/agency_list_card.dart';
 import '../../landing/viewmodel/agency_viewmodel.dart';
-import 'agency/agency_details.dart';
 import 'agency/create_agency.dart';
 
 class AgencyRoom extends StatefulWidget {
@@ -23,6 +23,39 @@ class AgencyRoom extends StatefulWidget {
 class _AgencyRoomState extends State<AgencyRoom> {
   bool _didInit = false;
   final TextEditingController _searchCtrl = TextEditingController();
+
+  /* =========================
+   * HELPERS
+   * ========================= */
+
+  String? _buildMediaUrl(List<dynamic> media) {
+    final base = dotenv.env['BASE_URL'] ?? "";
+
+    if (media.isNotEmpty && media.first is Map<String, dynamic>) {
+      final id = media.first['id']?.toString();
+      if (id != null && id.isNotEmpty) {
+        return "$base/media/$id";
+      }
+    }
+    return null;
+  }
+
+  String countryToDialCode(String country) {
+    switch (country.toUpperCase()) {
+      case 'PH':
+        return '+63';
+      case 'US':
+        return '+1';
+      case 'JP':
+        return '+81';
+      default:
+        return '';
+    }
+  }
+
+  /* =========================
+   * INIT
+   * ========================= */
 
   @override
   void didChangeDependencies() {
@@ -42,10 +75,7 @@ class _AgencyRoomState extends State<AgencyRoom> {
     _didInit = true;
   }
 
-  Future<void> _handleCreateAgency(
-      BuildContext context,
-      dynamic user,
-      ) async {
+  Future<void> _handleCreateAgency(BuildContext context, dynamic user) async {
     final ok = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
@@ -62,6 +92,10 @@ class _AgencyRoomState extends State<AgencyRoom> {
       context.read<AgencyViewModel>().refresh();
     }
   }
+
+  /* =========================
+   * UI
+   * ========================= */
 
   @override
   Widget build(BuildContext context) {
@@ -93,7 +127,7 @@ class _AgencyRoomState extends State<AgencyRoom> {
           return Stack(
             children: [
               /// =====================
-              /// CONTENT + REFRESH
+              /// CONTENT
               /// =====================
               RefreshIndicator(
                 onRefresh: () => vm.refresh(),
@@ -103,7 +137,7 @@ class _AgencyRoomState extends State<AgencyRoom> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      /// SEARCH BAR
+                      /// SEARCH
                       TextField(
                         controller: _searchCtrl,
                         onChanged: (_) => setState(() {}),
@@ -144,26 +178,51 @@ class _AgencyRoomState extends State<AgencyRoom> {
                               media: agency.media,
                               waveAsset: 'assets/image/gold_wave_bg.png',
                               onTap: () async {
-                                final vm = context.read<AgencyViewModel>();
+                                final currentUser = context.read<UserProvider>().currentUser;
 
-                                // ❌ Prevent duplicate apply
+                                if (currentUser == null) {
+                                  print("🧪 USER DEBUG ❌ user is null");
+                                  return;
+                                }
+
+                                print("🧪 USER DEBUG ✅");
+                                print("UserIdentification = ${currentUser.userIdentification}");
+                                print("Username           = ${currentUser.username}");
+                                print("CountryCode(raw)   = '${currentUser.countryCode}'");
+                                print("PhoneNumber(raw)   = '${currentUser.phoneNumber}'");
+                                print("DialCode(mapped)   = '${countryToDialCode(currentUser.countryCode)}'");
+
+
+                                final vm =
+                                context.read<AgencyViewModel>();
+                                final user =
+                                    context.read<UserProvider>().currentUser;
+
+                                if (user == null) return;
+
+                                /// ❌ Prevent duplicate
                                 if (agency.hasPendingRequest) {
                                   DialogInfo(
                                     headerText: "Notice",
-                                    subText: "Your application to this agency is already pending.",
+                                    subText:
+                                    "Your application to this agency is already pending.",
                                     confirmText: "OK",
-                                    onConfirm: () => Navigator.pop(context),
-                                    onCancel: () => Navigator.pop(context),
+                                    onConfirm: () =>
+                                        Navigator.pop(context),
+                                    onCancel: () =>
+                                        Navigator.pop(context),
                                   ).build(context);
                                   return;
                                 }
 
-                                final confirmCompleter = Completer<bool>();
+                                final confirmCompleter =
+                                Completer<bool>();
 
-                                // 1️⃣ CONFIRM
+                                /// 1️⃣ CONFIRM
                                 DialogInfo(
                                   headerText: "Apply to Join",
-                                  subText: "Do you want to apply to join ${agency.name}?",
+                                  subText:
+                                  "Do you want to apply to join ${agency.name}?",
                                   confirmText: "Apply",
                                   cancelText: "Cancel",
                                   onConfirm: () {
@@ -176,39 +235,87 @@ class _AgencyRoomState extends State<AgencyRoom> {
                                   },
                                 ).build(context);
 
-                                final confirm = await confirmCompleter.future;
+                                final confirm =
+                                await confirmCompleter.future;
                                 if (confirm != true) return;
 
-                                // 2️⃣ LOADING
+                                /// 2️⃣ VALIDATE DATA
+                                final contactCountryCode = countryToDialCode(user.countryCode);
+                                final contactValue = user.phoneNumber ?? "";
+                                final agentIdCardUrl =
+                                _buildMediaUrl(agency.media);
+
+                                if (contactCountryCode.isEmpty ||
+                                    contactValue.isEmpty) {
+                                  DialogInfo(
+                                    headerText:
+                                    "Missing Information",
+                                    subText:
+                                    "Please complete your phone number in your profile.",
+                                    confirmText: "OK",
+                                    onConfirm: () =>
+                                        Navigator.pop(context),
+                                    onCancel: () =>
+                                        Navigator.pop(context),
+                                  ).build(context);
+                                  return;
+                                }
+
+                                if (agentIdCardUrl == null) {
+                                  DialogInfo(
+                                    headerText: "Missing ID",
+                                    subText:
+                                    "This agency has no valid ID card.",
+                                    confirmText: "OK",
+                                    onConfirm: () =>
+                                        Navigator.pop(context),
+                                    onCancel: () =>
+                                        Navigator.pop(context),
+                                  ).build(context);
+                                  return;
+                                }
+
+                                /// 3️⃣ LOADING
                                 DialogLoading(
-                                  subtext: "Submitting application...",
+                                  subtext:
+                                  "Submitting application...",
                                 ).build(context);
 
                                 bool ok = false;
 
                                 try {
                                   ok = await vm.applyToJoin(
-                                    agencyCode: agency.agencyCode,
-                                    agencyAvatarUrl: agency.logoUrl ?? "",
+                                    agencyCode:
+                                    agency.agencyCode,
+                                    agencyAvatarUrl:
+                                    agency.logoUrl ?? "",
                                     agencyName: agency.name,
-                                    agentContactCountryCode: "+63",      // 🔁 replace if dynamic
-                                    agentContactValue: "09123456789",    // 🔁 replace if dynamic
+                                    agentContactCountryCode:
+                                    contactCountryCode,
+                                    agentContactValue:
+                                    contactValue,
                                     contactType: "phone",
-                                    agentIdCardUrl: "https://example.com/id.jpg",
+                                    agentIdCardUrl:
+                                    agentIdCardUrl,
                                   );
                                 } finally {
-                                  if (mounted) Navigator.pop(context); // close loading
+                                  if (mounted) {
+                                    Navigator.pop(context);
+                                  }
                                 }
 
-                                // 3️⃣ RESULT
+                                /// 4️⃣ RESULT
                                 DialogInfo(
-                                  headerText: ok ? "Success" : "Notice",
+                                  headerText:
+                                  ok ? "Success" : "Notice",
                                   subText: ok
                                       ? "Application submitted successfully."
                                       : "Failed to submit application.",
                                   confirmText: "OK",
-                                  onConfirm: () => Navigator.pop(context),
-                                  onCancel: () => Navigator.pop(context),
+                                  onConfirm: () =>
+                                      Navigator.pop(context),
+                                  onCancel: () =>
+                                      Navigator.pop(context),
                                 ).build(context);
                               },
                             );
@@ -220,7 +327,7 @@ class _AgencyRoomState extends State<AgencyRoom> {
               ),
 
               /// =====================
-              /// FLOATING CREATE BUTTON (OVERLAP)
+              /// CREATE BUTTON
               /// =====================
               Positioned(
                 left: 16,

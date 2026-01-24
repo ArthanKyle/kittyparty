@@ -17,10 +17,15 @@ class ItemService {
       '$baseUrl/items?UserIdentification=$userIdentification',
     );
 
+    print('📦 [ItemService] GET $uri');
+
     final res = await http.get(
       uri,
       headers: {'Content-Type': 'application/json'},
     );
+
+    print('📦 [ItemService] Status: ${res.statusCode}');
+    print('📦 [ItemService] Raw response: ${res.body}');
 
     if (res.statusCode != 200) {
       throw Exception(res.body);
@@ -35,14 +40,22 @@ class ItemService {
     required String inventoryId,
     required String userIdentification,
   }) async {
+    final body = {
+      'inventoryId': inventoryId,
+      'UserIdentification': userIdentification,
+    };
+
+    print('📦 [ItemService] POST $baseUrl/items/equip');
+    print('📦 [ItemService] Body: $body');
+
     final res = await http.post(
       Uri.parse('$baseUrl/items/equip'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'inventoryId': inventoryId,
-        'UserIdentification': userIdentification,
-      }),
+      body: jsonEncode(body),
     );
+
+    print('📦 [ItemService] Status: ${res.statusCode}');
+    print('📦 [ItemService] Response: ${res.body}');
 
     if (res.statusCode != 200) {
       throw Exception(res.body);
@@ -54,14 +67,22 @@ class ItemService {
     required String inventoryId,
     required String userIdentification,
   }) async {
+    final body = {
+      'inventoryId': inventoryId,
+      'UserIdentification': userIdentification,
+    };
+
+    print('📦 [ItemService] POST $baseUrl/items/unequip');
+    print('📦 [ItemService] Body: $body');
+
     final res = await http.post(
       Uri.parse('$baseUrl/items/unequip'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'inventoryId': inventoryId,
-        'UserIdentification': userIdentification,
-      }),
+      body: jsonEncode(body),
     );
+
+    print('📦 [ItemService] Status: ${res.statusCode}');
+    print('📦 [ItemService] Response: ${res.body}');
 
     if (res.statusCode != 200) {
       throw Exception(res.body);

@@ -3,39 +3,36 @@ class MallItem {
   final String name;
   final String sku;
   final String assetKey;
-  final String category;
+  final String assetType;
 
   final int priceCoins;
-  final int? durationDays;
   final int? giftPriceCoins;
+  final int? durationDays;
   final int? giftDurationDays;
-  final bool isActive;
 
   MallItem({
     required this.id,
     required this.name,
     required this.sku,
     required this.assetKey,
-    required this.category,
+    required this.assetType,
     required this.priceCoins,
-    this.durationDays,
     this.giftPriceCoins,
+    this.durationDays,
     this.giftDurationDays,
-    this.isActive = true,
   });
 
   factory MallItem.fromJson(Map<String, dynamic> json) {
     return MallItem(
-      id: json['_id'],
-      name: json['name'],
-      sku: json['sku'],
-      assetKey: json['assetKey'] ?? '', // safe
-      category: json['category'],
-      priceCoins: json['priceCoins'],
-      durationDays: json['durationDays'],
+      id: json['_id']?.toString() ?? '',
+      name: json['name'] ?? '',
+      sku: json['sku'] ?? '',
+      assetKey: json['assetKey'] ?? '',
+      assetType: json['assetType'] ?? '', // 👈 SAFE
+      priceCoins: json['priceCoins'] ?? 0,
       giftPriceCoins: json['giftPriceCoins'],
+      durationDays: json['durationDays'],
       giftDurationDays: json['giftDurationDays'],
-      isActive: json['isActive'] ?? true,
     );
   }
 }

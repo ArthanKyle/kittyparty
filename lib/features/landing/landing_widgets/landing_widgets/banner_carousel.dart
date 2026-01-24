@@ -57,22 +57,32 @@ class _BannerCarouselState extends State<BannerCarousel> {
     'assets/image/banner/task-center-banner.jpg':
     AppRoutes.tasks,
 
+    // ✅ INTENTIONAL FALLBACK
     'assets/image/banner/ad-event-banner.jpg':
-    AppRoutes.landing,
+    '/ad-event', // 👈 intentionally unmapped
+
   };
 
 
   int _currentIndex = 0;
 
   void _openBanner(BuildContext context, String imagePath, int index) {
-    final route = bannerRouteByImage[imagePath];
-
-    if (route == null) {
-      debugPrint('No route mapped for banner ${index + 1}: $imagePath');
+    if (imagePath == 'assets/image/banner/ad-event-banner.jpg') {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          content: const Text(
+            "Coming soon!",
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
       return;
     }
 
-    debugPrint('Banner ${index + 1} -> pushNamed($route)');
+    final route = bannerRouteByImage[imagePath];
+    if (route == null) return;
+
     Navigator.of(context).pushNamed(route);
   }
 

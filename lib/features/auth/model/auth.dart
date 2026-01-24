@@ -69,7 +69,11 @@ class User {
       phoneNumber: json['PhoneNumber'] ?? json['phoneNumber'],
       loginMethod: json['LoginMethod'] ?? json['loginMethod'] ?? 'Email',
       passwordHash: json['passwordHash'] == true, // ✅ read bool
-      countryCode: json['CountryCode'] ?? json['countryCode'] ?? '',
+      countryCode:
+      json['CountryCode'] ??
+          json['countryCode'] ??
+          json['country'] ??
+          '',
       gender: _parseGender(json['Gender'] ?? json['gender']),
       vipLevel: json['vipLevel'] is int
           ? json['vipLevel']

@@ -1,4 +1,3 @@
-// inventory_viewmodel.dart  (ItemViewModel)
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -17,14 +16,12 @@ class ItemViewModel extends ChangeNotifier {
   UserProvider? _userProvider;
   BuildContext? _context;
   bool _isBound = false;
-
-  // ✅ track which user this VM is currently bound to
   String? _boundUserIdentification;
 
   void _log(String msg) => debugPrint("🎒 [ItemVM] $msg");
 
   // ===============================
-  // RESET (call on logout OR user switch)
+  // RESET
   // ===============================
   void reset() {
     _log("🧽 reset()");
@@ -41,13 +38,12 @@ class ItemViewModel extends ChangeNotifier {
   }
 
   // ===============================
-  // SAFE BIND + USER SWITCH DETECT
+  // SAFE BIND
   // ===============================
   void ensureBound(BuildContext context) {
     final up = context.read<UserProvider>();
     final newUserId = up.currentUser?.userIdentification;
 
-    // ✅ If already bound to a different user, reset and rebind
     if (_isBound &&
         _boundUserIdentification != null &&
         _boundUserIdentification != newUserId) {
@@ -71,7 +67,6 @@ class ItemViewModel extends ChangeNotifier {
   Future<void> loadInventory() async {
     final user = _userProvider?.currentUser;
 
-    // ✅ if logged out, wipe inventory so UI won't reuse old user's items
     if (user == null) {
       inventory = [];
       notifyListeners();
@@ -87,10 +82,9 @@ class ItemViewModel extends ChangeNotifier {
       );
 
       for (final i in inventory) {
-        _log("• ${i.sku} equipped=${i.equipped}");
+        _log("• ${i.assetKey} equipped=${i.equipped}");
       }
 
-      // 🔥 sync profile after load
       _context?.read<ProfileViewModel>().syncFromInventory(inventory);
     } catch (e) {
       _log("❌ loadInventory error: $e");
@@ -101,14 +95,12 @@ class ItemViewModel extends ChangeNotifier {
   }
 
   // ===============================
-  // EQUIP (ONE PER CATEGORY)
+  // EQUIP
   // ===============================
   Future<void> equip(UserInventoryItem item) async {
     if (isEquipping) return;
     isEquipping = true;
     notifyListeners();
-
-    _log("▶ EQUIP ${item.sku} (${item.id})");
 
     final user = _userProvider?.currentUser;
     if (user == null) {
@@ -123,27 +115,17 @@ class ItemViewModel extends ChangeNotifier {
         userIdentification: user.userIdentification,
       );
 
-      final category = _deriveCategory(item.sku);
-      _log("Category resolved: $category");
-
       inventory = inventory.map((i) {
-        // ✅ EQUIPPED ITEM FIRST
         if (i.id == item.id) {
           return i.copyWith(equipped: true);
         }
-
-        // ✅ UNEQUIP OTHERS IN SAME CATEGORY
-        if (_deriveCategory(i.sku) == category) {
+        if (i.assetType == item.assetType) {
           return i.copyWith(equipped: false);
         }
-
         return i;
       }).toList();
 
-      // 🔥 SYNC TO PROFILE
       _context?.read<ProfileViewModel>().syncFromInventory(inventory);
-
-      _log("✔ EQUIP DONE");
     } catch (e) {
       _log("❌ equip error: $e");
     } finally {
@@ -170,23 +152,9 @@ class ItemViewModel extends ChangeNotifier {
           .toList();
 
       _context?.read<ProfileViewModel>().syncFromInventory(inventory);
-
       notifyListeners();
     } catch (e) {
       _log("❌ unequip error: $e");
     }
-  }
-
-  // ===============================
-  // CATEGORY DERIVATION
-  // ===============================
-  String _deriveCategory(String sku) {
-    final s = sku.toUpperCase();
-    if (s.contains('FRAME') || s.contains('AVATAR')) return 'AVATAR';
-    if (s.startsWith('MOUNT')) return 'MOUNT';
-    if (s.contains('NAMEPLATE')) return 'NAMEPLATE';
-    if (s.contains('PROFILE')) return 'PROFILECARD';
-    if (s.contains('CHAT')) return 'CHATBUBBLE';
-    return 'UNKNOWN';
   }
 }

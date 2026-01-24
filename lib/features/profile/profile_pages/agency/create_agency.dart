@@ -8,6 +8,8 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/global_widgets/dialogs/dialog_info.dart';
 import '../../../../core/global_widgets/dialogs/dialog_loading.dart';
+import '../../../../core/utils/profile_picture_helper.dart';
+import '../../../../core/utils/user_provider.dart';
 import '../../../landing/viewmodel/agency_viewmodel.dart';
 import '../../../../core/services/api/agency_service.dart';
 
@@ -40,6 +42,7 @@ class _AgencyRegistrationApplicationPageState
   final _agencyName = TextEditingController();
   final _agencyDescription = TextEditingController();
 
+
   File? _agencyLogoFile;
 
   @override
@@ -47,11 +50,21 @@ class _AgencyRegistrationApplicationPageState
     _agencyAvatarUrl.dispose();
     _agencyName.dispose();
     _agencyDescription.dispose();
+
     super.dispose();
   }
 
+
   @override
   Widget build(BuildContext context) {
+    final userProvider = context.watch<UserProvider>();
+    final user = userProvider.currentUser;
+
+    final ownerPhone = [
+      user?.countryCode ?? '',
+      user?.phoneNumber ?? '',
+    ].join();
+
     final vm = context.watch<AgencyViewModel>();
     final isBusy = vm.isLoading;
 
@@ -99,6 +112,13 @@ class _AgencyRegistrationApplicationPageState
                 hint: "Optional",
                 controller: _agencyDescription,
                 requiredField: false,
+              ),
+
+              const SizedBox(height: 10),
+
+              _ReadOnlyRow(
+                label: "Owner Contact Number",
+                value: ownerPhone,
               ),
 
               const SizedBox(height: 18),
@@ -247,13 +267,12 @@ class _TopUserCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          CircleAvatar(
+          UserAvatarHelper.circleAvatar(
+            userIdentification: id,
+            displayName: name,
             radius: 24,
-            backgroundColor: const Color(0xFF2F6B2F),
-            child: Text(
-              name.isNotEmpty ? name[0].toUpperCase() : "A",
-              style: const TextStyle(color: Colors.white, fontSize: 20),
-            ),
+            localBytes: null,
+            frameAsset: null,
           ),
           const SizedBox(width: 12),
           Column(
@@ -266,6 +285,69 @@ class _TopUserCard extends StatelessWidget {
               Text("ID:$id",
                   style: const TextStyle(color: Colors.black54)),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReadOnlyRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool requiredField;
+
+  const _ReadOnlyRow({
+    Key? key,
+    required this.label,
+    required this.value,
+    this.requiredField = false,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          /// LABEL (LEFT)
+          Expanded(
+            flex: 4,
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 14,
+                ),
+                children: [
+                  TextSpan(text: label),
+                  if (requiredField)
+                    const TextSpan(
+                      text: " *",
+                      style: TextStyle(color: Colors.red),
+                    ),
+                ],
+              ),
+            ),
+          ),
+
+          /// VALUE (RIGHT, READ-ONLY)
+          Expanded(
+            flex: 6,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                value.isNotEmpty ? value : "—",
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.black54,
+                ),
+              ),
+            ),
           ),
         ],
       ),

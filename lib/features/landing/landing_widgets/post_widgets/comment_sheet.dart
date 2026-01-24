@@ -6,7 +6,7 @@ import '../../../../core/utils/user_provider.dart';
 import '../../viewmodel/post_viewmodel.dart';
 import '../../model/post.dart';
 
-class CommentSheet extends StatelessWidget {
+class CommentSheet extends StatefulWidget {
   final Post post;
 
   const CommentSheet({
@@ -15,10 +15,37 @@ class CommentSheet extends StatelessWidget {
   });
 
   @override
+  State<CommentSheet> createState() => _CommentSheetState();
+}
+
+class _CommentSheetState extends State<CommentSheet> {
+  final TextEditingController commentCtrl = TextEditingController();
+  late Future<List<dynamic>> commentsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    commentsFuture =
+        context.read<PostViewModel>().getComments(widget.post.id);
+  }
+
+  @override
+  void dispose() {
+    commentCtrl.dispose();
+    super.dispose();
+  }
+
+  void _refreshComments() {
+    setState(() {
+      commentsFuture =
+          context.read<PostViewModel>().getComments(widget.post.id);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final postVm = context.read<PostViewModel>();
     final userProvider = context.watch<UserProvider>();
-    final commentCtrl = TextEditingController();
 
     final canComment =
         userProvider.currentUser?.userIdentification != null;
@@ -57,7 +84,7 @@ class CommentSheet extends StatelessWidget {
             // ================= COMMENTS LIST =================
             Expanded(
               child: FutureBuilder<List<dynamic>>(
-                future: postVm.getComments(post.id),
+                future: commentsFuture,
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
                     return const Center(
@@ -91,7 +118,8 @@ class CommentSheet extends StatelessWidget {
                         leading: UserAvatarHelper.circleAvatar(
                           userIdentification: userId,
                           displayName: displayName,
-                          radius: 18, frameAsset: null,
+                          radius: 18,
+                          frameAsset: null,
                         ),
                         title: Text(
                           displayName,
@@ -142,20 +170,18 @@ class CommentSheet extends StatelessWidget {
                     ),
                     onPressed: !canComment
                         ? null
-                        : () async {
+                        : () {
                       final text = commentCtrl.text.trim();
                       if (text.isEmpty) return;
 
-                      await postVm.addComment(post.id, text);
+                      // 🔥 instant UX
+                      commentCtrl.clear();
 
-                      Navigator.pop(context);
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (_) =>
-                            CommentSheet(post: post),
-                      );
+                      // 🔥 fire-and-forget send
+                      postVm.addComment(widget.post.id, text);
+
+                      // 🔥 refresh list so comment appears
+                      _refreshComments();
                     },
                   ),
                 ],

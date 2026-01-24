@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
+
 import 'package:crypto/crypto.dart';
 import 'package:flutter/cupertino.dart';
 
@@ -31,19 +32,57 @@ class Validators {
     'getnada.com',
   ];
 
+  // ================= PHONE RULES =================
+
+  static const Map<String, int> _phoneMaxDigits = {
+    "PH": 11, 
+    "PK": 10,
+    "BR": 11,
+    "IN": 10,
+    "MY": 9,
+    "BD": 10,
+    "ID": 11,
+    "NP": 10,
+    "RU": 10,
+    "GR": 10,
+    "US": 10,
+    "CO": 10,
+    "ET": 9,
+  };
+
+  static int maxLength(String? countryCode) {
+    return _phoneMaxDigits[countryCode] ?? 12;
+  }
+
+  /// Country-aware phone validator
+  static String? validate(String? value, String? countryCode) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Phone number is required';
+    }
+
+    final digitsOnly = value.replaceAll(RegExp(r'\D'), '');
+    final expectedLength = maxLength(countryCode);
+
+    if (digitsOnly.length != expectedLength) {
+      return 'Phone number must be $expectedLength digits';
+    }
+
+    return null;
+  }
+
+  // ================= EMAIL =================
+
   static bool isValidEmail(String email) {
     final regex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
     return regex.hasMatch(email.trim().toLowerCase());
   }
 
-  static bool isAllowedEmailDomain(String email,
-      {List<String> companyDomains = const []}) {
+  static bool isAllowedEmailDomain(
+      String email, {
+        List<String> companyDomains = const [],
+      }) {
     if (!isValidEmail(email)) return false;
-    final domain = email
-        .trim()
-        .toLowerCase()
-        .split('@')
-        .last;
+    final domain = email.trim().toLowerCase().split('@').last;
 
     if (disposableDomains.contains(domain)) return false;
     if (commonProviders.contains(domain)) return true;
@@ -52,11 +91,11 @@ class Validators {
     return false;
   }
 
-  /// ✅ Now static
+  // ================= PASSWORD =================
+
   static String generateSalt() {
     final random = Random.secure();
-    List<int> saltBytes =
-    List.generate(16, (index) => random.nextInt(256));
+    final saltBytes = List.generate(16, (_) => random.nextInt(256));
     return base64Url.encode(saltBytes);
   }
 
@@ -67,18 +106,19 @@ class Validators {
   }
 
   static String? passwordValidator(String? value) {
-    final bool passwordValid = RegExp(
-        r"^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-.+=_]).{6,}$")
-        .hasMatch(value!);
-    if (passwordValid) {
-      return null;
-    }
+    final valid = RegExp(
+      r"^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-.+=_]).{6,}$",
+    ).hasMatch(value ?? '');
+
+    if (valid) return null;
 
     return "Password must be at least 6 characters, at least one uppercase, number, and special characters.";
   }
 
+  // ================= INVITE =================
+
   static String? inviteCodeValidator(String? value) {
-    if (value == null || value.trim().isEmpty) return null; // optional
+    if (value == null || value.trim().isEmpty) return null;
     if (!RegExp(r'^[a-zA-Z0-9-]+$').hasMatch(value.trim())) {
       return "Invalid invitation code format";
     }
@@ -86,36 +126,30 @@ class Validators {
     if (value.trim().length > 12) return "Invitation code too long";
     return null;
   }
+
+  // ================= CONFIRM PASSWORD =================
+
   static String? cfrmPassValidator(
       String? value,
       TextEditingController passwordController,
-      TextEditingController confirmPasswordController) {
-    final bool cfrmPasswordValid =
-        passwordController.text == confirmPasswordController.text;
-    if (cfrmPasswordValid) {
-      return null;
-    } else if (value!.isEmpty) {
-      return 'Enter input.';
-    } else {
+      TextEditingController confirmPasswordController,
+      ) {
+    if (value == null || value.isEmpty) return 'Enter input.';
+    if (passwordController.text != confirmPasswordController.text) {
       return "Password not match";
     }
+    return null;
   }
-  static String generateRoomId({int length = 7}) {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    final rand = Random.secure();
-    return List.generate(length, (index) => chars[rand.nextInt(chars.length)]).join();
-  }
-  /// SEA phone number validator
-  static String? phoneValidator(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Phone number is required';
-    }
 
-    final cleaned = value.replaceAll(RegExp(r'[\s\-()]'), '');
-    final regex = RegExp(r'^(?:\+?6?0?|62|65|66|84|63)?[2-9]\d{7,11}$');
-    if (!regex.hasMatch(cleaned)) {
-      return 'Enter a valid SEA phone number';
-    }
-    return null; // valid
+  // ================= UTIL =================
+
+  static String generateRoomId({int length = 7}) {
+    const chars =
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    final rand = Random.secure();
+    return List.generate(
+      length,
+          (_) => chars[rand.nextInt(chars.length)],
+    ).join();
   }
 }
