@@ -35,7 +35,7 @@ class Validators {
   // ================= PHONE RULES =================
 
   static const Map<String, int> _phoneMaxDigits = {
-    "PH": 11, 
+    "PH": 11,
     "PK": 10,
     "BR": 11,
     "IN": 10,

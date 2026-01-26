@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../core/services/api/conversion_recharge.dart';
 import '../../../core/services/api/socket_service.dart';
@@ -31,44 +31,67 @@ class WalletViewModel extends ChangeNotifier {
   void _init() {
     refresh();
 
-    // 🔥 SOCKET IS SOURCE OF TRUTH
     _coinsSub = socketService.coinsStream.listen((coins) {
+      // Ignore invalid zero overwrites
+      if (coins == 0 && _wallet.coins > 0) {
+        debugPrint('⚠️ Ignoring socket coins=0 overwrite');
+        return;
+      }
+
       _wallet = _wallet.copyWith(coins: coins);
       notifyListeners();
-      print("🪙 WalletVM socket → coins=$coins");
+
+      debugPrint("🪙 Wallet socket → coins=$coins");
     });
 
     _diamondsSub = socketService.diamondsStream.listen((diamonds) {
+      if (diamonds == 0 && _wallet.diamonds > 0) {
+        debugPrint('⚠️ Ignoring socket diamonds=0 overwrite');
+        return;
+      }
+
       _wallet = _wallet.copyWith(diamonds: diamonds);
       notifyListeners();
-      print("💎 WalletVM socket → diamonds=$diamonds");
+
+      debugPrint("💎 Wallet socket → diamonds=$diamonds");
     });
   }
 
-  /// REST snapshot (ONLY when page opens)
+  /// REST snapshot (used only on page load / fallback)
   Future<void> refresh() async {
     final user = userProvider.currentUser;
     if (user == null) return;
 
-    final fetched = await walletService.fetchWallet(
-      user.userIdentification,
-    );
+    final fetched =
+    await walletService.fetchWallet(user.userIdentification);
 
     _wallet = fetched;
     notifyListeners();
 
-    print("📦 WalletVM REST snapshot → coins=${fetched.coins} diamonds=${fetched.diamonds}");
+    debugPrint(
+      "📦 Wallet REST snapshot → coins=${fetched.coins} diamonds=${fetched.diamonds}",
+    );
   }
 
   Future<void> convertCoinsToDiamonds(int coins) async {
     final user = userProvider.currentUser;
     if (user == null) return;
 
-    await conversionService.convertCoinsToDiamonds(
-      userId: user.id,
+    final result = await conversionService.convertCoinsToDiamonds(
+      userIdentification: user.userIdentification,
       coins: coins,
     );
-    // socket will update wallet
+
+    _wallet = _wallet.copyWith(
+      coins: result.coins,
+      diamonds: result.diamonds,
+    );
+
+    notifyListeners();
+
+    debugPrint(
+      '[WalletVM] Conversion success → coins=${result.coins} diamonds=${result.diamonds}',
+    );
   }
 
   int get coins => _wallet.coins;

@@ -210,12 +210,39 @@ class RechargeViewModel extends ChangeNotifier {
     if (!_disposed) notifyListeners();
 
     try {
-      final topUp = await rechargeService.confirmPayment(
+      final json = await rechargeService.confirmPayment(
         transactionId: transactionId,
       );
 
-      userProvider.updateCoins(topUp.coinsFinal);
+      // ✅ 1. Wallet balance MUST come from newBalance
+      final int newBalance = json['newBalance'] as int;
+      userProvider.updateCoins(newBalance);
 
+      // ✅ 2. VIP (THIS WAS COMPLETELY MISSING)
+      final vip = json['vip'];
+      final vipProgress = json['vipProgress'];
+
+      if (vip != null) {
+        userProvider.updateVip(
+          vipLevel: vip['vipLevel'],
+          vipCode: vip['vipCode'],
+          vipTitle: vip['vipTitle'],
+          vipPerks: List<String>.from(vip['vipPerks'] ?? []),
+          vipTotalRechargeAmount:
+          (vip['vipTotalRechargeAmount'] as num?)?.toDouble() ?? 0,
+          vipLastUpdatedAt: vip['vipLastUpdatedAt'],
+          vipConquerorEntryPermit:
+          vip['vipConquerorEntryPermit'] == true,
+          vipKingsOfKingsEntryTicket:
+          vip['vipKingsOfKingsEntryTicket'] == true,
+        );
+      }
+
+      if (vipProgress != null) {
+        userProvider.updateVipProgress(vipProgress);
+      }
+
+      // ✅ 3. First-time recharge flag
       if (user.isFirstTimeRecharge) {
         user.isFirstTimeRecharge = false;
         _hideBonusesIfNotFirstRecharge();
@@ -225,6 +252,7 @@ class RechargeViewModel extends ChangeNotifier {
       if (!_disposed) notifyListeners();
     }
   }
+
 
   /* =============================
      HELPERS
@@ -249,4 +277,8 @@ class RechargeViewModel extends ChangeNotifier {
     _disposed = true;
     super.dispose();
   }
+}
+
+extension on TransactionModel {
+  operator [](String other) {}
 }

@@ -1,6 +1,16 @@
 class ConvertModel {
-  double diamonds;
-  double coins;
+  final int coins;
+  final int diamonds;
 
-  ConvertModel({this.diamonds = 0.0, this.coins = 0.0});
+  ConvertModel({
+    required this.coins,
+    required this.diamonds,
+  });
+
+  factory ConvertModel.fromJson(Map<String, dynamic> json) {
+    return ConvertModel(
+      coins: (json['coins'] as num?)?.toInt() ?? 0,
+      diamonds: (json['diamonds'] as num?)?.toInt() ?? 0,
+    );
+  }
 }

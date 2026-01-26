@@ -6,6 +6,8 @@ import 'package:kittyparty/core/services/api/room_service.dart';
 import 'package:kittyparty/core/utils/user_provider.dart';
 import '../../../../app.dart';
 import '../../../../core/constants/strings.dart';
+import '../../../../core/global_widgets/dialogs/dialog_info.dart';
+import '../../../../core/global_widgets/dialogs/dialog_loading.dart';
 import '../../viewmodel/recommend_tab_viewmodel.dart';
 import 'banner_carousel.dart';
 import 'mode_card.dart';
@@ -47,6 +49,27 @@ class _RecommendTabState extends State<RecommendTab> {
   Future<void> _refreshRooms() async {
     await vm.fetchRooms(userId);
   }
+
+  void _promptJoinRoom({
+    required BuildContext context,
+    required VoidCallback onConfirm,
+  }) {
+    DialogInfo(
+      headerText: "Join Room",
+      subText: "Do you want to join this room?",
+      confirmText: "Join",
+      onConfirm: () {
+        Navigator.pop(context); // close dialog
+        onConfirm();
+      },
+      onCancel: () => Navigator.pop(context),
+    ).build(context);
+  }
+
+  void _showJoiningLoading(BuildContext context) {
+    DialogLoading(subtext: "Joining room...").build(context);
+  }
+
 
   // =======================
   // ✅ added helpers
@@ -397,16 +420,30 @@ class _RecommendTabState extends State<RecommendTab> {
                           room: room,
                           onTap: () {
                             final userProvider = context.read<UserProvider>();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => LiveAudioRoom(
-                                  roomId: room.id!,
-                                  hostId: room.hostId,
-                                  roomName: room.roomName,
-                                  userProvider: userProvider,
-                                ),
-                              ),
+
+                            _promptJoinRoom(
+                              context: context,
+                              onConfirm: () async {
+                                // Optional loading
+                                _showJoiningLoading(context);
+
+                                // If no async work is needed, remove await + loading
+                                await Future.delayed(const Duration(milliseconds: 300));
+
+                                Navigator.pop(context); // close loading
+
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => LiveAudioRoom(
+                                      roomId: room.id!,
+                                      hostId: room.hostId,
+                                      roomName: room.roomName,
+                                      userProvider: userProvider,
+                                    ),
+                                  ),
+                                );
+                              },
                             );
                           },
                         );

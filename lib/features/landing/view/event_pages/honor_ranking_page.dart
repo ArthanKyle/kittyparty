@@ -20,12 +20,6 @@ class _HonorRankingPageState extends State<HonorRankingPage> {
   final categories = ['Wealth', 'Charm', 'Room', 'Family'];
   final periods = ['Daily', 'Weekly', 'Monthly'];
 
-  String _displayName(RankingEntry entry) {
-    return (entry.username?.trim().isNotEmpty == true)
-        ? entry.username!
-        : entry.userId;
-  }
-
   final Map<String, List<Color>> categoryGradients = {
     'Wealth': [Color(0xFF5B0F1F), Color(0xFF3A1433), Color(0xFF1E0B24)],
     'Charm': [Color(0xFF6A1B9A), Color(0xFF4A148C), Color(0xFF2A0845)],
@@ -42,7 +36,6 @@ class _HonorRankingPageState extends State<HonorRankingPage> {
 
   List<Color> get _bg => categoryGradients[categories[_categoryIndex]]!;
   Color get _accent => accentColors[categories[_categoryIndex]]!;
-
   bool get _categorySupported => _categoryIndex <= 1;
 
   @override
@@ -56,13 +49,26 @@ class _HonorRankingPageState extends State<HonorRankingPage> {
     });
   }
 
+  /// ✅ VALID ENTRIES ONLY
+  List<RankingEntry> _validEntries(List<RankingEntry> data) {
+    return data
+        .where((e) =>
+    e.userId.isNotEmpty &&
+        e.value > 0 &&
+        e.rank > 0)
+        .toList()
+      ..sort((a, b) => a.rank.compareTo(b.rank));
+  }
+
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<EventRankingViewModel>();
 
-    final List<RankingEntry> data = !_categorySupported
-        ? []
+    final rawData = !_categorySupported
+        ? <RankingEntry>[]
         : (_categoryIndex == 0 ? vm.honorWealth : vm.honorCharm);
+
+    final data = _validEntries(rawData);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -95,9 +101,11 @@ class _HonorRankingPageState extends State<HonorRankingPage> {
                     child: Center(child: CircularProgressIndicator()))
               else if (data.isEmpty)
                   const Expanded(
-                      child: Center(
-                          child: Text('No ranking data',
-                              style: TextStyle(color: Colors.white70))))
+                    child: Center(
+                      child: Text('No ranking data',
+                          style: TextStyle(color: Colors.white70)),
+                    ),
+                  )
                 else ...[
                     _TopPodium(data: data, accent: _accent),
                     const SizedBox(height: 14),
@@ -116,14 +124,18 @@ class _HonorRankingPageState extends State<HonorRankingPage> {
       child: Row(
         children: [
           IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => Navigator.pop(context)),
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
           const Spacer(),
-          const Text('Honor Ranking',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold)),
+          const Text(
+            'Honor Ranking',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const Spacer(),
           const SizedBox(width: 48),
         ],
@@ -149,14 +161,19 @@ class _HonorRankingPageState extends State<HonorRankingPage> {
                   : Colors.black.withOpacity(0.25),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                  color:
-                  active ? _accent.withOpacity(0.6) : Colors.transparent),
+                color: active
+                    ? _accent.withOpacity(0.6)
+                    : Colors.transparent,
+              ),
             ),
-            child: Text(categories[i],
-                style: TextStyle(
-                    color: active ? Colors.white : Colors.white70,
-                    fontWeight:
-                    active ? FontWeight.bold : FontWeight.normal)),
+            child: Text(
+              categories[i],
+              style: TextStyle(
+                color: active ? Colors.white : Colors.white70,
+                fontWeight:
+                active ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
           ),
         );
       }),
@@ -167,8 +184,9 @@ class _HonorRankingPageState extends State<HonorRankingPage> {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-          color: Colors.black45,
-          borderRadius: BorderRadius.circular(22)),
+        color: Colors.black45,
+        borderRadius: BorderRadius.circular(22),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: List.generate(periods.length, (i) {
@@ -181,17 +199,22 @@ class _HonorRankingPageState extends State<HonorRankingPage> {
               const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
               decoration: BoxDecoration(
                 gradient: active
-                    ? LinearGradient(colors: [
-                  _accent.withOpacity(0.35),
-                  _accent.withOpacity(0.2)
-                ])
+                    ? LinearGradient(
+                  colors: [
+                    _accent.withOpacity(0.35),
+                    _accent.withOpacity(0.2),
+                  ],
+                )
                     : null,
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: Text(periods[i],
-                  style: TextStyle(
-                      color: active ? Colors.white : Colors.white70,
-                      fontWeight: FontWeight.bold)),
+              child: Text(
+                periods[i],
+                style: TextStyle(
+                  color: active ? Colors.white : Colors.white70,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           );
         }),
@@ -208,25 +231,62 @@ class _TopPodium extends StatelessWidget {
 
   const _TopPodium({required this.data, required this.accent});
 
+  RankingEntry? _rank(int r) {
+    try {
+      return data.firstWhere((e) => e.rank == r);
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Column(children: [
-      if (data.isNotEmpty) _Top1(entry: data[0], accent: accent),
-      const SizedBox(height: 12),
-      Row(children: [
-        Expanded(
-            child: data.length > 1
-                ? _TopMini(entry: data[1], accent: accent, label: 'TOP 2')
-                : const SizedBox()),
-        const SizedBox(width: 12),
-        Expanded(
-            child: data.length > 2
-                ? _TopMini(entry: data[2], accent: accent, label: 'TOP 3')
-                : const SizedBox()),
-      ])
-    ]);
+    final top1 = _rank(1);
+    final top2 = _rank(2);
+    final top3 = _rank(3);
+
+    // ❌ No Top 1 → no podium at all
+    if (top1 == null) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        _Top1(entry: top1, accent: accent),
+        const SizedBox(height: 12),
+
+        Row(
+          children: [
+            Expanded(
+              child: top2 != null
+                  ? _TopMini(
+                entry: top2,
+                accent: accent,
+                label: 'TOP 2',
+              )
+                  : _TopMiniPlaceholder(
+                accent: accent,
+                label: 'TOP 2',
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: top3 != null
+                  ? _TopMini(
+                entry: top3,
+                accent: accent,
+                label: 'TOP 3',
+              )
+                  : _TopMiniPlaceholder(
+                accent: accent,
+                label: 'TOP 3',
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }
+
 
 class _Top1 extends StatelessWidget {
   final RankingEntry entry;
@@ -243,32 +303,97 @@ class _Top1 extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(26),
           gradient: LinearGradient(
-              colors: [accent.withOpacity(0.95), Colors.white]),
+            colors: [accent.withOpacity(0.95), Colors.white],
+          ),
         ),
-        child: Column(children: [
-          const Icon(Icons.emoji_events, size: 48, color: Colors.white),
-          const SizedBox(height: 10),
-          UserAvatarHelper.circleAvatar(
-            userIdentification: entry.userId,
-            displayName:
-            entry.username?.isNotEmpty == true ? entry.username! : entry.userId,
-            radius: 40,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            entry.username?.isNotEmpty == true ? entry.username! : entry.userId,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-                color: Colors.brown, fontWeight: FontWeight.bold),
-          ),
-          Text('${entry.value}',
-              style: const TextStyle(color: Colors.black)),
-        ]),
+        child: Column(
+          children: [
+            const Icon(Icons.emoji_events,
+                size: 48, color: Colors.white),
+            const SizedBox(height: 10),
+            UserAvatarHelper.circleAvatar(
+              userIdentification: entry.userId,
+              displayName: entry.username ?? entry.userId,
+              radius: 40,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              entry.username ?? entry.userId,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.brown,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text('${entry.value}',
+                style: const TextStyle(color: Colors.black)),
+          ],
+        ),
       ),
     );
   }
 }
+
+class _TopMiniPlaceholder extends StatelessWidget {
+  final Color accent;
+  final String label;
+
+  const _TopMiniPlaceholder({
+    required this.accent,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: LinearGradient(
+          colors: [
+            accent.withOpacity(0.25),
+            accent.withOpacity(0.10),
+          ],
+        ),
+        border: Border.all(
+          color: Colors.white24,
+        ),
+      ),
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white54,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          CircleAvatar(
+            radius: 26,
+            backgroundColor: Colors.white12,
+            child: const Icon(
+              Icons.lock_outline,
+              color: Colors.white54,
+              size: 20,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Waiting',
+            style: TextStyle(color: Colors.white54),
+          ),
+          const Text(
+            '--',
+            style: TextStyle(color: Colors.white38),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 
 class _TopMini extends StatelessWidget {
   final RankingEntry entry;
@@ -285,30 +410,37 @@ class _TopMini extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
         gradient: LinearGradient(
-            colors: [accent.withOpacity(0.75), accent.withOpacity(0.35)]),
+          colors: [
+            accent.withOpacity(0.75),
+            accent.withOpacity(0.35)
+          ],
+        ),
       ),
-      child: Column(children: [
-        Text(label,
-            style:
-            const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 6),
-        UserAvatarHelper.circleAvatar(
-          userIdentification: entry.userId,
-          displayName:
-          entry.username?.isNotEmpty == true ? entry.username! : entry.userId,
-          radius: 26,
-        ),
-        const SizedBox(height: 6),
-        Text(
-          entry.username?.isNotEmpty == true ? entry.username! : entry.userId,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-              color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        Text('${entry.value}',
-            style: const TextStyle(color: Colors.white)),
-      ]),
+      child: Column(
+        children: [
+          Text(label,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(height: 6),
+          UserAvatarHelper.circleAvatar(
+            userIdentification: entry.userId,
+            displayName: entry.username ?? entry.userId,
+            radius: 26,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            entry.username ?? entry.userId,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold),
+          ),
+          Text('${entry.value}',
+              style: const TextStyle(color: Colors.white)),
+        ],
+      ),
     );
   }
 }
@@ -323,28 +455,25 @@ class _RankingList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (data.length <= 3) return const SizedBox.shrink();
-
-    final listData = data.sublist(3);
+    final rest = data.where((e) => e.rank > 3).toList();
+    if (rest.isEmpty) return const SizedBox.shrink();
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      itemCount: listData.length,
+      itemCount: rest.length,
       itemBuilder: (_, i) {
-        final entry = listData[i];
+        final e = rest[i];
         return _RankRow(
-          rank: entry.rank,
-          userId: entry.userId,
-          username: entry.username,
-          value: entry.value,
+          rank: e.rank,
+          userId: e.userId,
+          username: e.username,
+          value: e.value,
           accent: accent,
         );
       },
     );
   }
 }
-
-/* ================= RANK ROW ================= */
 
 class _RankRow extends StatelessWidget {
   final int rank;
@@ -353,51 +482,67 @@ class _RankRow extends StatelessWidget {
   final int value;
   final Color accent;
 
-  const _RankRow(
-      {required this.rank,
-        required this.userId,
-        required this.username,
-        required this.value,
-        required this.accent});
+  const _RankRow({
+    required this.rank,
+    required this.userId,
+    required this.username,
+    required this.value,
+    required this.accent,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final displayName =
+    final name =
     (username?.trim().isNotEmpty == true) ? username! : userId;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          gradient: LinearGradient(
-              colors: [accent.withOpacity(0.28), Colors.black45])),
-      child: Row(children: [
-        Container(
+        borderRadius: BorderRadius.circular(14),
+        gradient: LinearGradient(
+          colors: [accent.withOpacity(0.28), Colors.black45],
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
             width: 26,
             height: 26,
             alignment: Alignment.center,
-            decoration:
-            BoxDecoration(color: accent, borderRadius: BorderRadius.circular(6)),
+            decoration: BoxDecoration(
+              color: accent,
+              borderRadius: BorderRadius.circular(6),
+            ),
             child: Text('$rank',
                 style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold))),
-        const SizedBox(width: 10),
-        UserAvatarHelper.circleAvatar(
-          userIdentification: userId,
-          displayName: displayName,
-          radius: 20,
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-            child: Text(displayName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white))),
-        Text('$value',
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(width: 10),
+          UserAvatarHelper.circleAvatar(
+            userIdentification: userId,
+            displayName: name,
+            radius: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+          Text(
+            '$value',
             style: const TextStyle(
-                color: Colors.amber, fontWeight: FontWeight.bold)),
-      ]),
+              color: Colors.amber,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

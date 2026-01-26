@@ -16,6 +16,7 @@ class DailyTaskPage extends StatefulWidget {
 
 class _DailyTaskPageState extends State<DailyTaskPage> {
   bool _fetched = false;
+  int _activeTab = 0; // 0 = Daily, 1 = Weekly, 2 = Agent
 
   @override
   void didChangeDependencies() {
@@ -27,7 +28,6 @@ class _DailyTaskPageState extends State<DailyTaskPage> {
     if (!_fetched && uid != null && uid.trim().isNotEmpty) {
       _fetched = true;
 
-      // Avoid setState/notify during build
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         context.read<DailyTaskViewModel>().fetchDailyTasks(uid.trim());
@@ -38,8 +38,6 @@ class _DailyTaskPageState extends State<DailyTaskPage> {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<DailyTaskViewModel>();
-
-    // For header (if you still need something displayed there)
     final userProvider = context.watch<UserProvider>();
     final uid = userProvider.currentUser?.userIdentification;
 
@@ -53,15 +51,17 @@ class _DailyTaskPageState extends State<DailyTaskPage> {
               top: false,
               child: Column(
                 children: [
-                  const TaskTabs(),
-                  const SizedBox(height: 20),
-                  Expanded(
-                    child: vm.isLoading
-                        ? const Center(child: CircularProgressIndicator())
-                        : vm.dailyTasks.isEmpty
-                        ? const Center(child: Text("No daily tasks available"))
-                        : DailyTaskList(viewModel: vm),
+                  TaskTabs(
+                    activeIndex: _activeTab,
+                    onChanged: (index) {
+                      setState(() => _activeTab = index);
+                    },
                   ),
+                  const SizedBox(height: 20),
+
+                  /// 🔽 CONTENT SWITCH
+                  Expanded(child: _buildTabContent(vm)),
+
                   const SizedBox(height: 20),
                 ],
               ),
@@ -71,4 +71,54 @@ class _DailyTaskPageState extends State<DailyTaskPage> {
       ),
     );
   }
+
+  Widget _buildTabContent(DailyTaskViewModel vm) {
+    // DAILY TASKS
+    if (_activeTab == 0) {
+      if (vm.isLoading) {
+        return const Center(child: CircularProgressIndicator());
+      }
+
+      if (vm.dailyTasks.isEmpty) {
+        return const Center(child: Text("No daily tasks available"));
+      }
+
+      return DailyTaskList(viewModel: vm);
+    }
+
+    // WEEKLY / AGENT → COMING SOON
+    return const _ComingSoonView();
+  }
 }
+
+class _ComingSoonView extends StatelessWidget {
+  const _ComingSoonView();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: const [
+          Icon(Icons.construction, size: 64, color: Colors.orange),
+          SizedBox(height: 16),
+          Text(
+            "Coming Soon",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            "This task category is under development.\nStay tuned for updates.",
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

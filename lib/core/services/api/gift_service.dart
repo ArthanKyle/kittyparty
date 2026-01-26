@@ -14,33 +14,36 @@ class GiftService {
     required String giftType,
     required int giftCount,
   }) async {
-    final uri = Uri.parse('$baseUrl/gifts/send');
+    final url = Uri.parse("$baseUrl/gifts/send");
 
     final res = await http.post(
-      uri,
+      url,
       headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
       },
       body: jsonEncode({
-        'room_id': roomId,
-        'sender_id': senderId,
-        'receiver_id': receiverId,
-        'gift_type': giftType,
-        'gift_count': giftCount,
+        "room_id": roomId,
+        "sender_id": senderId,
+        "receiver_id": receiverId,
+        "gift_type": giftType,
+        "gift_count": giftCount,
       }),
     );
 
-    debugPrint("🌐 sendGift STATUS => ${res.statusCode}");
-    debugPrint("🌐 sendGift URL => $uri");
-    debugPrint("🌐 sendGift RAW BODY => ${res.body}");
-
-    // 🚫 HARD STOP IF NOT JSON
-    if (res.statusCode != 200 || !res.body.trim().startsWith('{')) {
-      throw Exception("sendGift returned non-JSON response");
+    // ✅ ALWAYS try to decode JSON
+    final dynamic decoded;
+    try {
+      decoded = jsonDecode(res.body);
+    } catch (_) {
+      throw Exception("sendGift: invalid JSON response");
     }
 
-    return jsonDecode(res.body);
+    // ✅ Return backend error cleanly
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
+
+    throw Exception("sendGift: unexpected response format");
   }
 }

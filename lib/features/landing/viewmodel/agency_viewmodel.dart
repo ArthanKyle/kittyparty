@@ -18,6 +18,7 @@ class AgencyViewModel extends ChangeNotifier {
   String? error;
 
   List<AgencyDto> agencies = [];
+  String? membershipStatus; // none | pending | member | owner
 
   AgencyDto? myAgency;
   String? myRole; // owner | member
@@ -59,6 +60,8 @@ class AgencyViewModel extends ChangeNotifier {
 
   bool get isOwner => myRole == "owner";
 
+  bool get canBrowseAgencies => membershipStatus == "none";
+
   int get membersCount =>
       viewingAgency?.membersCount ??
           myAgency?.membersCount ??
@@ -77,43 +80,37 @@ class AgencyViewModel extends ChangeNotifier {
    * LOAD / REFRESH
    * ========================= */
 
+
+
   Future<void> load() async {
     final uid = _uid;
-    _log("load() start → user=$uid");
 
     isLoading = true;
     error = null;
     notifyListeners();
 
     try {
-      // 1) Load my agency (membership + role)
+      /// 1️⃣ Membership info
       final me = await service.fetchMyAgency(userIdentification: uid);
-
-      myAgency = me.agency; // agency == null is VALID
+      membershipStatus = me.status;
+      myAgency = me.agency;
       myRole = me.myRole;
 
-      _log("myAgency=${myAgency?.agencyCode}, role=$myRole");
-
-      // 2) Only fetch agencies if user is free
-      if (myAgency == null) {
+      /// 2️⃣ Always fetch agencies unless already a member/owner
+      if (canBrowseAgencies) {
         agencies = await service.fetchAgencies(userIdentification: uid);
-        _log("Fetched agencies count=${agencies.length}");
       } else {
         agencies = [];
-        _log("User already in agency → skip fetchAgencies");
       }
     } catch (e) {
       error = e.toString();
-      _log("❌ load() error: $error");
     } finally {
       isLoading = false;
       notifyListeners();
-      _log("load() end");
     }
   }
 
   Future<void> refresh() => load();
-
   /* =========================
    * VIEW AGENCY
    * ========================= */
@@ -245,6 +242,11 @@ class AgencyViewModel extends ChangeNotifier {
     }
   }
 
+
+  /* =========================
+   * APPLY TO JOIN (FIXED)
+   * ========================= */
+
   Future<bool> applyToJoin({
     required String agencyCode,
     required String agencyAvatarUrl,
@@ -276,22 +278,26 @@ class AgencyViewModel extends ChangeNotifier {
         inviterPicUrl: inviterPicUrl,
       );
 
-      // ✅ MARK VIEWING AGENCY AS "PENDING"
-      if (viewingAgency != null &&
-          viewingAgency!.agencyCode == agencyCode) {
-        final a = viewingAgency!;
-        viewingAgency = AgencyDto(
-          id: a.id,
-          agencyCode: a.agencyCode,
-          name: a.name,
-          description: a.description,
-          media: a.media,
-          ownerUserIdentification: a.ownerUserIdentification,
-          maxMembers: a.maxMembers,
-          membersCount: a.membersCount,
-          hasPendingRequest: true,
-        );
-      }
+      /// ✅ USER IS NOW PENDING (DO NOT CLEAR LIST)
+      membershipStatus = "pending";
+
+      /// ✅ MARK ONLY THE TARGET AGENCY AS PENDING
+      agencies = agencies.map((a) {
+        if (a.agencyCode == agencyCode) {
+          return AgencyDto(
+            id: a.id,
+            agencyCode: a.agencyCode,
+            name: a.name,
+            description: a.description,
+            media: a.media,
+            ownerUserIdentification: a.ownerUserIdentification,
+            maxMembers: a.maxMembers,
+            membersCount: a.membersCount,
+            hasPendingRequest: true,
+          );
+        }
+        return a;
+      }).toList();
 
       return true;
     } catch (e) {
@@ -302,7 +308,6 @@ class AgencyViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
-
   /* =========================
    * EDIT AGENCY (OWNER)
    * ========================= */

@@ -144,6 +144,38 @@ class UserProvider extends ChangeNotifier {
     _userController.add(currentUser!); // ✅ ADD THIS
     notifyListeners();
   }
+  void updateVip({
+    required int vipLevel,
+    required String vipCode,
+    required String vipTitle,
+    required List<String> vipPerks,
+    required double vipTotalRechargeAmount,
+    required dynamic vipLastUpdatedAt,
+    required bool vipConquerorEntryPermit,
+    required bool vipKingsOfKingsEntryTicket,
+  }) {
+    if (currentUser == null) return;
+
+    currentUser!.vipLevel = vipLevel;
+    currentUser!.vipCode = vipCode;
+    currentUser!.vipTitle = vipTitle;
+    currentUser!.vipPerks = vipPerks;
+    currentUser!.vipTotalRechargeAmount = vipTotalRechargeAmount;
+    currentUser!.vipLastUpdatedAt = vipLastUpdatedAt;
+    currentUser!.vipConquerorEntryPermit = vipConquerorEntryPermit;
+    currentUser!.vipKingsOfKingsEntryTicket = vipKingsOfKingsEntryTicket;
+
+    _userController.add(currentUser!);
+    notifyListeners();
+  }
+
+  void updateVipProgress(Map<String, dynamic> progress) {
+    if (currentUser == null) return;
+
+    currentUser!.vipProgress = progress;
+    _userController.add(currentUser!);
+    notifyListeners();
+  }
 
 
   @override

@@ -30,7 +30,6 @@ class _AgencyRoomState extends State<AgencyRoom> {
 
   String? _buildMediaUrl(List<dynamic> media) {
     final base = dotenv.env['BASE_URL'] ?? "";
-
     if (media.isNotEmpty && media.first is Map<String, dynamic>) {
       final id = media.first['id']?.toString();
       if (id != null && id.isNotEmpty) {
@@ -75,7 +74,118 @@ class _AgencyRoomState extends State<AgencyRoom> {
     _didInit = true;
   }
 
-  Future<void> _handleCreateAgency(BuildContext context, dynamic user) async {
+  /* =========================
+   * APPLY HANDLER (ASYNC SAFE)
+   * ========================= */
+
+  Future<void> _handleApplyTap(
+      BuildContext context,
+      AgencyViewModel vm,
+      dynamic agency,
+      ) async {
+    final user = context
+        .read<UserProvider>()
+        .currentUser;
+    if (user == null) return;
+
+    if (agency.hasPendingRequest) {
+      DialogInfo(
+        headerText: "Notice",
+        subText: "Your application to this agency is already pending.",
+        confirmText: "OK",
+        onConfirm: () =>
+            Navigator.of(context, rootNavigator: true).pop(),
+        onCancel: () =>
+            Navigator.of(context, rootNavigator: true).pop(),
+      ).build(context);
+      return;
+    }
+
+    final completer = Completer<bool>();
+
+    DialogInfo(
+      headerText: "Apply to Join",
+      subText: "Do you want to apply to join ${agency.name}?",
+      confirmText: "Apply",
+      cancelText: "Cancel",
+      onConfirm: () {
+        Navigator.of(context, rootNavigator: true).pop();
+        completer.complete(true);
+      },
+      onCancel: () {
+        Navigator.of(context, rootNavigator: true).pop();
+        completer.complete(false);
+      },
+    ).build(context);
+
+    final confirmed = await completer.future;
+    if (!confirmed) return;
+
+    final contactCountryCode = countryToDialCode(user.countryCode);
+    final contactValue = user.phoneNumber ?? "";
+    final agentIdCardUrl = _buildMediaUrl(agency.media);
+
+    if (contactCountryCode.isEmpty || contactValue.isEmpty) {
+      DialogInfo(
+        headerText: "Missing Information",
+        subText: "Please complete your phone number in your profile.",
+        confirmText: "OK",
+        onConfirm: () =>
+            Navigator.of(context, rootNavigator: true).pop(),
+        onCancel: () =>
+            Navigator.of(context, rootNavigator: true).pop(),
+      ).build(context);
+      return;
+    }
+
+    if (agentIdCardUrl == null) {
+      DialogInfo(
+        headerText: "Missing ID",
+        subText: "This agency has no valid ID card.",
+        confirmText: "OK",
+        onConfirm: () =>
+            Navigator.of(context, rootNavigator: true).pop(),
+        onCancel: () =>
+            Navigator.of(context, rootNavigator: true).pop(),
+      ).build(context);
+      return;
+    }
+
+    DialogLoading(subtext: "Submitting application...").build(context);
+
+    bool ok = false;
+    try {
+      ok = await vm.applyToJoin(
+        agencyCode: agency.agencyCode,
+        agencyAvatarUrl: agency.logoUrl ?? "",
+        agencyName: agency.name,
+        agentContactCountryCode: contactCountryCode,
+        agentContactValue: contactValue,
+        contactType: "phone",
+        agentIdCardUrl: agentIdCardUrl,
+      );
+    } finally {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    }
+
+    DialogInfo(
+      headerText: ok ? "Success" : "Application Not Submitted",
+      subText: ok
+          ? "Your application was submitted successfully. Please wait for the agency owner to review it."
+          : "We couldn’t submit your application.\n"
+          "• You already have a pending request\n"
+          "• The agency is full",
+      confirmText: "OK",
+      onConfirm: () =>
+          Navigator.of(context, rootNavigator: true).pop(),
+      onCancel: () =>
+          Navigator.of(context, rootNavigator: true).pop(),
+    ).build(context);
+  }
+
+    Future<void> _handleCreateAgency(BuildContext context, dynamic user) async {
     final ok = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
@@ -93,6 +203,7 @@ class _AgencyRoomState extends State<AgencyRoom> {
     }
   }
 
+
   /* =========================
    * UI
    * ========================= */
@@ -102,251 +213,86 @@ class _AgencyRoomState extends State<AgencyRoom> {
     final user = context.watch<UserProvider>().currentUser;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Agency'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Agency'), centerTitle: true),
       body: Consumer<AgencyViewModel>(
         builder: (context, vm, _) {
-          if (vm.isLoading && vm.agencies.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (vm.error != null) {
-            return Center(
-              child: Text(vm.error!, style: const TextStyle(color: Colors.red)),
-            );
-          }
-
           final query = _searchCtrl.text.toLowerCase();
           final filteredAgencies = vm.agencies.where((a) {
             return a.name.toLowerCase().contains(query) ||
                 a.agencyCode.toLowerCase().contains(query);
           }).toList();
 
-          return Stack(
-            children: [
-              /// =====================
-              /// CONTENT
-              /// =====================
-              RefreshIndicator(
-                onRefresh: () => vm.refresh(),
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      /// SEARCH
-                      TextField(
-                        controller: _searchCtrl,
-                        onChanged: (_) => setState(() {}),
-                        decoration: InputDecoration(
-                          hintText: "Search agency name or code",
-                          prefixIcon: const Icon(Icons.search),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  /// 🔍 SEARCH BAR (ONLY ADDITION)
+                  TextField(
+                    controller: _searchCtrl,
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      hintText: "Search agency name or code",
+                      prefixIcon: const Icon(Icons.search),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
                       ),
-                      const SizedBox(height: 20),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
 
-                      /// AGENCY LIST
-                      if (filteredAgencies.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 40),
-                          child: Center(child: Text("No agencies found")),
-                        )
-                      else
-                        ListView.separated(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: filteredAgencies.length,
-                          separatorBuilder: (_, __) =>
-                          const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final agency = filteredAgencies[index];
+                  /// AGENCY LIST (UNCHANGED)
+                  if (filteredAgencies.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 40),
+                      child: Center(child: Text("No agencies found")),
+                    )
+                  else
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: filteredAgencies.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (_, i) {
+                        final agency = filteredAgencies[i];
 
-                            return AgencyListCard(
-                              name: agency.name,
-                              agencyCode: agency.agencyCode,
-                              members: agency.membersCount,
-                              maxMembers: agency.maxMembers,
-                              media: agency.media,
-                              waveAsset: 'assets/image/gold_wave_bg.png',
-                              onTap: () async {
-                                final currentUser = context.read<UserProvider>().currentUser;
-
-                                if (currentUser == null) {
-                                  print("🧪 USER DEBUG ❌ user is null");
-                                  return;
-                                }
-
-                                print("🧪 USER DEBUG ✅");
-                                print("UserIdentification = ${currentUser.userIdentification}");
-                                print("Username           = ${currentUser.username}");
-                                print("CountryCode(raw)   = '${currentUser.countryCode}'");
-                                print("PhoneNumber(raw)   = '${currentUser.phoneNumber}'");
-                                print("DialCode(mapped)   = '${countryToDialCode(currentUser.countryCode)}'");
-
-
-                                final vm =
-                                context.read<AgencyViewModel>();
-                                final user =
-                                    context.read<UserProvider>().currentUser;
-
-                                if (user == null) return;
-
-                                /// ❌ Prevent duplicate
-                                if (agency.hasPendingRequest) {
-                                  DialogInfo(
-                                    headerText: "Notice",
-                                    subText:
-                                    "Your application to this agency is already pending.",
-                                    confirmText: "OK",
-                                    onConfirm: () =>
-                                        Navigator.pop(context),
-                                    onCancel: () =>
-                                        Navigator.pop(context),
-                                  ).build(context);
-                                  return;
-                                }
-
-                                final confirmCompleter =
-                                Completer<bool>();
-
-                                /// 1️⃣ CONFIRM
-                                DialogInfo(
-                                  headerText: "Apply to Join",
-                                  subText:
-                                  "Do you want to apply to join ${agency.name}?",
-                                  confirmText: "Apply",
-                                  cancelText: "Cancel",
-                                  onConfirm: () {
-                                    Navigator.pop(context);
-                                    confirmCompleter.complete(true);
-                                  },
-                                  onCancel: () {
-                                    Navigator.pop(context);
-                                    confirmCompleter.complete(false);
-                                  },
-                                ).build(context);
-
-                                final confirm =
-                                await confirmCompleter.future;
-                                if (confirm != true) return;
-
-                                /// 2️⃣ VALIDATE DATA
-                                final contactCountryCode = countryToDialCode(user.countryCode);
-                                final contactValue = user.phoneNumber ?? "";
-                                final agentIdCardUrl =
-                                _buildMediaUrl(agency.media);
-
-                                if (contactCountryCode.isEmpty ||
-                                    contactValue.isEmpty) {
-                                  DialogInfo(
-                                    headerText:
-                                    "Missing Information",
-                                    subText:
-                                    "Please complete your phone number in your profile.",
-                                    confirmText: "OK",
-                                    onConfirm: () =>
-                                        Navigator.pop(context),
-                                    onCancel: () =>
-                                        Navigator.pop(context),
-                                  ).build(context);
-                                  return;
-                                }
-
-                                if (agentIdCardUrl == null) {
-                                  DialogInfo(
-                                    headerText: "Missing ID",
-                                    subText:
-                                    "This agency has no valid ID card.",
-                                    confirmText: "OK",
-                                    onConfirm: () =>
-                                        Navigator.pop(context),
-                                    onCancel: () =>
-                                        Navigator.pop(context),
-                                  ).build(context);
-                                  return;
-                                }
-
-                                /// 3️⃣ LOADING
-                                DialogLoading(
-                                  subtext:
-                                  "Submitting application...",
-                                ).build(context);
-
-                                bool ok = false;
-
-                                try {
-                                  ok = await vm.applyToJoin(
-                                    agencyCode:
-                                    agency.agencyCode,
-                                    agencyAvatarUrl:
-                                    agency.logoUrl ?? "",
-                                    agencyName: agency.name,
-                                    agentContactCountryCode:
-                                    contactCountryCode,
-                                    agentContactValue:
-                                    contactValue,
-                                    contactType: "phone",
-                                    agentIdCardUrl:
-                                    agentIdCardUrl,
-                                  );
-                                } finally {
-                                  if (mounted) {
-                                    Navigator.pop(context);
-                                  }
-                                }
-
-                                /// 4️⃣ RESULT
-                                DialogInfo(
-                                  headerText:
-                                  ok ? "Success" : "Notice",
-                                  subText: ok
-                                      ? "Application submitted successfully."
-                                      : "Failed to submit application.",
-                                  confirmText: "OK",
-                                  onConfirm: () =>
-                                      Navigator.pop(context),
-                                  onCancel: () =>
-                                      Navigator.pop(context),
-                                ).build(context);
-                              },
-                            );
+                        return AgencyListCard(
+                          name: agency.name,
+                          agencyCode: agency.agencyCode,
+                          members: agency.membersCount,
+                          maxMembers: agency.maxMembers,
+                          hasPendingRequest: agency.hasPendingRequest,
+                          media: agency.media,
+                          waveAsset: 'assets/image/gold_wave_bg.png',
+                          onTap: () {
+                            _handleApplyTap(context, vm, agency);
                           },
-                        ),
-                    ],
-                  ),
-                ),
+                        );
+                      },
+                    ),
+                ],
               ),
-
-              /// =====================
-              /// CREATE BUTTON
-              /// =====================
-              Positioned(
-                left: 16,
-                right: 16,
-                bottom: 24,
-                child: SafeArea(
-                  child: GradientButton(
-                    text: "Create Agency",
-                    gradient: AppColors.goldShineGradient,
-                    onPressed: () {
-                      if (user == null) return;
-                      _handleCreateAgency(context, user);
-                    },
-                  ),
-                ),
-              ),
-            ],
+            ),
           );
         },
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: GradientButton(
+            text: "Create Agency",
+            gradient: AppColors.goldShineGradient,
+            onPressed: () {
+              if (user == null) return;
+              _handleCreateAgency(context, user);
+            },
+          ),
+        ),
       ),
     );
   }

@@ -137,13 +137,12 @@ Future<void> bootstrap() async {
           ),
         ),
 
-        // ✅ WALLET (single source of truth)
-        ChangeNotifierProvider(
-          create: (_) => WalletViewModel(
-            userProvider: userProvider,
+        ChangeNotifierProvider<WalletViewModel>(
+          create: (context) => WalletViewModel(
+            userProvider: context.read<UserProvider>(),
             walletService: WalletService(),
             conversionService: ConversionService(),
-            socketService: socketService,
+            socketService: SocketService(),
           ),
         ),
 

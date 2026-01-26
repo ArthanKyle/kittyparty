@@ -5,7 +5,6 @@ import 'package:kittyparty/core/global_widgets/dialogs/dialog_loading.dart';
 import 'package:kittyparty/core/global_widgets/dialogs/dialog_info.dart';
 
 import '../../../core/constants/colors.dart';
-import '../../../core/utils/user_provider.dart';
 import '../../wallet/viewmodel/wallet_viewmodel.dart';
 import '../wallet_widgets/wallet_diamond_appbar.dart';
 import '../wallet_widgets/diamond_card.dart';
@@ -19,24 +18,31 @@ class ConvertCoinsPage extends StatefulWidget {
 
 class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
   final TextEditingController _coinController = TextEditingController();
-  int coinsToConvert = 0;
-  int diamonds = 0;
 
-  static const int coinToDiamondRate = 1000;
+  int coinsToConvert = 0;
+  int previewDiamonds = 0;
+
+  // ✅ Documented rate: 1000 coins = 800 diamonds
+  static const int minCoins = 1000;
+
+  int _calculateDiamonds(int coins) {
+    return (coins * 800) ~/ 1000;
+  }
 
   @override
   Widget build(BuildContext context) {
     final walletVM = context.watch<WalletViewModel>();
-    final int currentCoins = walletVM.coins;
+    final currentCoins = walletVM.coins;
+
+    final canConvert =
+        coinsToConvert >= minCoins && coinsToConvert <= currentCoins;
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: Column(
         children: [
-          /// ✅ FIXED APP BAR (non-scrollable)
           const ConvertDiamondsAppBar(),
 
-          /// ✅ SCROLLABLE CONTENT
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
@@ -68,12 +74,14 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
                         border: InputBorder.none,
-                        hintText: "Enter coins...",
+                        hintText: "Enter coins (min 1000)",
                       ),
                       onChanged: (value) {
+                        final parsed = int.tryParse(value) ?? 0;
                         setState(() {
-                          coinsToConvert = int.tryParse(value) ?? 0;
-                          diamonds = coinsToConvert * coinToDiamondRate;
+                          coinsToConvert = parsed;
+                          previewDiamonds =
+                          parsed >= minCoins ? _calculateDiamonds(parsed) : 0;
                         });
                       },
                     ),
@@ -84,16 +92,14 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 14,
-                    ),
+                        horizontal: 12, vertical: 14),
                     decoration: BoxDecoration(
                       color: Colors.blue.shade50,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: Colors.blue.shade200),
                     ),
                     child: Text(
-                      "$diamonds diamonds",
+                      "$previewDiamonds diamonds",
                       style: const TextStyle(
                         fontSize: 14,
                         color: Colors.blue,
@@ -102,54 +108,59 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
                     ),
                   ),
 
-                  const SizedBox(height: 20),
-              Center(
-                  child: ElevatedButton(
-                    onPressed: (coinsToConvert > 0 &&
-                        coinsToConvert <= currentCoins)
-                        ? () async {
-                      DialogLoading(subtext: "Processing").build(context);
+                  const SizedBox(height: 30),
 
-                      try {
-                        await walletVM
-                            .convertCoinsToDiamonds(coinsToConvert);
+                  Center(
+                    child: ElevatedButton(
+                      onPressed: canConvert
+                          ? () async {
+                        DialogLoading(
+                            subtext: "Processing conversion...")
+                            .build(context);
 
-                        Navigator.of(context).pop();
+                        try {
+                          await walletVM
+                              .convertCoinsToDiamonds(coinsToConvert);
 
-                        _coinController.clear();
-                        setState(() {
-                          coinsToConvert = 0;
-                          diamonds = 0;
-                        });
+                          Navigator.of(context).pop();
 
-                        DialogInfo(
-                          headerText: "Conversion Successful",
-                          subText:
-                          "Your diamonds are now ${walletVM.diamonds}.",
-                          confirmText: "OK",
-                          onConfirm: () => Navigator.pop(context),
-                          onCancel: () => Navigator.pop(context),
-                        ).build(context);
-                      } catch (_) {
-                        Navigator.of(context).pop();
+                          _coinController.clear();
+                          setState(() {
+                            coinsToConvert = 0;
+                            previewDiamonds = 0;
+                          });
 
-                        DialogInfo(
-                          headerText: "Conversion Failed",
-                          subText:
-                          "Unable to complete the exchange. Please try again.",
-                          confirmText: "OK",
-                          onConfirm: () => Navigator.pop(context),
-                          onCancel: () => Navigator.pop(context),
-                        ).build(context);
+                          DialogInfo(
+                            headerText: "Conversion Successful",
+                            subText:
+                            "Your wallet has been updated successfully.",
+                            confirmText: "OK",
+                            onConfirm: () =>
+                                Navigator.of(context).pop(),
+                            onCancel: () =>
+                                Navigator.of(context).pop(),
+                          ).build(context);
+                        } catch (e) {
+                          Navigator.of(context).pop();
+
+                          DialogInfo(
+                            headerText: "Conversion Failed",
+                            subText: e.toString(),
+                            confirmText: "OK",
+                            onConfirm: () =>
+                                Navigator.of(context).pop(),
+                            onCancel: () =>
+                                Navigator.of(context).pop(),
+                          ).build(context);
+                        }
                       }
-                    }
-                        : null,
-                    child: const Text(
-                      "Confirm Exchange",
-                      style: TextStyle(color: AppColors.accentWhite),
+                          : null,
+                      child: const Text(
+                        "Confirm Exchange",
+                        style: TextStyle(color: AppColors.accentWhite),
+                      ),
                     ),
                   ),
-                ),
                 ],
               ),
             ),

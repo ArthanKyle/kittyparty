@@ -7,6 +7,10 @@ import 'package:http_parser/http_parser.dart' as http_parser;
 
 import '../../../features/landing/model/agency.dart';
 
+/* =========================
+ * LOGO UPLOAD MODEL
+ * ========================= */
+
 class AgencyLogoUpload {
   final Uint8List bytes;
   final String filename;
@@ -19,16 +23,23 @@ class AgencyLogoUpload {
   });
 }
 
+/* =========================
+ * AGENCY SERVICE
+ * ========================= */
+
 class AgencyService {
   final String baseUrl;
 
-  AgencyService({String? baseUrl}) : baseUrl = baseUrl ?? dotenv.env['BASE_URL']!;
+  AgencyService({String? baseUrl})
+      : baseUrl = baseUrl ?? dotenv.env['BASE_URL']!;
 
   /* =========================
    * HELPERS
    * ========================= */
 
-  Map<String, String> _jsonHeaders() => {"Content-Type": "application/json"};
+  Map<String, String> _jsonHeaders() => {
+    "Content-Type": "application/json",
+  };
 
   void _log(String msg) => print("🟡 [AgencyService] $msg");
 
@@ -41,9 +52,6 @@ class AgencyService {
 
   /* =========================
    * CREATE AGENCY
-   * POST /api/agencies
-   * - JSON (legacy): { UserIdentification, name, description?, logoUrl? }
-   * - Multipart (preferred): fields + file("logo")
    * ========================= */
 
   Future<AgencyDto> createAgency({
@@ -51,7 +59,7 @@ class AgencyService {
     required String name,
     String description = "",
     String? logoUrl,
-    AgencyLogoUpload? logo, // ✅ NEW
+    AgencyLogoUpload? logo,
   }) async {
     final path = "/agencies";
 
@@ -62,7 +70,6 @@ class AgencyService {
       req.fields["name"] = name;
       req.fields["description"] = description;
 
-      // Optional legacy url field
       if (logoUrl != null && logoUrl.isNotEmpty) {
         req.fields["logoUrl"] = logoUrl;
       }
@@ -76,30 +83,20 @@ class AgencyService {
         ),
       );
 
-      _log("Creating agency (multipart) URL: ${req.url}");
+      _log("Creating agency (multipart): ${req.url}");
       final streamed = await req.send();
       final res = await http.Response.fromStream(streamed);
 
-      _log("Status code: ${res.statusCode}");
-      _log("Raw response: ${res.body}");
-
-      if (res.statusCode != 201 && res.statusCode != 200) {
+      if (res.statusCode != 200 && res.statusCode != 201) {
         throw _fail("Failed to create agency");
       }
 
       final data = jsonDecode(res.body) as Map<String, dynamic>;
-      final agencyJson = (data["agency"] as Map<String, dynamic>);
-      return AgencyDto.fromJson(agencyJson);
+      return AgencyDto.fromJson(data["agency"]);
     }
 
-    // Fallback: JSON request (no file)
-    final url = "$baseUrl$path";
-
-    _log("Creating agency (json)");
-    _log("URL: $url");
-
     final res = await http.post(
-      Uri.parse(url),
+      _uri(path),
       headers: _jsonHeaders(),
       body: jsonEncode({
         "UserIdentification": userIdentification,
@@ -109,39 +106,35 @@ class AgencyService {
       }),
     );
 
-    _log("Status code: ${res.statusCode}");
-    _log("Raw response: ${res.body}");
-
-    if (res.statusCode != 201 && res.statusCode != 200) {
+    if (res.statusCode != 200 && res.statusCode != 201) {
       throw _fail("Failed to create agency");
     }
 
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
-    final agencyJson = (data["agency"] as Map<String, dynamic>);
-    return AgencyDto.fromJson(agencyJson);
+    final data = jsonDecode(res.body);
+    return AgencyDto.fromJson(data["agency"]);
   }
 
   /* =========================
-   * GET MY AGENCY
-   * GET /api/agencies/me?UserIdentification=...
+   * FETCH MY AGENCY
    * ========================= */
 
   Future<MyAgencyResult> fetchMyAgency({
     required String userIdentification,
   }) async {
-    final url = "$baseUrl/agencies/me?UserIdentification=$userIdentification";
+    final url =
+        "$baseUrl/agencies/me?UserIdentification=$userIdentification";
 
-    _log("Fetching my agency");
-    _log("URL: $url");
+    _log("Fetching my agency: $url");
 
     final res = await http.get(Uri.parse(url), headers: _jsonHeaders());
 
-    _log("Status code: ${res.statusCode}");
-    _log("Raw response: ${res.body}");
-
     if (res.statusCode == 404) {
-      _log("No agency found → returning null agency");
-      return MyAgencyResult(agency: null, myRole: null);
+      /// User has NO agency
+      return MyAgencyResult(
+        status: "none",
+        agency: null,
+        myRole: null,
+      );
     }
 
     if (res.statusCode != 200) {
@@ -149,44 +142,53 @@ class AgencyService {
     }
 
     final data = jsonDecode(res.body) as Map<String, dynamic>;
-    final agencyJson = data["agency"] as Map<String, dynamic>;
-    final role = data["myRole"]?.toString();
+
+    final String status =
+        (data["status"] as String?) ??
+            _inferStatus(
+              agencyJson: data["agency"],
+              role: data["myRole"],
+            );
 
     return MyAgencyResult(
-      agency: AgencyDto.fromJson(agencyJson),
-      myRole: role,
+      status: status,
+      agency: data["agency"] != null
+          ? AgencyDto.fromJson(data["agency"])
+          : null,
+      myRole: data["myRole"]?.toString(),
     );
   }
 
+  /// Fallback logic if backend does NOT send status
+  String _inferStatus({
+    required dynamic agencyJson,
+    required dynamic role,
+  }) {
+    if (agencyJson == null) return "none";
+    if (role == "owner") return "owner";
+    return "member";
+  }
+
   /* =========================
-   * GET AGENCY BY CODE
-   * GET /api/agencies/:agencyCode
+   * FETCH AGENCY BY CODE
    * ========================= */
 
   Future<AgencyDto> fetchAgencyByCode(String agencyCode) async {
-    final url = "$baseUrl/agencies/$agencyCode";
-
-    _log("Fetching agency by code");
-    _log("URL: $url");
-
-    final res = await http.get(Uri.parse(url), headers: _jsonHeaders());
-
-    _log("Status code: ${res.statusCode}");
-    _log("Raw response: ${res.body}");
+    final res = await http.get(
+      _uri("/agencies/$agencyCode"),
+      headers: _jsonHeaders(),
+    );
 
     if (res.statusCode != 200) {
       throw _fail("Failed to fetch agency");
     }
 
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
-    final agencyJson = (data["agency"] as Map<String, dynamic>);
-    return AgencyDto.fromJson(agencyJson);
+    final data = jsonDecode(res.body);
+    return AgencyDto.fromJson(data["agency"]);
   }
 
   /* =========================
-   * UPDATE AGENCY (OWNER ONLY)
-   * PATCH /api/agencies/:agencyCode
-   * - JSON (legacy) OR Multipart with file("logo")
+   * UPDATE AGENCY
    * ========================= */
 
   Future<AgencyDto> updateAgency({
@@ -195,7 +197,7 @@ class AgencyService {
     String? name,
     String? description,
     String? logoUrl,
-    AgencyLogoUpload? logo, // ✅ NEW
+    AgencyLogoUpload? logo,
   }) async {
     final path = "/agencies/$agencyCode";
 
@@ -205,7 +207,7 @@ class AgencyService {
       req.fields["UserIdentification"] = ownerUserIdentification;
       if (name != null) req.fields["name"] = name;
       if (description != null) req.fields["description"] = description;
-      if (logoUrl != null && logoUrl.isNotEmpty) req.fields["logoUrl"] = logoUrl;
+      if (logoUrl != null) req.fields["logoUrl"] = logoUrl;
 
       req.files.add(
         http.MultipartFile.fromBytes(
@@ -216,91 +218,65 @@ class AgencyService {
         ),
       );
 
-      _log("Updating agency (multipart) URL: ${req.url}");
       final streamed = await req.send();
       final res = await http.Response.fromStream(streamed);
-
-      _log("Status code: ${res.statusCode}");
-      _log("Raw response: ${res.body}");
 
       if (res.statusCode != 200) {
         throw _fail("Failed to update agency");
       }
 
-      final data = jsonDecode(res.body) as Map<String, dynamic>;
-      final agencyJson = (data["agency"] as Map<String, dynamic>);
-      return AgencyDto.fromJson(agencyJson);
+      final data = jsonDecode(res.body);
+      return AgencyDto.fromJson(data["agency"]);
     }
 
-    // JSON fallback
-    final url = "$baseUrl$path";
-
-    final body = <String, dynamic>{
-      "UserIdentification": ownerUserIdentification,
-      if (name != null) "name": name,
-      if (description != null) "description": description,
-      if (logoUrl != null) "logoUrl": logoUrl,
-    };
-
-    _log("Updating agency (json)");
-    _log("URL: $url");
-    _log("Body: ${jsonEncode(body)}");
-
-    final res = await http.patch(Uri.parse(url), headers: _jsonHeaders(), body: jsonEncode(body));
-
-    _log("Status code: ${res.statusCode}");
-    _log("Raw response: ${res.body}");
+    final res = await http.patch(
+      _uri(path),
+      headers: _jsonHeaders(),
+      body: jsonEncode({
+        "UserIdentification": ownerUserIdentification,
+        if (name != null) "name": name,
+        if (description != null) "description": description,
+        if (logoUrl != null) "logoUrl": logoUrl,
+      }),
+    );
 
     if (res.statusCode != 200) {
       throw _fail("Failed to update agency");
     }
 
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
-    final agencyJson = (data["agency"] as Map<String, dynamic>);
-    return AgencyDto.fromJson(agencyJson);
+    final data = jsonDecode(res.body);
+    return AgencyDto.fromJson(data["agency"]);
   }
 
   /* =========================
-   * LIST MEMBERS
-   * GET /api/agencies/:agencyCode/members
+   * FETCH MEMBERS
    * ========================= */
 
   Future<MembersResult> fetchMembers(String agencyCode) async {
-    final url = "$baseUrl/agencies/$agencyCode/members";
-
-    _log("Fetching members");
-    _log("URL: $url");
-
-    final res = await http.get(Uri.parse(url), headers: _jsonHeaders());
-
-    _log("Status code: ${res.statusCode}");
-    _log("Raw response: ${res.body}");
+    final res = await http.get(
+      _uri("/agencies/$agencyCode/members"),
+      headers: _jsonHeaders(),
+    );
 
     if (res.statusCode != 200) {
       throw _fail("Failed to fetch members");
     }
 
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
-    final list = (data["members"] as List<dynamic>? ?? []);
+    final data = jsonDecode(res.body);
 
-    final members = list
-        .map((x) => AgencyMemberDto.fromJson(x as Map<String, dynamic>))
+    final members = (data["members"] as List<dynamic>? ?? [])
+        .map((e) => AgencyMemberDto.fromJson(e))
         .toList();
 
-    final maxMembersRaw = data["maxMembers"] ?? 10;
-    final membersCountRaw = data["membersCount"] ?? members.length;
-
-    final maxMembers = maxMembersRaw is int ? maxMembersRaw : int.tryParse(maxMembersRaw.toString()) ?? 10;
-
-    final membersCount =
-    membersCountRaw is int ? membersCountRaw : int.tryParse(membersCountRaw.toString()) ?? members.length;
-
-    return MembersResult(members: members, membersCount: membersCount, maxMembers: maxMembers);
+    return MembersResult(
+      members: members,
+      membersCount: data["membersCount"] ?? members.length,
+      maxMembers: data["maxMembers"] ?? 10,
+    );
   }
 
   /* =========================
    * APPLY TO JOIN
-   * POST /api/agencies/:agencyCode/apply
    * ========================= */
 
   Future<void> applyToJoin({
@@ -315,66 +291,56 @@ class AgencyService {
     String inviterId = "",
     String? inviterPicUrl,
   }) async {
-    final url = "$baseUrl/agencies/$agencyCode/apply";
+    final res = await http.post(
+      _uri("/agencies/$agencyCode/apply"),
+      headers: _jsonHeaders(),
+      body: jsonEncode({
+        "UserIdentification": userIdentification,
+        "agencyAvatarUrl": agencyAvatarUrl,
+        "agencyName": agencyName,
+        "agentContactCountryCode": agentContactCountryCode,
+        "agentContactValue": agentContactValue,
+        "contactType": contactType,
+        "agentIdCardUrl": agentIdCardUrl,
+        "inviterId": inviterId,
+        "inviterPicUrl": inviterPicUrl,
+      }),
+    );
 
-    final body = {
-      "UserIdentification": userIdentification,
-      "agencyAvatarUrl": agencyAvatarUrl,
-      "agencyName": agencyName,
-      "agentContactCountryCode": agentContactCountryCode,
-      "agentContactValue": agentContactValue,
-      "contactType": contactType,
-      "agentIdCardUrl": agentIdCardUrl,
-      "inviterId": inviterId,
-      "inviterPicUrl": inviterPicUrl,
-    };
-
-    _log("Applying to join agency");
-    _log("URL: $url");
-
-    final res = await http.post(Uri.parse(url), headers: _jsonHeaders(), body: jsonEncode(body));
-
-    _log("Status code: ${res.statusCode}");
-    _log("Raw response: ${res.body}");
-
-    if (res.statusCode != 201 && res.statusCode != 200) {
-      throw _fail("Failed to apply to join");
+    if (res.statusCode != 200 && res.statusCode != 201) {
+      throw _fail("Failed to apply to join agency");
     }
   }
 
   /* =========================
-   * LIST JOIN REQUESTS
-   * GET /api/agencies/:agencyCode/requests?UserIdentification=OWNER
+   * FETCH JOIN REQUESTS
    * ========================= */
 
   Future<List<AgencyJoinRequestDto>> fetchJoinRequests({
     required String ownerUserIdentification,
     required String agencyCode,
   }) async {
-    final url =
-        "$baseUrl/agencies/$agencyCode/requests?UserIdentification=$ownerUserIdentification";
-
-    _log("Fetching join requests");
-    _log("URL: $url");
-
-    final res = await http.get(Uri.parse(url), headers: _jsonHeaders());
-
-    _log("Status code: ${res.statusCode}");
-    _log("Raw response: ${res.body}");
+    final res = await http.get(
+      _uri(
+        "/agencies/$agencyCode/requests?UserIdentification=$ownerUserIdentification",
+      ),
+      headers: _jsonHeaders(),
+    );
 
     if (res.statusCode != 200) {
       throw _fail("Failed to fetch join requests");
     }
 
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    final data = jsonDecode(res.body);
     final list = (data["requests"] as List<dynamic>? ?? []);
 
-    return list.map((x) => AgencyJoinRequestDto.fromJson(x as Map<String, dynamic>)).toList();
+    return list
+        .map((e) => AgencyJoinRequestDto.fromJson(e))
+        .toList();
   }
 
   /* =========================
-   * APPROVE REQUEST
-   * POST /api/agencies/:agencyCode/requests/:requestId/approve
+   * APPROVE / REJECT
    * ========================= */
 
   Future<void> approveRequest({
@@ -382,20 +348,18 @@ class AgencyService {
     required String agencyCode,
     required String requestId,
   }) async {
-    final url = "$baseUrl/agencies/$agencyCode/requests/$requestId/approve";
-    final body = {"UserIdentification": ownerUserIdentification};
-
-    final res = await http.post(Uri.parse(url), headers: _jsonHeaders(), body: jsonEncode(body));
+    final res = await http.post(
+      _uri("/agencies/$agencyCode/requests/$requestId/approve"),
+      headers: _jsonHeaders(),
+      body: jsonEncode({
+        "UserIdentification": ownerUserIdentification,
+      }),
+    );
 
     if (res.statusCode != 200) {
       throw _fail("Failed to approve request");
     }
   }
-
-  /* =========================
-   * REJECT REQUEST
-   * POST /api/agencies/:agencyCode/requests/:requestId/reject
-   * ========================= */
 
   Future<void> rejectRequest({
     required String ownerUserIdentification,
@@ -403,43 +367,58 @@ class AgencyService {
     required String requestId,
     String reason = "",
   }) async {
-    final url = "$baseUrl/agencies/$agencyCode/requests/$requestId/reject";
-    final body = {"UserIdentification": ownerUserIdentification, "reason": reason};
-
-    final res = await http.post(Uri.parse(url), headers: _jsonHeaders(), body: jsonEncode(body));
+    final res = await http.post(
+      _uri("/agencies/$agencyCode/requests/$requestId/reject"),
+      headers: _jsonHeaders(),
+      body: jsonEncode({
+        "UserIdentification": ownerUserIdentification,
+        "reason": reason,
+      }),
+    );
 
     if (res.statusCode != 200) {
       throw _fail("Failed to reject request");
     }
   }
 
+  /* =========================
+   * FETCH AGENCIES
+   * ========================= */
+
   Future<List<AgencyDto>> fetchAgencies({
     required String userIdentification,
   }) async {
-    final url = "$baseUrl/agencies?UserIdentification=$userIdentification";
-
-    final res = await http.get(Uri.parse(url), headers: _jsonHeaders());
+    final res = await http.get(
+      _uri("/agencies?UserIdentification=$userIdentification"),
+      headers: _jsonHeaders(),
+    );
 
     if (res.statusCode != 200) {
-      throw Exception("Failed to fetch agencies");
+      throw _fail("Failed to fetch agencies");
     }
 
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    final data = jsonDecode(res.body);
     final list = (data["agencies"] as List<dynamic>? ?? []);
 
-    return list.map((e) => AgencyDto.fromJson(e as Map<String, dynamic>)).toList();
+    return list.map((e) => AgencyDto.fromJson(e)).toList();
   }
 }
 
 /* =========================
- * SMALL RESULT TYPES
+ * RESULT MODELS
  * ========================= */
 
 class MyAgencyResult {
+  /// none | pending | member | owner
+  final String status;
   final AgencyDto? agency;
   final String? myRole;
 
-  MyAgencyResult({required this.agency, required this.myRole});
+  MyAgencyResult({
+    required this.status,
+    required this.agency,
+    required this.myRole,
+  });
 }
 
 class MembersResult {

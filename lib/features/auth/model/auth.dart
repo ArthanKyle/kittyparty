@@ -13,7 +13,14 @@ class User {
   final String gender;
 
   // VIP (single source of truth)
-  final int vipLevel;
+  int vipLevel;
+  String vipCode;
+  String vipTitle;
+  List<String> vipPerks;
+  double vipTotalRechargeAmount;
+  DateTime? vipLastUpdatedAt;
+  bool vipConquerorEntryPermit;
+  bool vipKingsOfKingsEntryTicket;
 
   final int wealthLevel;
 
@@ -26,6 +33,7 @@ class User {
   final String? invitationCode;
   bool isFirstTimeRecharge;
   final String? myInvitationCode;
+  Map<String, dynamic>? vipProgress;
 
   User({
     required this.id,
@@ -38,7 +46,18 @@ class User {
     required this.passwordHash,
     required this.countryCode,
     required this.gender,
+
+    // VIP
     this.vipLevel = 0,
+    this.vipCode = '',
+    this.vipTitle = '',
+    List<String>? vipPerks,
+    this.vipTotalRechargeAmount = 0,
+    this.vipLastUpdatedAt,
+    this.vipConquerorEntryPermit = false,
+    this.vipKingsOfKingsEntryTicket = false,
+    this.vipProgress,
+
     this.coins = 0,
     this.diamonds = 0,
     this.status = "offline",
@@ -48,7 +67,8 @@ class User {
     this.isFirstTimeRecharge = true,
     this.myInvitationCode,
     this.wealthLevel = 0,
-  }) : dateJoined = dateJoined ?? DateTime.now();
+  }) :  vipPerks = vipPerks ?? [],
+        dateJoined = dateJoined ?? DateTime.now();
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
@@ -95,6 +115,22 @@ class User {
       isFirstTimeRecharge: json['isFirstTimeRecharge'] ?? true,
       myInvitationCode:
       json['MyInvitationCode'] ?? json['myInvitationCode'],
+      vipCode: json['vipCode'] ?? '',
+      vipTitle: json['vipTitle'] ?? '',
+      vipPerks: json['vipPerks'] is List
+          ? List<String>.from(json['vipPerks'])
+          : [],
+      vipTotalRechargeAmount:
+      (json['vipTotalRechargeAmount'] as num?)?.toDouble() ?? 0,
+      vipLastUpdatedAt: json['vipLastUpdatedAt'] != null
+          ? DateTime.tryParse(json['vipLastUpdatedAt'])
+          : null,
+      vipConquerorEntryPermit:
+      json['vipConquerorEntryPermit'] == true,
+      vipKingsOfKingsEntryTicket:
+      json['vipKingsOfKingsEntryTicket'] == true,
+      vipProgress: json['vipProgress'],
+
     );
   }
 

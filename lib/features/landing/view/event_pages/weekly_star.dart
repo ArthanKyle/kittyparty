@@ -1,6 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
+
 import '../../../../core/utils/profile_picture_helper.dart';
 import '../../landing_widgets/landing_widgets/event_widgets/event_header.dart';
 import '../../viewmodel/event_ranking_viewmodel.dart';
@@ -15,7 +16,7 @@ class WeeklyStar extends StatefulWidget {
 class _WeeklyStarState extends State<WeeklyStar> {
   late DateTime _resetTime;
   late Duration _remaining;
-  late final Ticker _ticker;
+  late Timer _timer;
 
   @override
   void initState() {
@@ -23,23 +24,32 @@ class _WeeklyStarState extends State<WeeklyStar> {
     _resetTime = _nextReset();
     _remaining = _resetTime.difference(DateTime.now());
 
-    _ticker = Ticker((_) {
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      final diff = _resetTime.difference(DateTime.now());
+
       setState(() {
-        _remaining = _resetTime.difference(DateTime.now());
+        _remaining = diff.isNegative ? Duration.zero : diff;
       });
-    })..start();
+    });
   }
 
   @override
   void dispose() {
-    _ticker.dispose();
+    _timer.cancel();
     super.dispose();
   }
 
+  /// Weekly reset: NEXT MONDAY 00:00 (local time)
   DateTime _nextReset() {
     final now = DateTime.now();
-    return DateTime(now.year, now.month, now.day)
-        .add(Duration(days: (8 - now.weekday) % 7));
+    final today = DateTime(now.year, now.month, now.day);
+
+    final daysUntilMonday =
+        (DateTime.monday - now.weekday + 7) % 7;
+
+    final daysToAdd = daysUntilMonday == 0 ? 7 : daysUntilMonday;
+
+    return today.add(Duration(days: daysToAdd));
   }
 
   String _two(int n) => n.toString().padLeft(2, '0');
@@ -72,20 +82,37 @@ class _WeeklyStarState extends State<WeeklyStar> {
               ),
             ),
 
+            /// COUNTDOWN
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _TimeBox(label: 'Day', value: _remaining.inDays.toString()),
-                  _TimeBox(label: 'Hour', value: _two(_remaining.inHours % 24)),
-                  _TimeBox(label: 'Min', value: _two(_remaining.inMinutes % 60)),
+                  _TimeBox(
+                    label: 'Day',
+                    value: _remaining.inDays < 0
+                        ? '0'
+                        : _remaining.inDays.toString(),
+                  ),
+                  _TimeBox(
+                    label: 'Hour',
+                    value: _two(
+                      (_remaining.inHours % 24).clamp(0, 23),
+                    ),
+                  ),
+                  _TimeBox(
+                    label: 'Min',
+                    value: _two(
+                      (_remaining.inMinutes % 60).clamp(0, 59),
+                    ),
+                  ),
                 ],
               ),
             ),
 
             const _SectionTitle(title: 'This Week'),
 
+            /// RANK LIST
             Expanded(
               child: vm.loading
                   ? const Center(child: CircularProgressIndicator())
@@ -142,7 +169,10 @@ class _RankRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text('$rank', style: const TextStyle(color: Colors.white)),
+          Text(
+            '$rank',
+            style: const TextStyle(color: Colors.white),
+          ),
           const SizedBox(width: 12),
           UserAvatarHelper.circleAvatar(
             userIdentification: userId,
@@ -174,7 +204,11 @@ class _RankRow extends StatelessWidget {
 class _TimeBox extends StatelessWidget {
   final String label;
   final String value;
-  const _TimeBox({required this.label, required this.value});
+
+  const _TimeBox({
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -201,7 +235,10 @@ class _TimeBox extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(label, style: const TextStyle(color: Colors.white70)),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70),
+          ),
         ],
       ),
     );
@@ -210,6 +247,7 @@ class _TimeBox extends StatelessWidget {
 
 class _SectionTitle extends StatelessWidget {
   final String title;
+
   const _SectionTitle({required this.title});
 
   @override

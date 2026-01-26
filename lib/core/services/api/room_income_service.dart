@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import '../../../features/landing/model/room_income_history.dart';
+
 class RoomIncomeSummary {
   final int contributionTodayCoins;
   final int contributionTotalCoins;
@@ -85,4 +87,44 @@ class RoomIncomeService {
     final json = jsonDecode(res.body) as Map<String, dynamic>;
     return RoomIncomeSummary.fromJson(json);
   }
+  Future<List<RoomIncomeHistoryEntry>> getRoomIncomeHistory(
+      String roomId, {
+        int limit = 50,
+        DateTime? before,
+        String? eventType,
+      }) async {
+    final queryParams = <String, String>{
+      'limit': limit.toString(),
+    };
+
+    if (before != null) {
+      queryParams['before'] = before.toIso8601String();
+    }
+
+    if (eventType != null && eventType.isNotEmpty) {
+      queryParams['eventType'] = eventType;
+    }
+
+    final uri = Uri.parse(
+      '$baseUrl/room-income/$roomId/income/history',
+    ).replace(queryParameters: queryParams);
+
+    final res = await http.get(uri);
+
+    if (res.statusCode != 200) {
+      throw Exception("Failed to fetch room income history");
+    }
+
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    final list = body['history'] as List<dynamic>;
+
+    return list
+        .map(
+          (e) => RoomIncomeHistoryEntry.fromJson(
+        e as Map<String, dynamic>,
+      ),
+    )
+        .toList();
+  }
+
 }

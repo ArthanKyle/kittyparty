@@ -11,6 +11,7 @@ import '../../../core/services/api/room_income_service.dart';
 import '../../../core/services/api/userProfile_service.dart';
 import '../../../core/services/api/room_service.dart';
 import '../../../core/utils/user_provider.dart';
+import '../../landing/model/room_income_history.dart';
 import '../../landing/model/userProfile.dart';
 import '../widgets/game_modal.dart';
 
@@ -21,6 +22,7 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
 
   final GiftService giftService = GiftService();
   final RoomIncomeService roomIncomeService = RoomIncomeService();
+  final List<RoomIncomeHistoryEntry> incomeHistory = [];
 
   LiveAudioRoomViewmodel({
     required this.userProvider,
@@ -207,27 +209,60 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
     required int giftCount,
   }) async {
     final token = userProvider.token;
-    if (token == null) return;
 
-    final result = await giftService.sendGift(
-      token: token,
-      roomId: roomId,
-      senderId: senderId,
-      receiverId: receiverId,
-      giftType: giftType,
-      giftCount: giftCount,
-    );
+    debugPrint("🎁 [sendGift] START");
+    debugPrint("🎁 roomId=$roomId");
+    debugPrint("🎁 senderId=$senderId");
+    debugPrint("🎁 receiverId=$receiverId");
+    debugPrint("🎁 giftType=$giftType");
+    debugPrint("🎁 giftCount=$giftCount");
+    debugPrint("🎁 tokenPresent=${token != null}");
 
-    if (result["success"] != true) return;
+    if (token == null) {
+      debugPrint("❌ [sendGift] ABORT: token is null");
+      return;
+    }
+
+    Map<String, dynamic> result;
+
+    try {
+      result = await giftService.sendGift(
+        token: token,
+        roomId: roomId,
+        senderId: senderId,
+        receiverId: receiverId,
+        giftType: giftType,
+        giftCount: giftCount,
+      );
+    } catch (e, st) {
+      debugPrint("❌ [sendGift] EXCEPTION from GiftService");
+      debugPrint("❌ error=$e");
+      debugPrint("❌ stack=$st");
+      return;
+    }
+
+    debugPrint("📦 [sendGift] RAW RESULT => $result");
+
+    if (result["success"] != true) {
+      debugPrint("❌ [sendGift] BACKEND REJECTED");
+      debugPrint("❌ message=${result["message"]}");
+      return;
+    }
 
     final String assetKey = (result["assetKey"] ?? "").toString();
     final int coinsWon = _asInt(result["coinsWon"]);
 
+    debugPrint("🎬 [sendGift] assetKey=$assetKey");
+    debugPrint("🪙 [sendGift] coinsWon=$coinsWon");
+
     if (assetKey.isNotEmpty) {
+      debugPrint("🎥 [sendGift] EMIT animation => $assetKey");
       _giftController.add(assetKey);
     }
 
     if (coinsWon > 0 && globalContext != null) {
+      debugPrint("🎉 [sendGift] SHOW Lucky Win SnackBar");
+
       ScaffoldMessenger.of(globalContext!).showSnackBar(
         SnackBar(
           content: Text("🎉 Lucky Win! +$coinsWon coins"),
@@ -235,6 +270,8 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
         ),
       );
     }
+
+    debugPrint("✅ [sendGift] END");
   }
 
   // =========================

@@ -7,10 +7,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:kittyparty/core/constants/colors.dart';
 import 'package:kittyparty/core/utils/user_provider.dart';
 import '../../../../core/services/api/agency_service.dart';
-
 import '../../../../core/utils/profile_picture_helper.dart';
+
 import '../../../landing/model/agency.dart';
 import '../../../landing/viewmodel/agency_viewmodel.dart';
+import '../../../landing/viewmodel/agency_withdraw_viewmodel.dart';
+
 import 'create_agency.dart';
 
 class AgencyDetailPage extends StatefulWidget {
@@ -28,16 +30,25 @@ class AgencyDetailPage extends StatefulWidget {
 class _AgencyDetailPageState extends State<AgencyDetailPage>
     with TickerProviderStateMixin {
   late TabController _tabController;
+  late AgencyWithdrawViewModel _withdrawVm;
+
   bool _didInit = false;
 
   @override
   void initState() {
     super.initState();
+
     _tabController = TabController(length: 3, vsync: this);
+
+    _withdrawVm = AgencyWithdrawViewModel(
+      userProvider: context.read<UserProvider>(),
+      agencyCode: widget.agencyCode,
+    );
   }
 
   @override
   void dispose() {
+    _withdrawVm.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -64,19 +75,34 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
   }
 
   bool _isOwnerOfThisAgency(AgencyViewModel vm) {
-    final uid =
-        context.read<UserProvider>().currentUser?.userIdentification;
+    final uid = context.read<UserProvider>().currentUser?.userIdentification;
     if (uid == null) return false;
 
-    final members = vm.membersResult?.members ?? const [];
-    return members.any(
+    return vm.membersResult?.members.any(
           (m) => m.role == "owner" && m.userIdentification == uid,
-    );
+    ) ??
+        false;
+  }
+
+  bool _isMember(AgencyViewModel vm) {
+    final uid = context.read<UserProvider>().currentUser?.userIdentification;
+    if (uid == null) return false;
+
+    return vm.membersResult?.members.any(
+          (m) => m.userIdentification == uid,
+    ) ??
+        false;
   }
 
   void _rebuildTabs(AgencyViewModel vm) {
     final isOwner = _isOwnerOfThisAgency(vm);
-    final desiredLength = isOwner ? 3 : 2;
+    final isMember = _isMember(vm);
+
+    final desiredLength = isOwner
+        ? 4
+        : isMember
+        ? 3
+        : 2;
 
     if (_tabController.length == desiredLength) return;
 
@@ -88,7 +114,6 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
     }
   }
 
-  /// ✅ SWIPE-DOWN REFRESH (GLOBAL)
   Future<void> _refreshAll(AgencyViewModel vm) async {
     await vm.viewAgencyByCode(agencyCode: widget.agencyCode);
     await vm.loadMembers(agencyCode: widget.agencyCode);
@@ -112,8 +137,12 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
         }
 
         final isOwner = _isOwnerOfThisAgency(vm);
+        final isMember = _isMember(vm);
+
         final tabs = isOwner
-            ? const ["Info", "Members", "Approvals"]
+            ? const ["Info", "Members", "Approvals", "Withdraw"]
+            : isMember
+            ? const ["Info", "Members", "Withdraw"]
             : const ["Info", "Members"];
 
         final membersCount =
@@ -124,15 +153,11 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
         final ownerMember = vm.membersResult?.members
             .where((m) => m.role == "owner")
             .cast<AgencyMemberDto?>()
-            .firstWhere(
-              (m) => m != null,
-          orElse: () => null,
-        );
+            .firstWhere((m) => m != null, orElse: () => null);
 
         final ownerName = ownerMember?.username?.isNotEmpty == true
             ? ownerMember!.username!
             : ownerMember?.userIdentification ?? "-";
-
 
         return Scaffold(
           appBar: AppBar(
@@ -142,19 +167,8 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
               tabs: tabs.map((t) => Tab(text: t)).toList(),
             ),
           ),
-          body: (vm.isLoading && agency == null)
+          body: agency == null
               ? const Center(child: CircularProgressIndicator())
-              : (agency == null
-              ? _ErrorBox(
-            message: vm.error ?? "Agency not found.",
-            onRetry: () async {
-              vm.clearError();
-              await vm.viewAgencyByCode(
-                agencyCode: widget.agencyCode,
-              );
-              _rebuildTabs(vm);
-            },
-          )
               : RefreshIndicator(
             onRefresh: () => _refreshAll(vm),
             child: TabBarView(
@@ -168,13 +182,12 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
                   onEdit: isOwner ? () => _editAgency(vm) : null,
                   onApply: isOwner ? null : () => _applyToJoin(vm),
                   isFull: membersCount >= maxMembers,
-                  ownerName: ownerName, // ✅ NOW DEFINED
+                  ownerName: ownerName,
                 ),
                 _MembersTabDto(
-                  loading: vm.isLoading &&
-                      vm.membersResult == null,
-                  members:
-                  vm.membersResult?.members ?? const [],
+                  loading:
+                  vm.isLoading && vm.membersResult == null,
+                  members: vm.membersResult?.members ?? const [],
                   membersCount: membersCount,
                   maxMembers: maxMembers,
                 ),
@@ -182,16 +195,16 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
                   _ApprovalsTabDto(
                     loading: vm.isLoading,
                     requests: vm.joinRequests,
-                    onRefresh: () => vm.loadJoinRequests(
-                      agencyCode: widget.agencyCode,
-                    ),
+                    onRefresh: () =>
+                        vm.loadJoinRequests(
+                          agencyCode: widget.agencyCode,
+                        ),
                     onApprove: (id) => vm.approveRequest(
                       agencyCode: widget.agencyCode,
                       requestId: id,
                     ),
                     onReject: (id) async {
-                      final reason =
-                      await _askReason(context);
+                      final reason = await _askReason(context);
                       await vm.rejectRequest(
                         agencyCode: widget.agencyCode,
                         requestId: id,
@@ -199,9 +212,17 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
                       );
                     },
                   ),
+                if (isMember)
+                  ChangeNotifierProvider.value(
+                    value: _withdrawVm,
+                    child: Consumer<AgencyWithdrawViewModel>(
+                      builder: (_, vm, __) =>
+                          _WithdrawTab(vm: vm),
+                    ),
+                  ),
               ],
             ),
-          )),
+          ),
         );
       },
     );
@@ -247,7 +268,6 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
                       source: ImageSource.gallery,
                       imageQuality: 85,
                     );
-
                     if (file != null) {
                       pickedLogoBytes = await file.readAsBytes();
                       pickedLogoName = file.name;
@@ -283,8 +303,10 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
             ? null
             : AgencyLogoUpload(
           bytes: pickedLogoBytes!,
-          filename: pickedLogoName ?? "agency_logo.jpg",
-          mimeType: pickedLogoMime ?? "image/jpeg",
+          filename:
+          pickedLogoName ?? "agency_logo.jpg",
+          mimeType:
+          pickedLogoMime ?? "image/jpeg",
         ),
       );
     }
@@ -296,18 +318,21 @@ class _AgencyDetailPageState extends State<AgencyDetailPage>
     final ok = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => AgencyRegistrationApplicationPage(
-          title: "Agency Registration Application",
-          initialDisplayName: user?.username ?? "",
-          initialUserId: user?.userIdentification ?? "",
-          isCreateAgency: false,
-          agencyCode: widget.agencyCode,
-        ),
+        builder: (_) =>
+            AgencyRegistrationApplicationPage(
+              title: "Agency Registration Application",
+              initialDisplayName: user?.username ?? "",
+              initialUserId:
+              user?.userIdentification ?? "",
+              isCreateAgency: false,
+              agencyCode: widget.agencyCode,
+            ),
       ),
     );
 
     if (ok == true && mounted) {
-      await vm.viewAgencyByCode(agencyCode: widget.agencyCode);
+      await vm.viewAgencyByCode(
+          agencyCode: widget.agencyCode);
       _rebuildTabs(vm);
     }
   }
@@ -458,6 +483,164 @@ class _MembersTabDto extends StatelessWidget {
     );
   }
 }
+
+/* ================= WITHDRAW TAB ================= */
+
+class _WithdrawTab extends StatefulWidget {
+  final AgencyWithdrawViewModel vm;
+
+  const _WithdrawTab({required this.vm});
+
+  @override
+  State<_WithdrawTab> createState() => _WithdrawTabState();
+}
+
+class _WithdrawTabState extends State<_WithdrawTab> {
+  final TextEditingController _ctrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    widget.vm.load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final vm = widget.vm;
+
+    return RefreshIndicator(
+      onRefresh: vm.load,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          /// BALANCE CARD
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Text(
+                    "Agency Commission",
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    "Withdrawals are processed weekly.\nSettlement runs automatically on the 15th and 30th.",
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          /// WITHDRAW FORM
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Withdraw Diamonds",
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _ctrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: "Diamonds",
+                      hintText: "Enter amount",
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: vm.isLoading
+                          ? null
+                          : () async {
+                        final value = int.tryParse(_ctrl.text);
+                        if (value != null && value > 0) {
+                          await vm.requestWithdraw(value);
+                          _ctrl.clear();
+                        }
+                      },
+                      child: vm.isLoading
+                          ? const CircularProgressIndicator()
+                          : const Text(
+                        "Request Withdrawal",
+                        style: TextStyle(color: AppColors.accentWhite),
+                      ),
+                    ),
+                  ),
+                  if (vm.error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        vm.error!,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          /// HISTORY
+          const Text(
+            "Withdrawal History",
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+
+          if (vm.isLoading && vm.withdrawals.isEmpty)
+            const Center(child: CircularProgressIndicator()),
+
+          ...vm.withdrawals.map((w) {
+            Color color;
+            switch (w.status) {
+              case "paid":
+                color = Colors.green;
+                break;
+              case "approved":
+                color = Colors.blue;
+                break;
+              case "rejected":
+                color = Colors.red;
+                break;
+              default:
+                color = Colors.orange;
+            }
+
+            return Card(
+              child: ListTile(
+                title: Text("💎 ${w.diamonds}"),
+                subtitle: Text(
+                  "${w.createdAt.toLocal()}",
+                  style: const TextStyle(fontSize: 12),
+                ),
+                trailing: Text(
+                  w.status.toUpperCase(),
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
 
 class _ApprovalsTabDto extends StatelessWidget {
   final bool loading;
