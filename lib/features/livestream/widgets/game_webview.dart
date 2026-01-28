@@ -11,7 +11,7 @@ import 'package:http/http.dart' as http;
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
-import '../viewmodel/game_config.dart';
+import '../../../core/config/game_config.dart';
 
 class GameWebView extends StatefulWidget {
   final String url;

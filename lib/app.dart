@@ -1,56 +1,62 @@
 import 'package:flutter/material.dart';
-import 'package:kittyparty/features/auth/view/login_selection.dart';
-import 'package:kittyparty/features/landing/view/event_pages/honor_ranking_page.dart';
-import 'package:kittyparty/features/livestream/view/live_audio_room.dart';
-import 'package:kittyparty/features/profile/profile_pages/agency/create_agency.dart';
-import 'package:kittyparty/features/profile/profile_pages/agency_room.dart';
-import 'package:kittyparty/features/profile/profile_pages/daily_task_page.dart';
-import 'package:kittyparty/features/profile/profile_pages/invite_page.dart';
-import 'package:kittyparty/features/profile/profile_pages/setting_page.dart';
-import 'package:kittyparty/features/profile/profile_pages/transaction_page.dart';
-import 'package:kittyparty/features/wallet/view/convert_coins_to_diamond_page.dart';
-import 'package:kittyparty/features/wallet/view/monthly_recharge_page.dart';
-import 'core/config/app_theme.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'core/utils/locale_provider.dart';
-// Auth
+
+import 'core/config/app_theme.dart';
 import 'core/config/global_keys.dart';
+import 'core/utils/locale_provider.dart';
+import 'core/utils/user_provider.dart';
+
+// Auth
+import 'features/auth/view/login_selection.dart';
 import 'features/auth/view/email_login.dart';
 import 'features/auth/view/id_login.dart';
 import 'features/auth/view/register.dart';
 import 'features/auth/widgets/auth_module.dart';
-// Navigation / Pages
 import 'features/auth/viewmodel/register_viewmodel.dart';
+
+// Navigation / Pages
+import 'features/navigation/page_handler.dart';
+import 'features/landing/view/landing_page.dart';
+import 'features/landing/view/messages_page.dart';
+import 'features/landing/view/post_page.dart';
+import 'features/profile/profile_page.dart';
+import 'features/profile/profile_pages/agency_room.dart';
+import 'features/profile/profile_pages/setting_page.dart';
+import 'features/profile/profile_pages/transaction_page.dart';
+import 'features/profile/profile_pages/daily_task_page.dart';
+import 'features/profile/profile_pages/invite_page.dart';
+import 'features/profile/profile_pages/vip_page.dart';
+import 'features/profile/profile_pages/collection_page.dart';
+import 'features/profile/profile_pages/item_page.dart';
+import 'features/profile/profile_pages/level_page.dart';
+import 'features/profile/profile_pages/mall_page.dart';
+
+// Wallet
+import 'features/wallet/view/wallet_page.dart';
+import 'features/wallet/view/convert_coins_to_diamond_page.dart';
+import 'features/wallet/view/monthly_recharge_page.dart';
+
+// Events
 import 'features/landing/view/event_pages/cp_ranking_page.dart';
 import 'features/landing/view/event_pages/treasure_hunt_page.dart';
 import 'features/landing/view/event_pages/wealth_reward_page.dart';
 import 'features/landing/view/event_pages/weekly_star.dart';
-import 'features/landing/view/landing_page.dart';
-import 'features/landing/view/messages_page.dart';
-import 'features/navigation/page_handler.dart';
-import 'features/profile/profile_pages/vip_page.dart';
-import 'features/test.dart';
-import 'features/wallet/view/wallet_page.dart';
-import 'features/landing/view/post_page.dart';
-import 'features/profile/profile_page.dart';
-import 'core/utils/user_provider.dart';
-//profile
-import 'package:kittyparty/features/profile/profile_pages/collection_page.dart';
-import 'package:kittyparty/features/profile/profile_pages/item_page.dart';
-import 'package:kittyparty/features/profile/profile_pages/level_page.dart';
-import 'package:kittyparty/features/profile/profile_pages/mall_page.dart';
+import 'features/landing/view/event_pages/honor_ranking_page.dart';
+
+// Live
+import 'features/livestream/view/live_audio_room.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final localeProvider = Provider.of<LocaleProvider>(context);
+    final localeProvider = context.watch<LocaleProvider>();
 
     return MaterialApp(
       title: 'Kitty Party',
-      navigatorKey: globalNavigatorKey,
+      navigatorKey: globalNavigatorKey, // ✅ SINGLE SOURCE
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       locale: localeProvider.locale,
@@ -70,16 +76,16 @@ class MyApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
       ],
+
       initialRoute: AppRoutes.auth,
 
-      // ✅ Use onGenerateRoute for dynamic routes
       onGenerateRoute: (settings) {
         switch (settings.name) {
           case AppRoutes.home:
             return MaterialPageRoute(builder: (_) => const PageHandler());
+
           case AppRoutes.registration:
             final args = settings.arguments as Map<String, dynamic>?;
-
             return MaterialPageRoute(
               builder: (_) => ChangeNotifierProvider(
                 create: (_) => RegisterViewModel()
@@ -92,87 +98,92 @@ class MyApp extends StatelessWidget {
                 child: const RegisterPage(),
               ),
             );
+
           case AppRoutes.landing:
             return MaterialPageRoute(builder: (_) => const LandingPage());
+
           case AppRoutes.auth:
             return MaterialPageRoute(builder: (_) => const AuthCheck());
+
           case AppRoutes.login:
             return MaterialPageRoute(builder: (_) => const LoginSelection());
+
           case AppRoutes.emailLogin:
             return MaterialPageRoute(builder: (_) => const EmailLogin());
+
           case AppRoutes.idLogin:
             return MaterialPageRoute(builder: (_) => const IdLogin());
+
           case AppRoutes.message:
             return MaterialPageRoute(builder: (_) => const MessagePage());
+
           case AppRoutes.posts:
             return MaterialPageRoute(builder: (_) => const PostPage());
+
           case AppRoutes.profile:
             return MaterialPageRoute(builder: (_) => const ProfilePage());
+
           case AppRoutes.agency:
             return MaterialPageRoute(builder: (_) => const AgencyRoom());
+
           case AppRoutes.wallet:
             return MaterialPageRoute(builder: (_) => const WalletPage());
-          case AppRoutes.test:
-            return MaterialPageRoute(builder: (_) => AssetTest());
+
           case AppRoutes.setting:
             return MaterialPageRoute(builder: (_) => const SettingPage());
+
           case AppRoutes.diamond:
-            return MaterialPageRoute(builder: (_) => const ConvertCoinsPage());
+            return MaterialPageRoute(builder: (_) => const ConvertDiamondsPage());
+
           case AppRoutes.transactions:
             return MaterialPageRoute(builder: (_) => const TransactionPage());
+
           case AppRoutes.honorRanking:
             return MaterialPageRoute(builder: (_) => const HonorRankingPage());
 
-        // ================= EVENT PAGES =================
-
+        // ===== EVENTS =====
           case AppRoutes.treasureHunt:
-            return MaterialPageRoute(
-              builder: (_) => const TreasureHuntPage(),
-            );
+            return MaterialPageRoute(builder: (_) => const TreasureHuntPage());
 
           case AppRoutes.wealthReward:
-            return MaterialPageRoute(
-              builder: (_) => const WealthRewardPage(),
-            );
+            return MaterialPageRoute(builder: (_) => const WealthRewardPage());
 
           case AppRoutes.weeklyStar:
-            return MaterialPageRoute(
-              builder: (_) => const WeeklyStar(),
-            );
+            return MaterialPageRoute(builder: (_) => const WeeklyStar());
 
           case AppRoutes.cpRanking:
-            return MaterialPageRoute(
-              builder: (_) => const CPRankingPage(),
-            );
+            return MaterialPageRoute(builder: (_) => const CPRankingPage());
 
-
-        // ✅ Profile subpages
+        // ===== PROFILE SUBPAGES =====
           case AppRoutes.vip:
             return MaterialPageRoute(builder: (_) => const VipPage());
+
           case AppRoutes.collection:
             return MaterialPageRoute(builder: (_) => const CollectionPage());
+
           case AppRoutes.item:
             return MaterialPageRoute(builder: (_) => const ItemPage());
+
           case AppRoutes.level:
             return MaterialPageRoute(builder: (_) => const LevelPage());
+
           case AppRoutes.mall:
             return MaterialPageRoute(builder: (_) => const MallPage());
+
           case AppRoutes.invite:
             return MaterialPageRoute(builder: (_) => const InvitePage());
+
           case AppRoutes.tasks:
             return MaterialPageRoute(builder: (_) => const DailyTaskPage());
+
           case AppRoutes.monthlyRecharge:
             return MaterialPageRoute(
               builder: (_) => const MonthlyRechargePage(),
             );
 
-          // ✅ Dynamic route for LiveAudioRoom
+        // ===== LIVE ROOM =====
           case AppRoutes.room:
-            final rawArgs = settings.arguments;
-            final args = (rawArgs is Map)
-                ? rawArgs.map((key, value) => MapEntry(key.toString(), value))
-                : <String, dynamic>{};
-
+            final args = (settings.arguments as Map?) ?? {};
             final userProvider = Provider.of<UserProvider>(
               globalNavigatorKey.currentContext!,
               listen: false,
@@ -189,14 +200,16 @@ class MyApp extends StatelessWidget {
 
           default:
             return MaterialPageRoute(
-              builder: (_) =>
-                  const Scaffold(body: Center(child: Text("Coming soon!"))),
+              builder: (_) => const Scaffold(
+                body: Center(child: Text("Coming soon!")),
+              ),
             );
         }
       },
     );
   }
 }
+
 
 /// Centralized route names (prevents typos & eases refactor)
 abstract class AppRoutes {

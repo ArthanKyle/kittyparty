@@ -8,7 +8,7 @@ class AgencyListCard extends StatelessWidget {
   final int members;
   final int maxMembers;
   final List<dynamic> media;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   final bool hasPendingRequest;
 
@@ -22,7 +22,7 @@ class AgencyListCard extends StatelessWidget {
     required this.members,
     required this.maxMembers,
     required this.media,
-    required this.onTap,
+    this.onTap,
     required this.hasPendingRequest,
     this.waveAsset,
     this.waveOpacity = 0.35,
@@ -155,10 +155,6 @@ class AgencyListCard extends StatelessWidget {
       ),
     );
   }
-
-  /// =========================
-  /// BUTTON STATES
-  /// =========================
   Widget _buildActionButton() {
     if (isFull) {
       return _pill(
@@ -173,6 +169,14 @@ class AgencyListCard extends StatelessWidget {
         text: 'Pending',
         background: Colors.grey.shade700,
         textColor: Colors.white70,
+      );
+    }
+
+    if (onTap == null) {
+      return _pill(
+        text: 'Joined',
+        background: Colors.grey.shade800,
+        textColor: Colors.white60,
       );
     }
 

@@ -14,7 +14,6 @@ class SocialViewModel extends ChangeNotifier {
   late String _currentUserId;
   late String _targetUserId;
 
-  // ---------------- LOAD ----------------
   Future<void> load({
     required String currentUserId,
     required String targetUserId,
@@ -22,23 +21,28 @@ class SocialViewModel extends ChangeNotifier {
     _currentUserId = currentUserId;
     _targetUserId = targetUserId;
 
+    isLoading = true;
+    notifyListeners();
+
     social = await _service.fetchSocialData(targetUserId);
 
-    // TEMP inference (backend has no relationship endpoint yet)
-    isFriend = (social?.friends ?? 0) > 0;
     isFollowing = await _service.isFollowing(
-      userId: _currentUserId,
-      targetId: _targetUserId,
+      userId: currentUserId,
+      targetId: targetUserId,
     );
+
+    isFriend = await _service.isFriend(
+      userId: currentUserId,
+      targetId: targetUserId,
+    );
+
+    isLoading = false;
     notifyListeners();
   }
 
-  // ---------------- FOLLOW ----------------
   Future<void> follow() async {
     if (isLoading) return;
     isLoading = true;
-
-    isFollowing = true;
     notifyListeners();
 
     await _service.followUser(
@@ -46,16 +50,15 @@ class SocialViewModel extends ChangeNotifier {
       targetId: _targetUserId,
     );
 
-    await refresh();
-    isLoading = false;
+    await load(
+      currentUserId: _currentUserId,
+      targetUserId: _targetUserId,
+    );
   }
 
-  // ---------------- UNFOLLOW ----------------
   Future<void> unfollow() async {
     if (isLoading) return;
     isLoading = true;
-
-    isFollowing = false;
     notifyListeners();
 
     await _service.unfollowUser(
@@ -63,17 +66,15 @@ class SocialViewModel extends ChangeNotifier {
       targetId: _targetUserId,
     );
 
-    await refresh();
-    isLoading = false;
+    await load(
+      currentUserId: _currentUserId,
+      targetUserId: _targetUserId,
+    );
   }
 
-  // ---------------- ADD FRIEND ----------------
   Future<void> addFriend() async {
-    if (isLoading || isFriend) return;
+    if (isLoading) return;
     isLoading = true;
-
-    isFriend = true;
-    isFollowing = false;
     notifyListeners();
 
     await _service.addFriend(
@@ -81,16 +82,15 @@ class SocialViewModel extends ChangeNotifier {
       targetId: _targetUserId,
     );
 
-    await refresh();
-    isLoading = false;
+    await load(
+      currentUserId: _currentUserId,
+      targetUserId: _targetUserId,
+    );
   }
 
-  // ---------------- UNFRIEND ----------------
   Future<void> unfriend() async {
-    if (isLoading || !isFriend) return;
+    if (isLoading) return;
     isLoading = true;
-
-    isFriend = false;
     notifyListeners();
 
     await _service.unfriendUser(
@@ -98,13 +98,9 @@ class SocialViewModel extends ChangeNotifier {
       targetId: _targetUserId,
     );
 
-    await refresh();
-    isLoading = false;
-  }
-
-  // ---------------- REFRESH ----------------
-  Future<void> refresh() async {
-    social = await _service.fetchSocialData(_targetUserId);
-    notifyListeners();
+    await load(
+      currentUserId: _currentUserId,
+      targetUserId: _targetUserId,
+    );
   }
 }

@@ -4,12 +4,10 @@ import 'mall_assets.dart';
 
 class MallSvgaDialog extends StatefulWidget {
   final String assetKey;
-  final String folder;
 
   const MallSvgaDialog({
     super.key,
     required this.assetKey,
-    required this.folder,
   });
 
   @override
@@ -33,33 +31,37 @@ class _MallSvgaDialogState extends State<MallSvgaDialog>
   Future<void> _load() async {
     final path = MallSvgaAssets.path(widget.assetKey);
 
-    if (path == null || path.isEmpty) {
+    if (path == null) {
       debugPrint("🚫 No SVGA mapped for ${widget.assetKey}");
       if (mounted) Navigator.of(context).pop();
       return;
     }
 
+    debugPrint("🎬 Playing SVGA => $path");
+
     try {
-      // REQUIRED: hard reset
       _controller.stop();
       _controller.videoItem = null;
 
       final video = await _parser.decodeFromAssets(path);
       if (!mounted) return;
 
-      _controller.videoItem = video;
-      _controller.reset();
-      _controller.repeat(); // DO NOT use forward()
+      setState(() {
+        _controller.videoItem = video;
+        _controller.reset();
+        _controller.repeat();
+      });
     } catch (e) {
-      debugPrint("❌ Mall SVGA load failed: $e");
+      debugPrint("❌ SVGA load failed: $e");
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Dialog(
       backgroundColor: Colors.black.withOpacity(0.65),
-      body: GestureDetector(
+      insetPadding: EdgeInsets.zero,
+      child: GestureDetector(
         onTap: () => Navigator.of(context).pop(),
         child: Center(
           child: Transform.scale(

@@ -19,6 +19,7 @@ class ProfileViewModel extends ChangeNotifier {
   final SocialService _socialService = SocialService();
   final InviteService _inviteService = InviteService();
 
+
   int inviteEarnings = 0;
   bool inviteLoading = false;
 
@@ -33,6 +34,8 @@ class ProfileViewModel extends ChangeNotifier {
 
   String? _avatarFrameAsset;
   String? get avatarFrameAsset => _avatarFrameAsset;
+
+  get partnerUser => null;
 
   @override
   void dispose() {
@@ -99,6 +102,62 @@ class ProfileViewModel extends ChangeNotifier {
 
     safeNotify();
   }
+
+  Future<void> updateProfile(
+      BuildContext context, {
+        String? username,
+        String? bio,
+        String? birthday,
+        List<String>? album,
+      }) async {
+    if (userProfile == null || _disposed) {
+      debugPrint(
+        '[ProfileViewModel][updateProfile] aborted '
+            'userProfile=$userProfile disposed=$_disposed',
+      );
+      return;
+    }
+
+    debugPrint('[ProfileViewModel][updateProfile] START');
+    debugPrint('[ProfileViewModel][updateProfile] userIdentification='
+        '${userProfile!.userIdentification}');
+    debugPrint('[ProfileViewModel][updateProfile] payload => '
+        'username=$username | bio=${bio != null ? bio.length : null} '
+        '| birthday=$birthday | albumCount=${album?.length}');
+
+    try {
+      final result = await _profileService.updateProfile(
+        userIdentification: context.read<UserProvider>().currentUser!.userIdentification,
+        username: username,
+        bio: bio,
+        birthday: birthday,
+        album: album,
+      );
+
+      debugPrint('[ProfileViewModel][updateProfile] API SUCCESS');
+
+      userProfile = result.profile;
+      debugPrint('[ProfileViewModel][updateProfile] profile updated');
+
+      if (result.username != null) {
+        context.read<UserProvider>().updateUsername(result.username!);
+        debugPrint('[ProfileViewModel][updateProfile] username synced '
+            '(${result.username})');
+      }
+
+      safeNotify();
+      debugPrint('[ProfileViewModel][updateProfile] notifyListeners()');
+
+    } catch (e, s) {
+      debugPrint('[ProfileViewModel][updateProfile] ERROR: $e');
+      debugPrintStack(stackTrace: s);
+      rethrow;
+    } finally {
+      debugPrint('[ProfileViewModel][updateProfile] END');
+    }
+  }
+
+
 
   // ===============================
   // LOAD PROFILE

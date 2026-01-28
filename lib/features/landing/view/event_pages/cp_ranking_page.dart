@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../../../core/utils/profile_picture_helper.dart';
 import '../../landing_widgets/landing_widgets/event_widgets/event_header.dart';
 import '../../viewmodel/event_ranking_viewmodel.dart';
@@ -19,81 +20,88 @@ class _CPRankingPageState extends State<CPRankingPage> {
   Widget build(BuildContext context) {
     final vm = context.watch<EventRankingViewModel>();
     final ranks = vm.couple;
-
     final visibleRanks = ranks.skip(3).take(_visibleCount).toList();
+    final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFD95C9A),
-              Color(0xFF7E3167),
-              Color(0xFF452064),
-            ],
-          ),
-        ),
-        child: Column(
-          children: [
-            const SizedBox(
-              height: 120,
-              child: EventHeader(
-                title: '',
-                background: 'assets/image/banner/couple-event-banner.jpg',
-              ),
+      backgroundColor: const Color(0xFF2B0F45),
+      body: Column(
+        children: [
+          // =====================
+          // EVENT HEADER (FIXED)
+          // =====================
+          const SizedBox(
+            height: 120,
+            child: EventHeader(
+              title: '',
+              background: 'assets/image/banner/couple-event-banner.jpg',
             ),
-            Expanded(
-              child: vm.loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ranks.isEmpty
-                  ? const Center(
-                child: Text(
-                  'No couple rankings yet',
-                  style: TextStyle(color: Colors.white70),
-                ),
-              )
-                  : ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+          ),
+
+          // =====================
+          // SCROLLABLE CONTENT
+          // =====================
+          Expanded(
+            child: vm.loading
+                ? const Center(child: CircularProgressIndicator())
+                : SingleChildScrollView(
+              child: Stack(
                 children: [
-                  const SizedBox(height: 12),
-
-                  _Top1Couple(ranks[0]),
-                  const SizedBox(height: 16),
-
-                  if (ranks.length > 2)
-                    _Top23Row(ranks[1], ranks[2]),
-
-                  const SizedBox(height: 20),
-
-                  ...visibleRanks.map(
-                        (e) => _RankRow(
-                      rank: e.rank,
-                      users: e.users,
-                      score: e.value,
-                    ),
+                  // FULL PAGE PNG
+                  Image.asset(
+                    'assets/image/cp活动页面2.png',
+                    width: screenWidth,
+                    fit: BoxFit.fitWidth,
                   ),
 
-                  if (_visibleCount + 3 < ranks.length)
-                    _MoreButton(
-                      onTap: () => setState(() {
-                        _visibleCount = (_visibleCount + _step)
-                            .clamp(0, ranks.length);
-                      }),
-                    ),
+                  // RANKING CONTENT OVERLAY
+                  Positioned(
+                    top: 520, // adjust to match PSD
+                    left: 16,
+                    right: 16,
+                    child: Column(
+                      children: [
+                        if (ranks.isNotEmpty)
+                          _Top1Couple(ranks[0]),
 
-                  const SizedBox(height: 24),
+                        const SizedBox(height: 16),
+
+                        if (ranks.length > 2)
+                          _Top23Row(ranks[1], ranks[2]),
+
+                        const SizedBox(height: 24),
+
+                        ...visibleRanks.map(
+                              (e) => _RankRow(
+                            rank: e.rank,
+                            users: e.users,
+                            score: e.value,
+                          ),
+                        ),
+
+                        if (_visibleCount + 3 < ranks.length)
+                          _MoreButton(
+                            onTap: () => setState(() {
+                              _visibleCount =
+                                  (_visibleCount + _step)
+                                      .clamp(0, ranks.length);
+                            }),
+                          ),
+
+                        const SizedBox(height: 120),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
+
 
 /* ===================== PODIUM ===================== */
 

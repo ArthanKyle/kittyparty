@@ -6,7 +6,8 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 
 import 'app.dart';
 
-// Services
+// ================= SERVICES =================
+import 'core/config/global_keys.dart';
 import 'core/services/api/agency_service.dart';
 import 'core/services/api/conversion_recharge.dart';
 import 'core/services/api/dailyTask_service.dart';
@@ -16,15 +17,14 @@ import 'core/services/api/room_income_service.dart';
 import 'core/services/api/socket_service.dart';
 import 'core/services/api/user_service.dart';
 import 'core/services/api/wallet_service.dart';
-
-
-// Providers
 import 'core/services/api/wealth_service.dart';
+
+// ================= PROVIDERS =================
 import 'core/utils/locale_provider.dart';
 import 'core/utils/user_provider.dart';
 import 'core/utils/index_provider.dart';
 
-// ViewModels
+// ================= VIEWMODELS =================
 import 'features/landing/viewmodel/agency_viewmodel.dart';
 import 'features/landing/viewmodel/dailyTask_viewmodel.dart';
 import 'features/landing/viewmodel/event_ranking_viewmodel.dart';
@@ -37,7 +37,7 @@ import 'features/landing/viewmodel/transaction_viewmodel.dart';
 import 'features/landing/viewmodel/wealth_viewmodel.dart';
 import 'features/wallet/viewmodel/wallet_viewmodel.dart';
 
-// Assets
+// ================= ASSETS =================
 import 'features/livestream/widgets/gift_assets.dart';
 
 late Box myRegBox;
@@ -46,98 +46,74 @@ late Box sessionsBox;
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // ================= ENV & STORAGE =================
   await dotenv.load(fileName: ".env");
   await Hive.initFlutter();
   await GiftAssets.load();
 
-  final localeProvider = LocaleProvider();
-  await localeProvider.loadSavedLocale();
-
   myRegBox = await Hive.openBox("myRegistrationBox");
   sessionsBox = await Hive.openBox("sessions");
 
-  Stripe.publishableKey = dotenv.env["STRIPE_PUBLISHABLE_KEY"] ?? "";
+  // ================= LOCALE =================
+  final localeProvider = LocaleProvider();
+  await localeProvider.loadSavedLocale();
 
-  final String baseUrl = dotenv.env["BASE_URL"] ?? "";
+  // ================= STRIPE =================
+  Stripe.publishableKey =
+      dotenv.env["STRIPE_PUBLISHABLE_KEY"] ?? "";
 
-
-  // 🔑 Load user BEFORE widget tree
+  // ================= USER =================
   final userProvider = UserProvider();
   await userProvider.loadUser();
 
-
+  // ================= SOCKET =================
   final socketService = SocketService();
   if (userProvider.currentUser != null) {
     socketService.initSocket(userProvider.currentUser!.id);
   }
 
+  // ================= RUN APP =================
   runApp(
     MultiProvider(
       providers: [
+        // -------- SERVICES --------
+        Provider(create: (_) => GiftTransactionService()),
+        Provider(create: (_) => RechargeService()),
+        Provider(create: (_) => RoomIncomeService()),
+        Provider(create: (_) => UserService(
+          baseUrl: dotenv.env["BASE_URL"] ?? "",
+        )),
 
-        Provider<GiftTransactionService>(
-          create: (_) => GiftTransactionService(),
-        ),
-
-        Provider<RechargeService>(
-          create: (_) => RechargeService(),
-        ),
-
-        Provider<RoomIncomeService>(
-          create: (_) => RoomIncomeService(),
-        ),
-
-        // Locale
+        // -------- CORE --------
         ChangeNotifierProvider.value(value: localeProvider),
-
-        //Profile
-        ChangeNotifierProvider(create: (_) => ProfileViewModel()),
-
-        // Auth / User
         ChangeNotifierProvider<UserProvider>.value(value: userProvider),
-
-        // Navigation
         ChangeNotifierProvider(create: (_) => PageIndexProvider()),
 
-        // Landing
+        // -------- VIEWMODELS --------
+        ChangeNotifierProvider(create: (_) => ProfileViewModel()),
         ChangeNotifierProvider(create: (_) => LandingViewModel()),
-
-        // Posts
         ChangeNotifierProvider(
           create: (_) => PostViewModel(userProvider: userProvider),
         ),
-
+        ChangeNotifierProvider(create: (_) => ItemViewModel()),
         ChangeNotifierProvider(
-          create: (_) => ItemViewModel(),
+          create: (_) => WealthViewModel(service: WealthService()),
         ),
-
         ChangeNotifierProvider(
-          create: (_) => WealthViewModel(
-            service: WealthService(),
+          create: (_) => AgencyViewModel(
+            service: AgencyService(),
           ),
         ),
-        ChangeNotifierProvider<AgencyViewModel>(
-            create: (_) => AgencyViewModel(
-              service: AgencyService(), // ✅ uses dotenv.env['BASE_URL']
-            ),
-        ),
-
-        ChangeNotifierProvider(
-          create: (_) => EventRankingViewModel(),
-        ),
-
-
+        ChangeNotifierProvider(create: (_) => EventRankingViewModel()),
         ChangeNotifierProvider(create: (_) => MallViewModel()),
-
-        ChangeNotifierProvider<TransactionViewModel>(
+        ChangeNotifierProvider(
           create: (context) => TransactionViewModel(
             giftService: context.read<GiftTransactionService>(),
             rechargeService: context.read<RechargeService>(),
             roomIncomeService: context.read<RoomIncomeService>(),
           ),
         ),
-
-        ChangeNotifierProvider<WalletViewModel>(
+        ChangeNotifierProvider(
           create: (context) => WalletViewModel(
             userProvider: context.read<UserProvider>(),
             walletService: WalletService(),
@@ -145,22 +121,25 @@ Future<void> bootstrap() async {
             socketService: SocketService(),
           ),
         ),
-
-        // Daily Tasks
         ChangeNotifierProvider(
           create: (_) => DailyTaskViewModel(
             DailyTaskService(),
-          ),
-        ),
-
-        // API Services
-        Provider(
-          create: (_) => UserService(
-            baseUrl: dotenv.env["BASE_URL"] ?? "",
           ),
         ),
       ],
       child: const MyApp(),
     ),
   );
+  // ================= PRELOAD AGENCY =================
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    final user = userProvider.currentUser;
+    if (user == null) return;
+
+    final ctx = globalNavigatorKey.currentContext;
+    if (ctx == null) return;
+
+    ctx.read<AgencyViewModel>().loadMyAgency(
+      user.userIdentification,
+    );
+  });
 }

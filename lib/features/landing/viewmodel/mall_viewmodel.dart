@@ -163,8 +163,8 @@ class MallViewModel extends ChangeNotifier {
 
 
   // ============================
-  // GIFT
-  // ============================
+// GIFT
+// ============================
   Future<void> giftSelected(
       BuildContext context, {
         required String targetUserIdentification,
@@ -182,7 +182,7 @@ class MallViewModel extends ChangeNotifier {
       confirmText: "Send",
       onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
       onConfirm: () async {
-        Navigator.of(context, rootNavigator: true).pop();
+        Navigator.of(context, rootNavigator: true).pop(); // close confirm
 
         isBuying = true;
         notifyListeners();
@@ -193,13 +193,27 @@ class MallViewModel extends ChangeNotifier {
           await _service.giftItem(
             itemId: selectedItem!.id,
             targetUserIdentification: targetUserIdentification,
-            userIdentification: _userProvider!.currentUser!.userIdentification,
+            userIdentification:
+            _userProvider!.currentUser!.userIdentification,
           );
+
+          Navigator.of(context, rootNavigator: true).pop(); // close loading
+
+          // ✅ SUCCESS DIALOG
+          DialogInfo(
+            headerText: "Gift Sent",
+            subText: "${selectedItem!.name} has been sent successfully.",
+            confirmText: "OK",
+            onConfirm: () =>
+                Navigator.of(context, rootNavigator: true).pop(),
+            onCancel: () =>
+                Navigator.of(context, rootNavigator: true).pop(),
+          ).build(context);
+
           _log("✅ Gift sent");
-          Navigator.of(context, rootNavigator: true).pop();
         } catch (e) {
+          Navigator.of(context, rootNavigator: true).pop(); // close loading
           _log("❌ Gift failed: $e");
-          Navigator.of(context, rootNavigator: true).pop();
         } finally {
           isBuying = false;
           notifyListeners();

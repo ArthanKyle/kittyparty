@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:kittyparty/features/profile/user_information_page.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/colors.dart';
@@ -18,6 +19,7 @@ import '../landing/landing_widgets/profile_widgets/gender_badge.dart';
 
 import '../landing/viewmodel/profile_viewmodel.dart';
 import '../landing/viewmodel/inventory_viewmodel.dart';
+
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -132,40 +134,25 @@ class _ProfilePageState extends State<ProfilePage> {
                       children: [
                         // ================= AVATAR =================
                         GestureDetector(
-                          onTap: () async {
-                            final picker = ImagePicker();
-                            final picked = await picker.pickImage(
-                              source: ImageSource.gallery,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => UserInformationPage(
+                                  vm: vm, // ✅ SAME ProfileViewModel instance
+                                ),
+                              ),
                             );
-
-                            if (picked == null || !context.mounted) return;
-
-                            DialogLoading(
-                              subtext: "Uploading your profile picture....",
-                            ).build(context);
-
-                            try {
-                              await vm.changeProfilePicture(
-                                context,
-                                File(picked.path),
-                              );
-                            } finally {
-                              if (context.mounted) {
-                                Navigator.of(
-                                  context,
-                                  rootNavigator: true,
-                                ).pop();
-                              }
-                            }
                           },
                           child: UserAvatarHelper.circleAvatar(
                             userIdentification: user.userIdentification,
                             displayName: displayName,
                             radius: 40,
                             localBytes: vm.profilePictureBytes,
-                            frameAsset: vm.avatarFrameAsset, // ✅ frame sync-safe
+                            frameAsset: vm.avatarFrameAsset,
                           ),
                         ),
+
 
                         const SizedBox(height: 10),
 

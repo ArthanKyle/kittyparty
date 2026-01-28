@@ -28,6 +28,12 @@ class UserProvider extends ChangeNotifier {
   Uint8List? profilePictureBytes;
   String? profilePictureUrl;
 
+  void updateUsername(String newUsername) {
+    currentUser!.username = newUsername;
+    notifyListeners();
+  }
+
+
   void setProfilePictureBytes(Uint8List bytes) {
     profilePictureBytes = bytes;
     notifyListeners();

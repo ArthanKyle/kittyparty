@@ -14,6 +14,7 @@ class WalletViewModel extends ChangeNotifier {
   final UserProvider userProvider;
 
   Wallet _wallet = const Wallet(coins: 0, diamonds: 0);
+
   Wallet get wallet => _wallet;
 
   StreamSubscription? _coinsSub;
@@ -69,17 +70,26 @@ class WalletViewModel extends ChangeNotifier {
     notifyListeners();
 
     debugPrint(
-      "📦 Wallet REST snapshot → coins=${fetched.coins} diamonds=${fetched.diamonds}",
+      "📦 Wallet REST snapshot → coins=${fetched.coins} diamonds=${fetched
+          .diamonds}",
     );
   }
 
-  Future<void> convertCoinsToDiamonds(int coins) async {
+
+  @override
+  void dispose() {
+    _coinsSub?.cancel();
+    _diamondsSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> convertDiamondsToCoins(int diamonds) async {
     final user = userProvider.currentUser;
     if (user == null) return;
 
-    final result = await conversionService.convertCoinsToDiamonds(
+    final result = await conversionService.convertDiamondsToCoins(
       userIdentification: user.userIdentification,
-      coins: coins,
+      diamonds: diamonds,
     );
 
     _wallet = _wallet.copyWith(
@@ -90,17 +100,12 @@ class WalletViewModel extends ChangeNotifier {
     notifyListeners();
 
     debugPrint(
-      '[WalletVM] Conversion success → coins=${result.coins} diamonds=${result.diamonds}',
+      '[WalletVM] Diamonds → Coins success | diamonds=${result
+          .diamonds} coins=${result.coins}',
     );
   }
 
   int get coins => _wallet.coins;
-  int get diamonds => _wallet.diamonds;
 
-  @override
-  void dispose() {
-    _coinsSub?.cancel();
-    _diamondsSub?.cancel();
-    super.dispose();
-  }
+  int get diamonds => _wallet.diamonds;
 }

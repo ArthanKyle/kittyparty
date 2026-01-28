@@ -11,18 +11,21 @@ class ConversionService {
   ConversionService({String? baseUrl})
       : baseUrl = baseUrl ?? dotenv.env['BASE_URL']!;
 
-  Future<ConvertModel> convertCoinsToDiamonds({
+  /// Diamonds → Coins (VERY LOW RETURN)
+  /// Rule: 130 diamonds = 1 coin
+  Future<ConvertModel> convertDiamondsToCoins({
     required String userIdentification,
-    required int coins,
+    required int diamonds,
   }) async {
-    final url = Uri.parse("$baseUrl/conversion/convert");
+    final url =
+    Uri.parse("$baseUrl/conversion/convert");
 
     final payload = {
       "userIdentification": userIdentification,
-      "coinsToConvert": coins,
+      "diamondsToConvert": diamonds,
     };
 
-    debugPrint('[ConversionService] payload=$payload');
+    debugPrint('[ConversionService][D2C] payload=$payload');
 
     final response = await http.post(
       url,
@@ -31,8 +34,8 @@ class ConversionService {
     );
 
     if (response.statusCode != 200) {
-      throw Exception(jsonDecode(response.body)['error'] ??
-          "Conversion failed");
+      final body = jsonDecode(response.body);
+      throw Exception(body['error'] ?? "Diamond exchange failed");
     }
 
     final json = jsonDecode(response.body);

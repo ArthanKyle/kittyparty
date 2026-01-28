@@ -3,39 +3,40 @@ import 'package:provider/provider.dart';
 
 import 'package:kittyparty/core/global_widgets/dialogs/dialog_loading.dart';
 import 'package:kittyparty/core/global_widgets/dialogs/dialog_info.dart';
+import 'package:kittyparty/core/constants/colors.dart';
 
-import '../../../core/constants/colors.dart';
 import '../../wallet/viewmodel/wallet_viewmodel.dart';
 import '../wallet_widgets/wallet_diamond_appbar.dart';
 import '../wallet_widgets/diamond_card.dart';
 
-class ConvertCoinsPage extends StatefulWidget {
-  const ConvertCoinsPage({super.key});
+class ConvertDiamondsPage extends StatefulWidget {
+  const ConvertDiamondsPage({super.key});
 
   @override
-  State<ConvertCoinsPage> createState() => _ConvertCoinsPageState();
+  State<ConvertDiamondsPage> createState() => _ConvertDiamondsPageState();
 }
 
-class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
-  final TextEditingController _coinController = TextEditingController();
+class _ConvertDiamondsPageState extends State<ConvertDiamondsPage> {
+  final TextEditingController _diamondController = TextEditingController();
 
-  int coinsToConvert = 0;
-  int previewDiamonds = 0;
+  int diamondsToConvert = 0;
+  int previewCoins = 0;
 
-  // ✅ Documented rate: 1000 coins = 800 diamonds
-  static const int minCoins = 1000;
+  static const int DIAMONDS_PER_COIN = 130;
 
-  int _calculateDiamonds(int coins) {
-    return (coins * 800) ~/ 1000;
+  int _calculateCoins(int diamonds) {
+    return diamonds ~/ DIAMONDS_PER_COIN;
   }
 
   @override
   Widget build(BuildContext context) {
     final walletVM = context.watch<WalletViewModel>();
-    final currentCoins = walletVM.coins;
+    final currentDiamonds = walletVM.diamonds;
 
     final canConvert =
-        coinsToConvert >= minCoins && coinsToConvert <= currentCoins;
+        diamondsToConvert > 0 &&
+            diamondsToConvert <= currentDiamonds &&
+            previewCoins > 0;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -50,14 +51,14 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   DiamondCard(
-                    balance: walletVM.diamonds,
+                    balance: currentDiamonds,
                     onConvert: () {},
                   ),
 
                   const SizedBox(height: 20),
 
                   Text(
-                    "My Coins: $currentCoins",
+                    "My Diamonds: $currentDiamonds",
                     style: const TextStyle(fontSize: 16),
                   ),
 
@@ -70,18 +71,18 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: TextField(
-                      controller: _coinController,
+                      controller: _diamondController,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
                         border: InputBorder.none,
-                        hintText: "Enter coins (min 1000)",
+                        hintText: "Enter diamonds to convert",
                       ),
                       onChanged: (value) {
                         final parsed = int.tryParse(value) ?? 0;
                         setState(() {
-                          coinsToConvert = parsed;
-                          previewDiamonds =
-                          parsed >= minCoins ? _calculateDiamonds(parsed) : 0;
+                          diamondsToConvert = parsed;
+                          previewCoins =
+                          parsed > 0 ? _calculateCoins(parsed) : 0;
                         });
                       },
                     ),
@@ -99,13 +100,20 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
                       border: Border.all(color: Colors.blue.shade200),
                     ),
                     child: Text(
-                      "$previewDiamonds diamonds",
+                      "Coins equivalent: ~$previewCoins",
                       style: const TextStyle(
                         fontSize: 14,
                         color: Colors.blue,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  const Text(
+                    "⚠️ Very low return exchange\n130 diamonds = 1 coin",
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
 
                   const SizedBox(height: 30),
@@ -115,25 +123,26 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
                       onPressed: canConvert
                           ? () async {
                         DialogLoading(
-                            subtext: "Processing conversion...")
-                            .build(context);
+                          subtext: "Processing exchange...",
+                        ).build(context);
 
                         try {
-                          await walletVM
-                              .convertCoinsToDiamonds(coinsToConvert);
+                          await walletVM.convertDiamondsToCoins(
+                            diamondsToConvert,
+                          );
 
                           Navigator.of(context).pop();
 
-                          _coinController.clear();
+                          _diamondController.clear();
                           setState(() {
-                            coinsToConvert = 0;
-                            previewDiamonds = 0;
+                            diamondsToConvert = 0;
+                            previewCoins = 0;
                           });
 
                           DialogInfo(
-                            headerText: "Conversion Successful",
+                            headerText: "Exchange Successful",
                             subText:
-                            "Your wallet has been updated successfully.",
+                            "Diamonds have been converted to coins.",
                             confirmText: "OK",
                             onConfirm: () =>
                                 Navigator.of(context).pop(),
@@ -144,7 +153,7 @@ class _ConvertCoinsPageState extends State<ConvertCoinsPage> {
                           Navigator.of(context).pop();
 
                           DialogInfo(
-                            headerText: "Conversion Failed",
+                            headerText: "Exchange Failed",
                             subText: e.toString(),
                             confirmText: "OK",
                             onConfirm: () =>

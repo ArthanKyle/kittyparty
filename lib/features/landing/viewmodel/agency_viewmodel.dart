@@ -31,6 +31,19 @@ class AgencyViewModel extends ChangeNotifier {
   String? _userIdentification;
 
   /* =========================
+ * COMPUTED PERMISSIONS
+ * ========================= */
+
+  bool get hasAgency =>
+      membershipStatus == "member" || membershipStatus == "owner";
+
+  bool get isPending => membershipStatus == "pending";
+
+  bool get canCreateOrJoin =>
+      membershipStatus == "none";
+
+
+  /* =========================
    * LOGGING
    * ========================= */
 
@@ -176,6 +189,44 @@ class AgencyViewModel extends ChangeNotifier {
       error = e.toString();
     } finally {
       if (notify) notifyListeners();
+    }
+  }
+
+  /// =========================
+  /// PRELOAD MY AGENCY (BOOTSTRAP SAFE)
+  /// =========================
+  Future<void> loadMyAgency(String userIdentification) async {
+    _log("loadMyAgency() user=$userIdentification");
+
+    _userIdentification = userIdentification;
+
+    isLoading = true;
+    error = null;
+    notifyListeners();
+
+    try {
+      final me = await service.fetchMyAgency(
+        userIdentification: userIdentification,
+      );
+
+      membershipStatus = me.status;
+      myAgency = me.agency;
+      myRole = me.myRole;
+
+      // Only fetch browse list if allowed
+      if (canBrowseAgencies) {
+        agencies = await service.fetchAgencies(
+          userIdentification: userIdentification,
+        );
+      } else {
+        agencies = [];
+      }
+    } catch (e) {
+      error = e.toString();
+      _log("❌ loadMyAgency error: $error");
+    } finally {
+      isLoading = false;
+      notifyListeners();
     }
   }
 

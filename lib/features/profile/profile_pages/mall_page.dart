@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/utils/user_provider.dart';
+import '../../landing/landing_widgets/profile_widgets/mall/friend_picker_sheet.dart';
 import '../../landing/landing_widgets/profile_widgets/mall/mall_svga_dialog.dart';
 import '../../landing/viewmodel/mall_viewmodel.dart';
 import '../../landing/landing_widgets/profile_widgets/mall/asset_catalog.dart';
@@ -45,11 +47,15 @@ class _MallPageState extends State<MallPage> {
 
   String assetKeyFromPath(String assetPath) {
     final file = assetPath.split('/').last;
-    return file.replaceAll(
-      RegExp(r'\.(png|jpg|jpeg|webp)$', caseSensitive: false),
+    return file
+        .replaceAll(
+      RegExp(r'\.(png|jpg|jpeg|webp|svga)$', caseSensitive: false),
       '',
-    );
+    )
+        .replaceAll('_', ' ')
+        .trim(); // ⬅️ DO NOT lowercase
   }
+
 
   void _openSvga(String assetKey) {
     showDialog(
@@ -59,7 +65,6 @@ class _MallPageState extends State<MallPage> {
       builder: (_) => MallSvgaDialog(
         key: ValueKey('${assetKey}_${DateTime.now().millisecondsSinceEpoch}'),
         assetKey: assetKey,
-        folder: _currentFolder(),
       ),
     );
   }
@@ -321,10 +326,25 @@ class _MallPageState extends State<MallPage> {
                       _actionButton(
                         label: 'Gift',
                         enabled: vm.canGiftSelected,
-                        onTap: () => vm.giftSelected(
-                          context,
-                          targetUserIdentification: '',
-                        ),
+                        onTap: () {
+                          final currentUserId =
+                              context.read<UserProvider>().currentUser!.userIdentification;
+
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (_) => FriendPickerSheet(
+                              currentUserId: currentUserId,
+                              onSelected: (friend) {
+                                vm.giftSelected(
+                                  context,
+                                  targetUserIdentification: friend.userIdentification,
+                                );
+                              },
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(width: 10),
                       _actionButton(

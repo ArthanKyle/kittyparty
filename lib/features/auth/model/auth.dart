@@ -1,7 +1,7 @@
 class User {
   final String id; // MongoDB _id
   final String userIdentification;
-  final String username;
+  String username;
   final String fullName;
   final String? email;
   final String? phoneNumber;

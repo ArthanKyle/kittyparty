@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../../../features/landing/model/friend_user.dart';
 import '../../../features/landing/model/socials.dart';
 
 class SocialService {
@@ -9,24 +10,16 @@ class SocialService {
   SocialService({String? baseUrl})
       : baseUrl = baseUrl ?? dotenv.env['BASE_URL']!;
 
-  /// Fetch a user's social data
   Future<Social> fetchSocialData(String userId) async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/socials/$userId'),
-      );
-
-      if (response.statusCode == 200) {
-        return Social.fromJson(jsonDecode(response.body));
+      final res = await http.get(Uri.parse('$baseUrl/socials/$userId'));
+      if (res.statusCode == 200) {
+        return Social.fromJson(jsonDecode(res.body));
       }
-
-      return _emptySocial(userId);
-    } catch (_) {
-      return _emptySocial(userId);
-    }
+    } catch (_) {}
+    return _emptySocial(userId);
   }
 
-  /// Follow another user
   Future<void> followUser({
     required String userId,
     required String targetId,
@@ -34,14 +27,21 @@ class SocialService {
     await http.post(
       Uri.parse('$baseUrl/socials/follow'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'userId': userId,
-        'targetId': targetId,
-      }),
+      body: jsonEncode({'userId': userId, 'targetId': targetId}),
     );
   }
 
-  /// Unfollow another user
+  Future<List<FriendUser>> fetchFriends(String userId) async {
+    final res = await http.get(
+      Uri.parse('$baseUrl/socials/friends/$userId'),
+    );
+
+    if (res.statusCode != 200) return [];
+
+    final list = jsonDecode(res.body) as List;
+    return list.map((e) => FriendUser.fromJson(e)).toList();
+  }
+
   Future<void> unfollowUser({
     required String userId,
     required String targetId,
@@ -49,14 +49,10 @@ class SocialService {
     await http.post(
       Uri.parse('$baseUrl/socials/unfollow'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'userId': userId,
-        'targetId': targetId,
-      }),
+      body: jsonEncode({'userId': userId, 'targetId': targetId}),
     );
   }
 
-  /// Add friend (mutual)
   Future<void> addFriend({
     required String userId,
     required String targetId,
@@ -64,29 +60,10 @@ class SocialService {
     await http.post(
       Uri.parse('$baseUrl/socials/add-friend'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'userId': userId,
-        'targetId': targetId,
-      }),
+      body: jsonEncode({'userId': userId, 'targetId': targetId}),
     );
   }
 
-  /// 🔥 CHECK FOLLOW RELATION (TRUTH)
-  Future<bool> isFollowing({
-    required String userId,
-    required String targetId,
-  }) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/socials/is-following/$userId/$targetId'),
-    );
-
-    if (response.statusCode != 200) return false;
-
-    final data = jsonDecode(response.body);
-    return data['isFollowing'] == true;
-  }
-
-  /// Unfriend
   Future<void> unfriendUser({
     required String userId,
     required String targetId,
@@ -94,14 +71,32 @@ class SocialService {
     await http.post(
       Uri.parse('$baseUrl/socials/unfriend'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'userId': userId,
-        'targetId': targetId,
-      }),
+      body: jsonEncode({'userId': userId, 'targetId': targetId}),
     );
   }
 
-  // ---------------- helper ----------------
+  /// 🔥 single source of truth
+  Future<bool> isFollowing({
+    required String userId,
+    required String targetId,
+  }) async {
+    final res = await http.get(
+      Uri.parse('$baseUrl/socials/is-following/$userId/$targetId'),
+    );
+    if (res.statusCode != 200) return false;
+    return jsonDecode(res.body)['isFollowing'] == true;
+  }
+
+  /// ✅ FRIEND = MUTUAL FOLLOW
+  Future<bool> isFriend({
+    required String userId,
+    required String targetId,
+  }) async {
+    final a = await isFollowing(userId: userId, targetId: targetId);
+    final b = await isFollowing(userId: targetId, targetId: userId);
+    return a && b;
+  }
+
   Social _emptySocial(String userId) {
     return Social(
       user: userId,
