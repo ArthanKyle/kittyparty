@@ -9,6 +9,7 @@ import '../viewmodel/live_audio_room_viewmodel.dart';
 import 'gift_modal.dart';
 import 'user_avatar.dart';
 import 'gift_animation_overlay.dart';
+import 'coins_back_overlay.dart';
 
 class ZegoRoomWidget extends StatefulWidget {
   final String roomId;
@@ -42,6 +43,7 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
   String? _selectedUserId;
   String? _selectedUserName;
   Uint8List? _selectedAvatarBytes;
+  CoinsBackOverlay? _coinsBackOverlay;
 
   String compact(int v) => v.toString().replaceAllMapped(
     RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
@@ -116,10 +118,40 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
       }
     }
   }
+  void _showCoinsBack(int coins) {
+    final media = MediaQuery.of(context);
+
+    final topPadding = media.padding.top; // status bar safe area
+
+    setState(() {
+      _coinsBackOverlay = CoinsBackOverlay(
+        coins: coins,
+        position: Offset(
+          media.size.width / 2 - 60, // centered horizontally
+          topPadding + 80,           // 🔥 TOP of page
+        ),
+        onDone: () {
+          setState(() {
+            _coinsBackOverlay = null;
+          });
+        },
+      );
+    });
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
     final isHost = widget.userIdentification == widget.hostId;
+    final lastCoinsWon = widget.viewModel.lastCoinsWon;
+
+    if (lastCoinsWon != null && lastCoinsWon > 0) { // ⭐
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showCoinsBack(lastCoinsWon);
+        widget.viewModel.lastCoinsWon = null;
+      });
+    }
 
     final s = widget.viewModel.incomeSummary;
 
@@ -431,8 +463,9 @@ class _ZegoRoomWidgetState extends State<ZegoRoomWidget> {
               ),
             ),
           ),
-
         GiftAnimationOverlay(vm: widget.viewModel),
+
+        if (_coinsBackOverlay != null) _coinsBackOverlay!,
       ],
     );
   }

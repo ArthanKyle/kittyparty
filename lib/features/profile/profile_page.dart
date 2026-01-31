@@ -149,7 +149,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             displayName: displayName,
                             radius: 40,
                             localBytes: vm.profilePictureBytes,
-                            frameAsset: vm.avatarFrameAsset,
+                            frameUrl: vm.avatarFrameUrl,
                           ),
                         ),
 

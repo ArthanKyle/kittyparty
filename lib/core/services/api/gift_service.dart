@@ -46,4 +46,34 @@ class GiftService {
 
     throw Exception("sendGift: unexpected response format");
   }
+
+  Future<Map<String, dynamic>> fetchGifts() async {
+    final url = Uri.parse("$baseUrl/gifts");
+
+    final res = await http.get(
+      url,
+      headers: const {
+        "Content-Type": "application/json",
+      },
+    );
+
+    debugPrint("[fetchGifts] status=${res.statusCode}");
+    debugPrint("[fetchGifts] body=${res.body}");
+
+    if (res.statusCode != 200) {
+      throw Exception("fetchGifts failed: ${res.statusCode}");
+    }
+
+    final decoded = jsonDecode(res.body);
+
+    if (decoded is! Map<String, dynamic>) {
+      throw Exception("fetchGifts invalid JSON shape");
+    }
+
+    if (!decoded.containsKey("data")) {
+      throw Exception("fetchGifts missing 'data' key");
+    }
+
+    return decoded;
+  }
 }

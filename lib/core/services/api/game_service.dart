@@ -1,6 +1,10 @@
 import 'dart:convert';
+import 'dart:typed_data';
+import 'package:crypto/crypto.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+
+import '../../config/game_config.dart';
 
 class GameService {
   final String baseUrl;
@@ -58,6 +62,61 @@ class GameService {
     } else {
       throw Exception(
           'HTTP ${response.statusCode}: Failed to fetch games — ${response.body}');
+    }
+  }
+
+  Future<GameConfigModel?> getGameConfig(int uid, String roomId) async {
+    try {
+      if (baseUrl.isEmpty) {
+        throw Exception('BASE_URL is not defined in .env');
+      }
+
+      //wait wait
+
+      //take your time
+
+      //Disconnect remote
+
+      var timestamp = DateTime.now().millisecondsSinceEpoch;
+      Uint8List bytes = utf8.encode(
+          '84373094HVShGY7R33SWWXUw88$uid$timestamp');
+      Digest digest = md5.convert(bytes);
+
+      final uri = Uri.parse('https://gapi.kimy.live/game/getConfig');
+      final response = await http.post(uri,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'roomId': roomId,
+            'uid': uid,
+            'timestamp': timestamp,
+            'sign': digest.toString(),
+          }));
+
+      print(jsonEncode({
+        'roomId': roomId,
+        'uid': uid,
+        'timestamp': timestamp,
+        'sign': digest.toString(),
+      }));
+      
+
+      // 🔥 print the raw response
+      _printRawResponse("post /game/getConfig", response);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final GameConfigModel gameConfig =
+        GameConfigModel.fromJson(data['data']);
+
+        return gameConfig;
+
+      } else {
+        throw Exception(
+            'HTTP ${response.statusCode}: Failed to fetch games — ${response.body}');
+      }
+
+    } catch (e) {
+      throw Exception('Failed to get game Config2 from room');
     }
   }
 }

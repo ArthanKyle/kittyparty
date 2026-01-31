@@ -78,7 +78,7 @@ class UserInformationPage extends StatelessWidget {
                       displayName: user.username,
                       radius: 55,
                       localBytes: vm.profilePictureBytes,
-                      frameAsset: vm.avatarFrameAsset,
+                      frameUrl: vm.avatarFrameAsset,
                     ),
                     const SizedBox(height: 12),
                     Text(
@@ -160,7 +160,7 @@ class UserInformationPage extends StatelessWidget {
                         displayName: user.username,
                         radius: 55,
                         localBytes: vm.profilePictureBytes,
-                        frameAsset: vm.avatarFrameAsset,
+                        frameUrl: vm.avatarFrameAsset,
                       ),
                       const SizedBox(width: 14),
                       Column(
@@ -183,7 +183,7 @@ class UserInformationPage extends StatelessWidget {
                         userIdentification: partner.userIdentification,
                         displayName: partner.username,
                         radius: 55,
-                        frameAsset: "assets/frames/cp_frame.png",
+                        frameUrl: "assets/frames/cp_frame.png",
                       )
                           : UserAvatarHelper.circleAvatar(
                         userIdentification: user.userIdentification,

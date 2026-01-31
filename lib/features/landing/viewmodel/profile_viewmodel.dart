@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../core/services/api/userProfile_service.dart';
 import '../../../core/services/api/social_service.dart';
 import '../../../core/services/api/invite_service.dart';
+import '../../../core/utils/inventory_asset_helper.dart';
 import '../../../core/utils/user_provider.dart';
 
 import '../../landing/model/socials.dart';
@@ -31,6 +32,9 @@ class ProfileViewModel extends ChangeNotifier {
   String? error;
 
   bool _disposed = false;
+
+  String? _avatarFrameUrl;
+  String? get avatarFrameUrl => _avatarFrameUrl;
 
   String? _avatarFrameAsset;
   String? get avatarFrameAsset => _avatarFrameAsset;
@@ -72,35 +76,25 @@ class ProfileViewModel extends ChangeNotifier {
     });
   }
 
-  // ===============================
-  // 🔥 INVENTORY → PROFILE SYNC
-  // ===============================
   void syncFromInventory(List<UserInventoryItem> inventory) {
-    debugPrint("🧩 [ProfileVM] syncFromInventory");
+    final UserInventoryItem? equippedFrame = inventory
+        .where((i) => i.assetType == 'avatar' && i.equipped)
+        .cast<UserInventoryItem?>()
+        .firstWhere(
+          (i) => i != null,
+      orElse: () => null,
+    );
 
-    UserInventoryItem? frame;
-
-    for (final i in inventory) {
-      if (i.equipped && i.sku.toUpperCase().contains('FRAME')) {
-        frame = i;
-        break;
-      }
+    if (equippedFrame == null || equippedFrame.assetKey == null) {
+      _avatarFrameUrl = null;
+    } else {
+      _avatarFrameUrl = InventoryMediaHelper.imageUrl(
+        assetType: 'avatar',
+        assetKey: equippedFrame.assetKey!,
+      );
     }
 
-    if (frame == null) {
-      _avatarFrameAsset = null;
-      safeNotify();
-      return;
-    }
-
-    _avatarFrameAsset = (frame.assetType != null && frame.assetKey != null)
-        ? InventoryAssetResolver.fromKey(
-      assetType: frame.assetType,
-      assetKey: frame.assetKey!,
-    )
-        : null;
-
-    safeNotify();
+    notifyListeners();
   }
 
   Future<void> updateProfile(

@@ -119,7 +119,7 @@ class _CommentSheetState extends State<CommentSheet> {
                           userIdentification: userId,
                           displayName: displayName,
                           radius: 18,
-                          frameAsset: null,
+                          frameUrl: null,
                         ),
                         title: Text(
                           displayName,

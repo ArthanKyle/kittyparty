@@ -1,50 +1,72 @@
-class GameConfig {
-  final int sceneMode;
-  final String currencyIcon;
+class GameConfigModel {
+  String? appChannel;
+  String? appId;
+  String? userId;
+  String? code;
+  String? roomId;
+  int? gameMode;
+  int? language;
+  int? gsp;
+  GameConfigConfig? gameConfig;
+  //All parameters must be added!!!!
 
-  GameConfig({required this.sceneMode, required this.currencyIcon});
+  GameConfigModel({
+    this.appChannel,
+    this.appId,
+    this.userId,
+    this.code,
+    this.roomId,
+    this.gameMode,
+    this.language,
+    this.gsp,
+    this.gameConfig,
+  });
+
+  factory GameConfigModel.fromJson(Map<String, dynamic> source) {
+    return GameConfigModel(
+      appChannel: source['appChannel'] as String,
+      appId: source['appId'] as String,
+      userId: source['userId'] as String,
+      code: source['code'] as String,
+      roomId: source['roomId'] as String,
+      gameMode: source['gameMode'] as int,
+      language: source['language'] as int,
+      gsp: source['gsp'] as int,
+      gameConfig: GameConfigConfig.fromJson(source['gameConfig']),
+    );
+  }
 
   Map<String, dynamic> toJson() => {
-    "sceneMode": sceneMode,
-    "currencyIcon": currencyIcon,
+    'appChannel': appChannel,
+    'appId': appId,
+    'userId': userId,
+    'code': code,
+    'roomId': roomId,
+    'gameMode': gameMode,
+    'language': language,
+    'gsp': gsp,
+    'gameConfig': gameConfig!.toJson(),
   };
 }
 
-class GetConfigData {
-  final String appChannel;
-  final int appId;
-  final String userId;
-  final String gameMode;
-  final String language;
-  final int gsp;
-  final String roomId;
-  final String code;
-  final GameConfig gameConfig;
-  final double balance;
+class GameConfigConfig {
+  int? sceneMode;
+  String? currencyIcon;
 
-  GetConfigData({
-    required this.appChannel,
-    required this.appId,
-    required this.userId,
-    required this.gameMode,
-    required this.language,
-    required this.gsp,
-    required this.roomId,
-    required this.code,
-    required this.gameConfig,
-    this.balance = 0.0,
+  GameConfigConfig({
+    this.sceneMode,
+    this.currencyIcon,
   });
 
+  factory GameConfigConfig.fromJson(Map<String, dynamic> source) {
+    return GameConfigConfig(
+      sceneMode: source['sceneMode'] as int,
+      currencyIcon: source['currencyIcon'] as String,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
-    "appChannel": appChannel,
-    "appId": appId,
-    "userId": userId,
-    "gameMode": gameMode,
-    "language": language,
-    "gsp": gsp,
-    "roomId": roomId,
-    "code": code,
-    "balance": balance, // Include balance
-    "gameConfig": gameConfig.toJson(),
+    'sceneMode': sceneMode,
+    'currencyIcon': currencyIcon,
   };
 }

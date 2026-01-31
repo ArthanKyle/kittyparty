@@ -108,20 +108,9 @@ flutter:
   assets:
     - assets/
     - assets/image/
-    - assets/image/gift/
-    - assets/image/avatar/
-    - assets/image/avatar_mall/
-    - assets/image/rides_mall/
-    - assets/image/medal/
-    - assets/image/medal_cp/
-    - assets/image/rides/
-    - assets/image/avatar_card_frame/
-    - assets/image/profile_card_frame/
-    - assets/image/banner/
     - assets/icons/
     - assets/icons/item/
-    - assets/image/recharge_badge/
-    - assets/image/rides_ranking/
+
     - .env
 
   # An image asset can refer to one or more resolution-specific "variants", see

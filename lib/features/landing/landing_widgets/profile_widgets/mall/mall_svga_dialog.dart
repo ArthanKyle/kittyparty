@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svga/flutter_svga.dart';
-import 'mall_assets.dart';
 
 class MallSvgaDialog extends StatefulWidget {
-  final String assetKey;
+  /// FULL SVGA URL (already prefixed with MEDIA_BASE_URL)
+  final String svgaUrl;
 
   const MallSvgaDialog({
     super.key,
-    required this.assetKey,
+    required this.svgaUrl,
   });
 
   @override
@@ -16,9 +16,10 @@ class MallSvgaDialog extends StatefulWidget {
 
 class _MallSvgaDialogState extends State<MallSvgaDialog>
     with SingleTickerProviderStateMixin {
-
   late final SVGAAnimationController _controller;
   late final SVGAParser _parser;
+
+  bool _loaded = false;
 
   @override
   void initState() {
@@ -29,30 +30,29 @@ class _MallSvgaDialogState extends State<MallSvgaDialog>
   }
 
   Future<void> _load() async {
-    final path = MallSvgaAssets.path(widget.assetKey);
-
-    if (path == null) {
-      debugPrint("🚫 No SVGA mapped for ${widget.assetKey}");
-      if (mounted) Navigator.of(context).pop();
-      return;
-    }
-
-    debugPrint("🎬 Playing SVGA => $path");
+    debugPrint("🎬 Playing SVGA (network) => ${widget.svgaUrl}");
 
     try {
       _controller.stop();
       _controller.videoItem = null;
 
-      final video = await _parser.decodeFromAssets(path);
+      final video = await _parser.decodeFromURL(widget.svgaUrl);
       if (!mounted) return;
 
       setState(() {
         _controller.videoItem = video;
         _controller.reset();
         _controller.repeat();
+        _loaded = true;
       });
-    } catch (e) {
-      debugPrint("❌ SVGA load failed: $e");
+    } catch (e, s) {
+      debugPrint("❌ SVGA load failed");
+      debugPrint("❌ Error: $e");
+      debugPrint("❌ Stack: $s");
+
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
     }
   }
 
@@ -69,7 +69,7 @@ class _MallSvgaDialogState extends State<MallSvgaDialog>
             child: SizedBox(
               width: 320,
               height: 320,
-              child: _controller.videoItem == null
+              child: !_loaded
                   ? const SizedBox.shrink()
                   : SVGAImage(
                 _controller,

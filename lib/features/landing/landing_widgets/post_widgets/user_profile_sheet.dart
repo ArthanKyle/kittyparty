@@ -50,7 +50,7 @@ class UserProfileSheet extends StatelessWidget {
                   displayName: displayName,
                   localBytes: isMe ? userProvider.profilePictureBytes : null,
                   radius: 36,
-                  frameAsset: null
+                  frameUrl: null,
                 ),
 
                 const SizedBox(height: 10),

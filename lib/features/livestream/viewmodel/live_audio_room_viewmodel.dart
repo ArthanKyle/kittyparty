@@ -33,7 +33,7 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
   bool hasPermission = false;
   bool permissionChecked = false;
   bool _disposed = false;
-
+  int? lastCoinsWon;
   String? userIdentification;
   String? userName;
   UserProfile? userProfile;
@@ -260,15 +260,10 @@ class LiveAudioRoomViewmodel extends ChangeNotifier {
       _giftController.add(assetKey);
     }
 
-    if (coinsWon > 0 && globalContext != null) {
-      debugPrint("🎉 [sendGift] SHOW Lucky Win SnackBar");
 
-      ScaffoldMessenger.of(globalContext!).showSnackBar(
-        SnackBar(
-          content: Text("🎉 Lucky Win! +$coinsWon coins"),
-          backgroundColor: Colors.green,
-        ),
-      );
+    if (coinsWon > 0) {
+      lastCoinsWon = coinsWon;
+      _safeNotify();
     }
 
     debugPrint("✅ [sendGift] END");

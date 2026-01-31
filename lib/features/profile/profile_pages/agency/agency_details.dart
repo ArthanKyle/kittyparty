@@ -466,7 +466,7 @@ class _MembersTabDto extends StatelessWidget {
                 displayName: displayName,
                 localBytes: null,
                 radius: 22,
-                frameAsset: null,
+                frameUrl:null
               ),
               title: Text(
                 displayName,
@@ -700,7 +700,7 @@ class _ApprovalsTabDto extends StatelessWidget {
                       displayName: displayName, // ✅ FIXED
                       localBytes: null,
                       radius: 26,
-                      frameAsset: null,
+                      frameUrl: null,
                     ),
                     const SizedBox(width: 12),
                     Expanded(

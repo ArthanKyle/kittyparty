@@ -8,13 +8,13 @@ class UserAvatarHelper {
     return "$base/userprofiles/$userIdentification/profile-picture";
   }
 
-  /// ✅ Correct avatar + frame composition
+  /// ✅ Avatar + NETWORK frame composition
   static Widget circleAvatar({
     required String userIdentification,
     required String displayName,
     double radius = 40,
     Uint8List? localBytes,
-    String? frameAsset,
+    String? frameUrl, // ✅ NETWORK URL
   }) {
     ImageProvider provider;
 
@@ -55,14 +55,14 @@ class UserAvatarHelper {
     // ============================
     // NO FRAME → JUST AVATAR
     // ============================
-    if (frameAsset == null || frameAsset.isEmpty) {
+    if (frameUrl == null || frameUrl.isEmpty) {
       return avatar;
     }
 
     // ============================
-    // FRAME SIZE (Slightly Larger for better fitting)
+    // FRAME SIZE
     // ============================
-    final frameSize = radius * 2.5; // Increased slightly to fit better
+    final frameSize = radius * 2.5;
 
     return SizedBox(
       width: frameSize,
@@ -70,15 +70,13 @@ class UserAvatarHelper {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Avatar stays clean and centered
           avatar,
 
-          // Frame wraps AROUND avatar
           IgnorePointer(
-            child: Image.asset(
-              frameAsset,
-              width: frameSize + 8, // Slight extra space to ensure no overlap
-              height: frameSize + 8, // Slight extra space to ensure no overlap
+            child: Image.network(
+              frameUrl,
+              width: frameSize + 8,
+              height: frameSize + 8,
               fit: BoxFit.contain,
               errorBuilder: (_, __, ___) => const SizedBox.shrink(),
             ),

@@ -17,15 +17,12 @@ class UserProfile {
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
-      userIdentification: json['UserIdentification'] ?? '',
-      bio: json['bio'] ?? '',
+      userIdentification: json['UserID'] ?? '',
+      bio: json['Bio'] ?? '',
       profilePicture: json['ProfilePicture'],
-
-      // ✅ SAFE PARSING
-      birthday: json['birthday']?.toString(),
-
-      album: (json['album'] is List)
-          ? List<String>.from(json['album'])
+      birthday: json['Birthday'],
+      album: (json['Album'] is List)
+          ? List<String>.from(json['Album'])
           : const [],
     );
   }

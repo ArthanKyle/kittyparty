@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/utils/inventory_asset_helper.dart';
 import '../../../core/utils/profile_picture_helper.dart';
 import '../../../core/utils/user_provider.dart';
-import '../../landing/landing_widgets/profile_widgets/inventory_asset_resolver.dart';
 import '../../landing/viewmodel/inventory_viewmodel.dart';
 import '../../landing/viewmodel/profile_viewmodel.dart';
 
@@ -28,15 +28,13 @@ class _ItemPageState extends State<ItemPage> {
   @override
   void initState() {
     super.initState();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ItemViewModel>().ensureBound(context);
     });
   }
 
   Future<void> _onRefresh(BuildContext context) async {
-    final vm = context.read<ItemViewModel>();
-    await vm.loadInventory();
+    await context.read<ItemViewModel>().loadInventory();
   }
 
   @override
@@ -52,7 +50,7 @@ class _ItemPageState extends State<ItemPage> {
           displayName: user.fullName ?? user.username ?? 'U',
           radius: 60,
           localBytes: profileVM.profilePictureBytes,
-          frameAsset: profileVM.avatarFrameAsset,
+          frameUrl: profileVM.avatarFrameAsset,
         );
 
         final selectedType = categories[selectedIndex]['type'];
@@ -71,37 +69,11 @@ class _ItemPageState extends State<ItemPage> {
           body: SafeArea(
             child: Column(
               children: [
-                // ================= HEADER =================
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 18),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      const Expanded(
-                        child: Center(
-                          child: Text(
-                            'My Item',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 40),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
                 avatar,
-                const SizedBox(height: 50),
+                const SizedBox(height: 30),
 
-                // ================= CATEGORY BAR =================
+                /// CATEGORY BAR
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -125,7 +97,8 @@ class _ItemPageState extends State<ItemPage> {
                             children: [
                               Image.asset(c['icon'], width: 45),
                               const SizedBox(height: 6),
-                              Text(c['label'], style: const TextStyle(color: Colors.white)),
+                              Text(c['label'],
+                                  style: const TextStyle(color: Colors.white)),
                             ],
                           ),
                         ),
@@ -134,21 +107,14 @@ class _ItemPageState extends State<ItemPage> {
                   ),
                 ),
 
-                const SizedBox(height: 40),
+                const SizedBox(height: 20),
 
-                // ================= INVENTORY (WITH PULL TO REFRESH) =================
+                /// INVENTORY LIST
                 Expanded(
                   child: RefreshIndicator(
-                    color: Colors.white,
-                    backgroundColor: const Color(0xFF1B2440),
                     onRefresh: () => _onRefresh(context),
-                    child: itemVM.isLoading && items.isEmpty
-                        ? const Center(
-                      child: CircularProgressIndicator(color: Colors.white),
-                    )
-                        : items.isEmpty
+                    child: items.isEmpty
                         ? ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
                       children: const [
                         SizedBox(height: 120),
                         Center(
@@ -160,43 +126,40 @@ class _ItemPageState extends State<ItemPage> {
                       ],
                     )
                         : ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(),
                       itemCount: items.length,
                       itemBuilder: (_, i) {
                         final inv = items[i];
 
-                        final asset = (inv.assetKey != null)
-                            ? InventoryAssetResolver.fromKey(
+                        final imageUrl = InventoryMediaHelper.imageUrl(
                           assetType: inv.assetType,
                           assetKey: inv.assetKey!,
-                        )
-                            : null;
+                        );
 
                         return ListTile(
-                          leading: asset != null
-                              ? Image.asset(asset, width: 48)
-                              : const Icon(Icons.inventory_2, color: Colors.white54),
+                          leading: Image.network(
+                            imageUrl,
+                            width: 48,
+                            errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.image_not_supported),
+                          ),
                           title: Text(
                             inv.assetKey ?? inv.sku,
                             style: const TextStyle(color: Colors.white),
                           ),
                           subtitle: Text(
                             inv.assetType,
-                            style: const TextStyle(color: Colors.white54),
+                            style:
+                            const TextStyle(color: Colors.white54),
                           ),
-                          trailing: itemVM.isEquipping
-                              ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                              : inv.equipped
+                          trailing: inv.equipped
                               ? TextButton(
-                            onPressed: () => itemVM.unequip(inv),
+                            onPressed: () =>
+                                itemVM.unequip(inv),
                             child: const Text('Unequip'),
                           )
                               : TextButton(
-                            onPressed: () => itemVM.equip(inv),
+                            onPressed: () =>
+                                itemVM.equip(inv),
                             child: const Text('Equip'),
                           ),
                         );

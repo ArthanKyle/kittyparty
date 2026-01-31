@@ -272,7 +272,7 @@ class _TopUserCard extends StatelessWidget {
             displayName: name,
             radius: 24,
             localBytes: null,
-            frameAsset: null,
+            frameUrl: null,
           ),
           const SizedBox(width: 12),
           Column(

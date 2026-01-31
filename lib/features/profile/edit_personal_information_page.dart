@@ -106,7 +106,7 @@ class _EditPersonalInformationPageState
               displayName: _nicknameController.text,
               radius: 22,
               localBytes: vm.profilePictureBytes,
-              frameAsset: vm.avatarFrameAsset,
+              frameUrl: vm.avatarFrameAsset,
             ),
             onTap: () => _changeAvatar(context),
           ),

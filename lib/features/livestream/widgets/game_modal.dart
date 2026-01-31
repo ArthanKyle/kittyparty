@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
 import '../../../core/services/api/game_service.dart';
 import '../../../core/utils/user_provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/config/game_config.dart';
 import 'game_webview.dart';
 
 class GameListModal extends StatefulWidget {
-  final String roomId; // ADD THIS
+  final String roomId;
 
   const GameListModal({
     super.key,
-    required this.roomId, // ADD THIS
+    required this.roomId,
   });
 
   @override
@@ -22,6 +24,8 @@ class _GameListModalState extends State<GameListModal> {
   List<Map<String, dynamic>> games = [];
   bool loading = true;
 
+  GameConfigModel? gameConfigModel;
+
   @override
   void initState() {
     super.initState();
@@ -30,67 +34,77 @@ class _GameListModalState extends State<GameListModal> {
 
   Future<void> _loadGames() async {
     try {
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final userId = userProvider.currentUser?.userIdentification ?? "guest_user";
+      final userProvider = context.read<UserProvider>();
+      final userId =
+          userProvider.currentUser?.userIdentification ?? 'guest_user';
+
+
+      gameConfigModel = await gameService.getGameConfig(int.parse(userId), widget.roomId);
 
       final result = await gameService.fetchGames(userId);
+
+      if (!mounted) return;
 
       setState(() {
         games = result;
         loading = false;
       });
-    } catch (e) {
+    } catch (_) {
+      if (!mounted) return;
       setState(() => loading = false);
     }
   }
 
   void _openGame(Map<String, dynamic> game) {
-    final userProvider = context.read<UserProvider>();
-    final userId = userProvider.currentUser!.userIdentification;
+    if (gameConfigModel == null) return;
 
-    Navigator.push(
+
+    final user = context.read<UserProvider>().currentUser!;
+
+    // final config = GameConfigModel(
+    //   userId: user.userIdentification,
+    //   roomId: widget.roomId,
+    // );
+    print("=========game config======");
+    print(gameConfigModel!.toJson());
+
+    ShowGameUrl(
       context,
-      MaterialPageRoute(
-        builder: (_) => GameWebView(
-          url: game['play_url'],
-          gameName: game['name'],
-          userId: userId,
-          roomId: widget.roomId,
-          gameId: game['id'], // ✅ MUST BE INT
-        ),
-      ),
+      game['play_url'],// game url...
+      gameConfigModel!,
+
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      padding: const EdgeInsets.all(16),
-      height: MediaQuery
-          .of(context)
-          .size
-          .height * 0.7,
       child: loading
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(
         itemCount: games.length,
         itemBuilder: (_, i) {
           final g = games[i];
+
           return ListTile(
             leading: CachedNetworkImage(
               imageUrl: g['icon'],
-              width: 50,
-              height: 50,
-              placeholder: (_, __) => const CircularProgressIndicator(strokeWidth: 1.5),
-              errorWidget: (_, __, ___) => const Icon(Icons.videogame_asset),
+              width: 48,
+              height: 48,
+              fit: BoxFit.cover,
+              placeholder: (_, __) =>
+              const CircularProgressIndicator(strokeWidth: 1.5),
+              errorWidget: (_, __, ___) =>
+              const Icon(Icons.videogame_asset),
             ),
             title: Text(g['name']),
-            subtitle: Text("v${g['version']}"),
+            subtitle: Text('v${g['version']}'),
             onTap: () => _openGame(g),
           );
         },

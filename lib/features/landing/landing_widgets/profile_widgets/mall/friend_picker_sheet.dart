@@ -114,7 +114,7 @@ class _FriendPickerSheetState extends State<FriendPickerSheet> {
                       displayName: displayName,
                       localBytes: null, // not me
                       radius: 20,
-                      frameAsset: null,
+                      frameUrl: null,
                     ),
 
                     title: Text(
