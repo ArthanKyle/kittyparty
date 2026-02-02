@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../viewmodel/live_audio_room_viewmodel.dart';
 import 'gift_svga_player.dart';
 
@@ -12,35 +13,47 @@ class GiftAnimationOverlay extends StatefulWidget {
 }
 
 class _GiftAnimationOverlayState extends State<GiftAnimationOverlay> {
-  String? playingAssetKey;
+  String? _svgaUrl;
   Timer? _clearTimer;
+  StreamSubscription<String>? _sub;
 
   @override
   void initState() {
     super.initState();
 
-    widget.vm.giftStream.listen((assetKey) {
-      if (!mounted || assetKey.isEmpty) return;
+    _sub = widget.vm.giftStream.listen((assetKey) {
+      if (!mounted || assetKey.trim().isEmpty) return;
 
-      debugPrint("🎬 Overlay received assetKey=$assetKey");
+      final base = dotenv.env['MEDIA_BASE_URL'];
+      if (base == null || base.isEmpty) return;
+
+      final url = '$base/assets/gift/$assetKey.svga';
+
+      debugPrint('🎬 Overlay play => $url');
 
       _clearTimer?.cancel();
-      setState(() => playingAssetKey = assetKey);
+      setState(() {
+        _svgaUrl = url;
+      });
 
-      _clearTimer = Timer(const Duration(seconds: 5), () {
-        if (mounted) setState(() => playingAssetKey = null);
+      _clearTimer = Timer(const Duration(seconds: 8), () {
+        if (mounted) {
+          setState(() => _svgaUrl = null);
+        }
       });
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (playingAssetKey == null) return const SizedBox.shrink();
+    if (_svgaUrl == null) return const SizedBox.shrink();
 
     return Positioned.fill(
       child: IgnorePointer(
         child: Center(
-          child: GiftSVGAPlayer(giftName: playingAssetKey!),
+          child: GiftSVGAPlayer(
+            svgaUrl: _svgaUrl!,
+          ),
         ),
       ),
     );
@@ -48,6 +61,7 @@ class _GiftAnimationOverlayState extends State<GiftAnimationOverlay> {
 
   @override
   void dispose() {
+    _sub?.cancel();
     _clearTimer?.cancel();
     super.dispose();
   }

@@ -5,6 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 import '../../config/game_config.dart';
+import '../../utils/profile_picture_helper.dart';
 
 class GameService {
   final String baseUrl;
@@ -65,21 +66,16 @@ class GameService {
     }
   }
 
-  Future<GameConfigModel?> getGameConfig(int uid, String roomId) async {
+  Future<GameConfigModel?> getGameConfig(int uid, String roomId, String userIdentification,) async {
     try {
       if (baseUrl.isEmpty) {
         throw Exception('BASE_URL is not defined in .env');
       }
 
-      //wait wait
-
-      //take your time
-
-      //Disconnect remote
-
       var timestamp = DateTime.now().millisecondsSinceEpoch;
       Uint8List bytes = utf8.encode(
           '84373094HVShGY7R33SWWXUw88$uid$timestamp');
+      final avatarUrl = UserAvatarHelper.avatarUrl(userIdentification);
       Digest digest = md5.convert(bytes);
 
       final uri = Uri.parse('https://gapi.kimy.live/game/getConfig');
@@ -90,6 +86,7 @@ class GameService {
             'uid': uid,
             'timestamp': timestamp,
             'sign': digest.toString(),
+            'avatar_url': avatarUrl,
           }));
 
       print(jsonEncode({

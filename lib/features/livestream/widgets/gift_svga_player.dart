@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svga/flutter_svga.dart';
-import 'gift_assets.dart';
 
 class GiftSVGAPlayer extends StatefulWidget {
-  final String giftName;
-  const GiftSVGAPlayer({super.key, required this.giftName});
+  final String svgaUrl;
+
+  const GiftSVGAPlayer({super.key, required this.svgaUrl});
 
   @override
   State<GiftSVGAPlayer> createState() => _GiftSVGAPlayerState();
@@ -12,55 +12,51 @@ class GiftSVGAPlayer extends StatefulWidget {
 
 class _GiftSVGAPlayerState extends State<GiftSVGAPlayer>
     with SingleTickerProviderStateMixin {
-
-  SVGAAnimationController? controller;
-  final parser = SVGAParser();
+  late final SVGAAnimationController _controller;
+  late final SVGAParser _parser;
 
   @override
   void initState() {
     super.initState();
-    controller = SVGAAnimationController(vsync: this);
+    _parser = SVGAParser();
+    _controller = SVGAAnimationController(vsync: this);
     _load();
   }
 
   Future<void> _load() async {
-    final path = GiftAssets.svga(widget.giftName);
-
-    if (path.isEmpty) {
-      debugPrint("🚫 No mapping found for ${widget.giftName}");
-      return;
-    }
-
     try {
-      final video = await parser.decodeFromAssets(path);
-      controller!.videoItem = video;
-      controller!.forward();
-    } catch (e) {
-      debugPrint("❌ SVGA load failed => $path | $e");
+      debugPrint('🌐 SVGA LOAD => ${widget.svgaUrl}');
+      final video = await _parser.decodeFromURL(widget.svgaUrl);
+      if (!mounted) return;
+
+      _controller.videoItem = video;
+      _controller.reset();
+      _controller.forward();
+    } catch (e, s) {
+      debugPrint('❌ Gift SVGA failed');
+      debugPrint('$e');
+      debugPrint('$s');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Transform.scale(
-        scale: 1.8,
-        child: SizedBox(
-          width: 300,
-          height: 300,
-          child: SVGAImage(
-            controller!,
-            fit: BoxFit.contain,
-          ),
+    return Transform.scale(
+      scale: 1.8,
+      child: SizedBox(
+        width: 320,
+        height: 320,
+        child: SVGAImage(
+          _controller,
+          fit: BoxFit.contain,
         ),
       ),
     );
   }
 
-
   @override
   void dispose() {
-    controller?.dispose();
+    _controller.dispose();
     super.dispose();
   }
 }

@@ -13,27 +13,32 @@ void ShowGameUrl(
     BuildContext context,
     String url,
     GameConfigModel config,
-
+    double safeHeight, // 👈 SH from backend
     ) {
+  final screenWidth = MediaQuery.of(context).size.width;
+
+  // === Native-equivalent computation ===
+  final double ratio = 750 / safeHeight;
+  final double webViewHeight = screenWidth / ratio;
+  final mediaQuery = MediaQuery.of(context);
+
   showModalBottomSheet(
     backgroundColor: Colors.transparent,
     context: context,
-    isScrollControlled: false,
-    builder: (BuildContext context) {
-      return Container(
-        width: MediaQuery.of(context).size.width,
-        height: MediaQuery.of(context).size.height * 15,
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
+    isScrollControlled: true,
+    builder: (context) {
+      return SizedBox(
+        width: screenWidth,
+        height: mediaQuery.size.height,
         child: GameWebViewPage(
-          url: url!,
+          url: url,
           config: config,
         ),
       );
     },
   );
 }
+
 
 class GameWebViewPage extends StatefulWidget {
   const GameWebViewPage({

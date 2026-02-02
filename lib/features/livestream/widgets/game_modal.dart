@@ -37,9 +37,9 @@ class _GameListModalState extends State<GameListModal> {
       final userProvider = context.read<UserProvider>();
       final userId =
           userProvider.currentUser?.userIdentification ?? 'guest_user';
+      final user = context.read<UserProvider>().currentUser!;
 
-
-      gameConfigModel = await gameService.getGameConfig(int.parse(userId), widget.roomId);
+      gameConfigModel = await gameService.getGameConfig(int.parse(userId), widget.roomId,user.userIdentification, );
 
       final result = await gameService.fetchGames(userId);
 
@@ -58,6 +58,9 @@ class _GameListModalState extends State<GameListModal> {
   void _openGame(Map<String, dynamic> game) {
     if (gameConfigModel == null) return;
 
+    final num? sh = game['safeHeight'] as num?;
+    final double safeHeight = sh?.toDouble() ?? 150000;
+
 
     final user = context.read<UserProvider>().currentUser!;
 
@@ -72,6 +75,7 @@ class _GameListModalState extends State<GameListModal> {
       context,
       game['play_url'],// game url...
       gameConfigModel!,
+      safeHeight,
 
     );
   }
@@ -79,7 +83,7 @@ class _GameListModalState extends State<GameListModal> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
+      height: MediaQuery.of(context).size.height * 0.5,
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
         color: Colors.white,
